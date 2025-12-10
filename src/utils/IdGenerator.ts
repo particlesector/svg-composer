@@ -15,7 +15,5 @@
  * ```
  */
 export function generateId(): string {
-  // TODO: Implement UUID generation
-  // Consider using crypto.randomUUID() with fallback for older browsers
-  throw new Error('Not implemented: generateId');
+  return crypto.randomUUID();
 }

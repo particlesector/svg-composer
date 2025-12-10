@@ -27,11 +27,14 @@ export class EventEmitter<TEvents extends object> {
    *
    * @param event - Event name to subscribe to
    * @param handler - Callback function to invoke when event is emitted
-   * @throws Error - Not implemented
    */
-  on<K extends keyof TEvents>(_event: K, _handler: (data: TEvents[K]) => void): void {
-    // TODO: Implement event subscription
-    throw new Error('Not implemented: EventEmitter.on');
+  on<K extends keyof TEvents>(event: K, handler: (data: TEvents[K]) => void): void {
+    let handlers = this._handlers.get(event);
+    if (!handlers) {
+      handlers = new Set();
+      this._handlers.set(event, handlers);
+    }
+    handlers.add(handler as (data: TEvents[keyof TEvents]) => void);
   }
 
   /**
@@ -39,11 +42,12 @@ export class EventEmitter<TEvents extends object> {
    *
    * @param event - Event name to unsubscribe from
    * @param handler - The handler function to remove
-   * @throws Error - Not implemented
    */
-  off<K extends keyof TEvents>(_event: K, _handler: (data: TEvents[K]) => void): void {
-    // TODO: Implement event unsubscription
-    throw new Error('Not implemented: EventEmitter.off');
+  off<K extends keyof TEvents>(event: K, handler: (data: TEvents[K]) => void): void {
+    const handlers = this._handlers.get(event);
+    if (handlers) {
+      handlers.delete(handler as (data: TEvents[keyof TEvents]) => void);
+    }
   }
 
   /**
@@ -51,11 +55,13 @@ export class EventEmitter<TEvents extends object> {
    *
    * @param event - Event name to subscribe to
    * @param handler - Callback function to invoke once
-   * @throws Error - Not implemented
    */
-  once<K extends keyof TEvents>(_event: K, _handler: (data: TEvents[K]) => void): void {
-    // TODO: Implement one-time event subscription
-    throw new Error('Not implemented: EventEmitter.once');
+  once<K extends keyof TEvents>(event: K, handler: (data: TEvents[K]) => void): void {
+    const onceHandler = (data: TEvents[K]): void => {
+      this.off(event, onceHandler);
+      handler(data);
+    };
+    this.on(event, onceHandler);
   }
 
   /**
@@ -63,11 +69,14 @@ export class EventEmitter<TEvents extends object> {
    *
    * @param event - Event name to emit
    * @param data - Event data to pass to handlers
-   * @throws Error - Not implemented
    */
-  protected emit<K extends keyof TEvents>(_event: K, _data: TEvents[K]): void {
-    // TODO: Implement event emission
-    throw new Error('Not implemented: EventEmitter.emit');
+  protected emit<K extends keyof TEvents>(event: K, data: TEvents[K]): void {
+    const handlers = this._handlers.get(event);
+    if (handlers) {
+      for (const handler of handlers) {
+        handler(data);
+      }
+    }
   }
 }
 
