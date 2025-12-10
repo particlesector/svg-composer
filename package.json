@@ -1,0 +1,67 @@
+{
+  "name": "svg-composer",
+  "version": "0.1.0",
+  "description": "A zero-dependency, TypeScript-based SVG canvas editor library for building visual editing experiences",
+  "type": "module",
+  "main": "./dist/svg-composer.js",
+  "module": "./dist/svg-composer.esm.js",
+  "types": "./dist/svg-composer.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/svg-composer.esm.js",
+      "require": "./dist/svg-composer.js",
+      "types": "./dist/svg-composer.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "dev:watch": "vite build --watch",
+    "build": "tsc && vite build",
+    "build:debug": "tsc && vite build --sourcemap",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src tests",
+    "lint:fix": "eslint src tests --fix",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\""
+  },
+  "keywords": [
+    "svg",
+    "canvas",
+    "editor",
+    "typescript",
+    "graphics",
+    "vector"
+  ],
+  "author": "ParticleSector",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/particlesector/svg-composer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/particlesector/svg-composer/issues"
+  },
+  "homepage": "https://github.com/particlesector/svg-composer#readme",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@types/node": "^20.10.0",
+    "@vitest/coverage-v8": "^2.0.0",
+    "eslint": "^9.0.0",
+    "jsdom": "^25.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.0.0",
+    "vite": "^5.4.0",
+    "vite-plugin-dts": "^4.0.0",
+    "vitest": "^2.0.0"
+  }
+}

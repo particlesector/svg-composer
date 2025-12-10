@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SVG Composer Demo</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      color: #888;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 20px;
+    }
+
+    .canvas-wrapper {
+      background: #16213e;
+      border-radius: 8px;
+      padding: 20px;
+    }
+
+    #canvas {
+      width: 100%;
+      aspect-ratio: 1;
+      background: #fff;
+      border-radius: 4px;
+    }
+
+    .sidebar {
+      background: #16213e;
+      border-radius: 8px;
+      padding: 20px;
+    }
+
+    .sidebar h2 {
+      font-size: 1rem;
+      margin-bottom: 1rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .status {
+      padding: 12px;
+      background: #1a1a2e;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.875rem;
+      margin-bottom: 20px;
+    }
+
+    .status.error {
+      background: #3d1a1a;
+      color: #ff6b6b;
+    }
+
+    .status.success {
+      background: #1a3d1a;
+      color: #6bff6b;
+    }
+
+    .info {
+      color: #888;
+      font-size: 0.875rem;
+      line-height: 1.6;
+    }
+
+    .info code {
+      background: #1a1a2e;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 0.8rem;
+    }
+
+    @media (max-width: 900px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>SVG Composer</h1>
+    <p>A zero-dependency TypeScript SVG canvas editor</p>
+  </header>
+
+  <div class="container">
+    <div class="canvas-wrapper">
+      <div id="canvas"></div>
+    </div>
+
+    <div class="sidebar">
+      <h2>Status</h2>
+      <div id="status" class="status">Initializing...</div>
+
+      <h2>About</h2>
+      <div class="info">
+        <p>
+          This is a demo page for SVG Composer. The library is currently in
+          development with stub implementations.
+        </p>
+        <br>
+        <p>
+          Once implemented, you'll be able to:
+        </p>
+        <ul style="margin: 10px 0 10px 20px;">
+          <li>Add images, text, and shapes</li>
+          <li>Transform elements (move, rotate, scale)</li>
+          <li>Manage z-order and selection</li>
+          <li>Export to SVG or JSON</li>
+          <li>Undo/redo operations</li>
+        </ul>
+        <br>
+        <p>
+          Check the console for detailed output.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load the UMD bundle -->
+  <script src="../dist/svg-composer.js"></script>
+  <script>
+    const statusEl = document.getElementById('status');
+
+    function setStatus(message, type = 'info') {
+      statusEl.textContent = message;
+      statusEl.className = 'status ' + type;
+    }
+
+    try {
+      // Check if SVGComposer is available
+      if (typeof SVGComposer === 'undefined') {
+        throw new Error('SVGComposer not loaded. Run `npm run build` first.');
+      }
+
+      const container = document.getElementById('canvas');
+
+      // Create editor instance
+      const editor = new SVGComposer.SVGComposer(container, {
+        width: 1200,
+        height: 1200,
+        backgroundColor: '#ffffff'
+      });
+
+      console.log('SVGComposer instance created:', editor);
+      console.log('Container:', editor.container);
+      console.log('Current tool:', editor.getTool());
+
+      setStatus('Editor initialized successfully!', 'success');
+
+      // Try to call a method (will throw "Not implemented")
+      try {
+        editor.toSVG();
+      } catch (e) {
+        console.log('Expected error (stub):', e.message);
+        setStatus('Editor loaded. Methods are stubs (not implemented yet).', 'info');
+      }
+
+      // Make editor available globally for console debugging
+      window.editor = editor;
+      console.log('Editor available as window.editor');
+
+    } catch (error) {
+      console.error('Failed to initialize:', error);
+      setStatus(error.message, 'error');
+    }
+  </script>
+</body>
+</html>

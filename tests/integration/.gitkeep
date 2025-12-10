@@ -1,0 +1,4 @@
+# Placeholder for integration tests
+# This directory will contain:
+# - Rendering.test.ts - SVG rendering tests
+# - Interaction.test.ts - User interaction tests

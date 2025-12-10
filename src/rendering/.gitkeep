@@ -1,0 +1,5 @@
+# Placeholder for rendering module
+# This directory will contain:
+# - SVGRenderer.ts - State to SVG DOM conversion
+# - TransformUtils.ts - Transform mathematics
+# - ClipPathManager.ts - Clipping system
