@@ -11,12 +11,8 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.d.ts', 'src/index.ts'],
-      thresholds: {
-        lines: 80,
-        functions: 80,
-        branches: 80,
-        statements: 80,
-      },
+      // Note: Coverage thresholds are enforced by Codecov on new/changed code only.
+      // See codecov.yml - contributors must have 80% coverage on their changes.
     },
   },
 });

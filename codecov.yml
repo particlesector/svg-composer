@@ -1,0 +1,29 @@
+# Codecov Configuration
+# https://docs.codecov.com/docs/codecovyml-reference
+
+coverage:
+  # Coverage status checks
+  status:
+    # Overall project coverage - prevent coverage from dropping
+    project:
+      default:
+        target: auto  # Use coverage from base commit as target
+        threshold: 1%  # Allow 1% drop without failing
+        # Enforced on direct pushes to main
+
+    # Coverage on changed code - THIS IS ENFORCED ON PRs
+    patch:
+      default:
+        target: 80%  # New/changed lines must have 80% coverage
+        threshold: 0%  # No tolerance - must meet 80%
+
+# Ignore certain paths from coverage
+ignore:
+  - "src/index.ts"  # Re-exports only
+  - "**/*.d.ts"     # Type declarations
+
+# Comment configuration for PRs
+comment:
+  layout: "reach,diff,flags,files"
+  behavior: default
+  require_changes: true  # Only comment if coverage changed
