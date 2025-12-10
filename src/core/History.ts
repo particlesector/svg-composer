@@ -32,81 +32,77 @@ export class History {
    * Pushes a new state snapshot to history
    *
    * @param state - State snapshot to save
-   * @throws Error - Not implemented
    */
-  push(_state: CanvasState): void {
-    // TODO: Implement history push
-    // Should clear redo stack and add to undo stack
-    // Should respect the limit
-    throw new Error('Not implemented: History.push');
+  push(state: CanvasState): void {
+    this._redoStack.length = 0;
+    this._undoStack.push(state);
+    while (this._undoStack.length > this._limit) {
+      this._undoStack.shift();
+    }
   }
 
   /**
    * Undoes the last operation
    *
    * @returns The previous state, or undefined if nothing to undo
-   * @throws Error - Not implemented
    */
   undo(): CanvasState | undefined {
-    // TODO: Implement undo
-    // Should move current state to redo stack
-    // Should return previous state from undo stack
-    throw new Error('Not implemented: History.undo');
+    if (this._undoStack.length <= 1) {
+      return undefined;
+    }
+    const current = this._undoStack.pop();
+    if (current) {
+      this._redoStack.push(current);
+    }
+    return this._undoStack[this._undoStack.length - 1];
   }
 
   /**
    * Redoes the last undone operation
    *
    * @returns The next state, or undefined if nothing to redo
-   * @throws Error - Not implemented
    */
   redo(): CanvasState | undefined {
-    // TODO: Implement redo
-    // Should move current state to undo stack
-    // Should return next state from redo stack
-    throw new Error('Not implemented: History.redo');
+    const state = this._redoStack.pop();
+    if (!state) {
+      return undefined;
+    }
+    this._undoStack.push(state);
+    return state;
   }
 
   /**
    * Checks if undo is available
    *
    * @returns True if there are states to undo
-   * @throws Error - Not implemented
    */
   canUndo(): boolean {
-    // TODO: Implement canUndo check
-    throw new Error('Not implemented: History.canUndo');
+    return this._undoStack.length > 1;
   }
 
   /**
    * Checks if redo is available
    *
    * @returns True if there are states to redo
-   * @throws Error - Not implemented
    */
   canRedo(): boolean {
-    // TODO: Implement canRedo check
-    throw new Error('Not implemented: History.canRedo');
+    return this._redoStack.length > 0;
   }
 
   /**
    * Clears all history
-   *
-   * @throws Error - Not implemented
    */
   clear(): void {
-    // TODO: Implement history clear
-    throw new Error('Not implemented: History.clear');
+    this._undoStack.length = 0;
+    this._redoStack.length = 0;
   }
 
   /**
    * Gets the current history size (undo stack length)
    *
    * @returns Number of states in undo stack
-   * @throws Error - Not implemented
    */
   size(): number {
-    // TODO: Implement size getter
-    throw new Error('Not implemented: History.size');
+    return this._undoStack.length;
   }
 }
