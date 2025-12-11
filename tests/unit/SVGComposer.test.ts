@@ -862,6 +862,284 @@ describe('SVGComposer', () => {
   });
 
   // ============================================================
+  // Z-Order Tests
+  // ============================================================
+
+  describe('setZIndex', () => {
+    it('should set zIndex to specified value', () => {
+      const id = editor.addElement(createTestElementData({ zIndex: 0 }));
+      editor.setZIndex(id, 10);
+
+      expect(editor.getElement(id)?.zIndex).toBe(10);
+    });
+
+    it('should throw for non-existent element', () => {
+      expect(() => {
+        editor.setZIndex('non-existent', 5);
+      }).toThrow('Element with id "non-existent" not found');
+    });
+
+    it('should emit element:updated event', () => {
+      const id = editor.addElement(createTestElementData({ zIndex: 0 }));
+      const handler = vi.fn();
+      editor.on('element:updated', handler);
+
+      editor.setZIndex(id, 10);
+
+      expect(handler).toHaveBeenCalledWith({
+        id,
+        element: expect.objectContaining({ zIndex: 10 }),
+      });
+    });
+
+    it('should save to history (undoable)', () => {
+      const id = editor.addElement(createTestElementData({ zIndex: 0 }));
+      editor.setZIndex(id, 10);
+
+      editor.undo();
+
+      expect(editor.getElement(id)?.zIndex).toBe(0);
+    });
+  });
+
+  describe('bringToFront', () => {
+    it('should set zIndex to max + 1', () => {
+      const id1 = editor.addElement(createTestElementData({ zIndex: 1 }));
+      const id2 = editor.addElement(createTestElementData({ zIndex: 5 }));
+      const id3 = editor.addElement(createTestElementData({ zIndex: 3 }));
+
+      editor.bringToFront(id1);
+
+      expect(editor.getElement(id1)?.zIndex).toBe(6); // max was 5, now 5+1
+      expect(editor.getElement(id2)?.zIndex).toBe(5); // unchanged
+      expect(editor.getElement(id3)?.zIndex).toBe(3); // unchanged
+    });
+
+    it('should throw for non-existent element', () => {
+      expect(() => {
+        editor.bringToFront('non-existent');
+      }).toThrow('Element with id "non-existent" not found');
+    });
+
+    it('should do nothing if already at front', () => {
+      editor.addElement(createTestElementData({ zIndex: 1 }));
+      const id2 = editor.addElement(createTestElementData({ zIndex: 5 }));
+      editor.clearHistory();
+
+      editor.bringToFront(id2); // id2 already has highest zIndex
+
+      // No history entry should be created
+      expect(editor.canUndo()).toBe(false);
+      expect(editor.getElement(id2)?.zIndex).toBe(5);
+    });
+
+    it('should work with single element', () => {
+      const id = editor.addElement(createTestElementData({ zIndex: 0 }));
+      editor.clearHistory();
+
+      editor.bringToFront(id);
+
+      // Single element is already at front, no change
+      expect(editor.canUndo()).toBe(false);
+    });
+
+    it('should emit events correctly', () => {
+      const id1 = editor.addElement(createTestElementData({ zIndex: 1 }));
+      editor.addElement(createTestElementData({ zIndex: 5 }));
+      const handler = vi.fn();
+      editor.on('element:updated', handler);
+
+      editor.bringToFront(id1);
+
+      expect(handler).toHaveBeenCalled();
+    });
+  });
+
+  describe('sendToBack', () => {
+    it('should set zIndex to min - 1', () => {
+      const id1 = editor.addElement(createTestElementData({ zIndex: 1 }));
+      const id2 = editor.addElement(createTestElementData({ zIndex: 5 }));
+      const id3 = editor.addElement(createTestElementData({ zIndex: 3 }));
+
+      editor.sendToBack(id2);
+
+      expect(editor.getElement(id2)?.zIndex).toBe(0); // min was 1, now 1-1
+      expect(editor.getElement(id1)?.zIndex).toBe(1); // unchanged
+      expect(editor.getElement(id3)?.zIndex).toBe(3); // unchanged
+    });
+
+    it('should throw for non-existent element', () => {
+      expect(() => {
+        editor.sendToBack('non-existent');
+      }).toThrow('Element with id "non-existent" not found');
+    });
+
+    it('should do nothing if already at back', () => {
+      const id1 = editor.addElement(createTestElementData({ zIndex: 1 }));
+      editor.addElement(createTestElementData({ zIndex: 5 }));
+      editor.clearHistory();
+
+      editor.sendToBack(id1); // id1 already has lowest zIndex
+
+      // No history entry should be created
+      expect(editor.canUndo()).toBe(false);
+      expect(editor.getElement(id1)?.zIndex).toBe(1);
+    });
+
+    it('should work with single element', () => {
+      const id = editor.addElement(createTestElementData({ zIndex: 0 }));
+      editor.clearHistory();
+
+      editor.sendToBack(id);
+
+      // Single element is already at back, no change
+      expect(editor.canUndo()).toBe(false);
+    });
+  });
+
+  describe('bringForward', () => {
+    it('should swap zIndex with next higher element', () => {
+      const id1 = editor.addElement(createTestElementData({ zIndex: 1 }));
+      const id2 = editor.addElement(createTestElementData({ zIndex: 3 }));
+      const id3 = editor.addElement(createTestElementData({ zIndex: 5 }));
+
+      editor.bringForward(id1); // should swap with id2 (next higher is 3)
+
+      expect(editor.getElement(id1)?.zIndex).toBe(3);
+      expect(editor.getElement(id2)?.zIndex).toBe(1);
+      expect(editor.getElement(id3)?.zIndex).toBe(5); // unchanged
+    });
+
+    it('should throw for non-existent element', () => {
+      expect(() => {
+        editor.bringForward('non-existent');
+      }).toThrow('Element with id "non-existent" not found');
+    });
+
+    it('should do nothing if already highest zIndex', () => {
+      editor.addElement(createTestElementData({ zIndex: 1 }));
+      const id2 = editor.addElement(createTestElementData({ zIndex: 5 }));
+      editor.clearHistory();
+
+      editor.bringForward(id2); // id2 already highest
+
+      expect(editor.canUndo()).toBe(false);
+      expect(editor.getElement(id2)?.zIndex).toBe(5);
+    });
+
+    it('should emit events for both swapped elements', () => {
+      const id1 = editor.addElement(createTestElementData({ zIndex: 1 }));
+      const id2 = editor.addElement(createTestElementData({ zIndex: 3 }));
+      const handler = vi.fn();
+      editor.on('element:updated', handler);
+
+      editor.bringForward(id1);
+
+      expect(handler).toHaveBeenCalledTimes(2);
+      expect(handler).toHaveBeenCalledWith({
+        id: id1,
+        element: expect.objectContaining({ zIndex: 3 }),
+      });
+      expect(handler).toHaveBeenCalledWith({
+        id: id2,
+        element: expect.objectContaining({ zIndex: 1 }),
+      });
+    });
+
+    it('should save to history (undoable)', () => {
+      const id1 = editor.addElement(createTestElementData({ zIndex: 1 }));
+      const id2 = editor.addElement(createTestElementData({ zIndex: 3 }));
+
+      editor.bringForward(id1);
+      expect(editor.getElement(id1)?.zIndex).toBe(3);
+
+      editor.undo();
+      expect(editor.getElement(id1)?.zIndex).toBe(1);
+      expect(editor.getElement(id2)?.zIndex).toBe(3);
+    });
+  });
+
+  describe('sendBackward', () => {
+    it('should swap zIndex with next lower element', () => {
+      const id1 = editor.addElement(createTestElementData({ zIndex: 1 }));
+      const id2 = editor.addElement(createTestElementData({ zIndex: 3 }));
+      const id3 = editor.addElement(createTestElementData({ zIndex: 5 }));
+
+      editor.sendBackward(id3); // should swap with id2 (next lower is 3)
+
+      expect(editor.getElement(id3)?.zIndex).toBe(3);
+      expect(editor.getElement(id2)?.zIndex).toBe(5);
+      expect(editor.getElement(id1)?.zIndex).toBe(1); // unchanged
+    });
+
+    it('should throw for non-existent element', () => {
+      expect(() => {
+        editor.sendBackward('non-existent');
+      }).toThrow('Element with id "non-existent" not found');
+    });
+
+    it('should do nothing if already lowest zIndex', () => {
+      const id1 = editor.addElement(createTestElementData({ zIndex: 1 }));
+      editor.addElement(createTestElementData({ zIndex: 5 }));
+      editor.clearHistory();
+
+      editor.sendBackward(id1); // id1 already lowest
+
+      expect(editor.canUndo()).toBe(false);
+      expect(editor.getElement(id1)?.zIndex).toBe(1);
+    });
+
+    it('should emit events for both swapped elements', () => {
+      editor.addElement(createTestElementData({ zIndex: 1 }));
+      const id2 = editor.addElement(createTestElementData({ zIndex: 3 }));
+      const handler = vi.fn();
+      editor.on('element:updated', handler);
+
+      editor.sendBackward(id2);
+
+      expect(handler).toHaveBeenCalledTimes(2);
+    });
+
+    it('should save to history (undoable)', () => {
+      const id1 = editor.addElement(createTestElementData({ zIndex: 1 }));
+      const id2 = editor.addElement(createTestElementData({ zIndex: 3 }));
+
+      editor.sendBackward(id2);
+      expect(editor.getElement(id2)?.zIndex).toBe(1);
+
+      editor.undo();
+      expect(editor.getElement(id2)?.zIndex).toBe(3);
+      expect(editor.getElement(id1)?.zIndex).toBe(1);
+    });
+  });
+
+  describe('z-order integration', () => {
+    it('should undo bringToFront correctly', () => {
+      const id1 = editor.addElement(createTestElementData({ zIndex: 1 }));
+      editor.addElement(createTestElementData({ zIndex: 5 }));
+
+      editor.bringToFront(id1);
+      expect(editor.getElement(id1)?.zIndex).toBe(6);
+
+      editor.undo();
+      expect(editor.getElement(id1)?.zIndex).toBe(1);
+    });
+
+    it('should handle multiple z-order operations in sequence', () => {
+      const id1 = editor.addElement(createTestElementData({ zIndex: 1 }));
+      const id2 = editor.addElement(createTestElementData({ zIndex: 2 }));
+      const id3 = editor.addElement(createTestElementData({ zIndex: 3 }));
+
+      editor.bringToFront(id1); // id1 becomes 4
+      editor.sendToBack(id3); // id3 becomes 1 (min is 2, so min-1 = 1)
+
+      expect(editor.getElement(id1)?.zIndex).toBe(4);
+      expect(editor.getElement(id2)?.zIndex).toBe(2);
+      expect(editor.getElement(id3)?.zIndex).toBe(1);
+    });
+  });
+
+  // ============================================================
   // Stub Methods (Not Yet Implemented)
   // ============================================================
 
@@ -880,6 +1158,70 @@ describe('SVGComposer', () => {
       expect(() => {
         editor.moveElement('id', 10, 10);
       }).toThrow('Not implemented');
+    });
+
+    it('render should throw not implemented error', () => {
+      expect(() => { editor.render(); }).toThrow('Not implemented');
+    });
+
+    it('clear should throw not implemented error', () => {
+      expect(() => { editor.clear(); }).toThrow('Not implemented');
+    });
+
+    it('setTool should throw not implemented error', () => {
+      expect(() => { editor.setTool('pan'); }).toThrow('Not implemented');
+    });
+
+    it('toJSON should throw not implemented error', () => {
+      expect(() => editor.toJSON()).toThrow('Not implemented');
+    });
+
+    it('fromJSON should throw not implemented error', () => {
+      expect(() => { editor.fromJSON('{}'); }).toThrow('Not implemented');
+    });
+
+    it('removeClipPath should throw not implemented error', () => {
+      expect(() => { editor.removeClipPath('id'); }).toThrow('Not implemented');
+    });
+
+    it('updateClipPath should throw not implemented error', () => {
+      expect(() => { editor.updateClipPath('id', {}); }).toThrow('Not implemented');
+    });
+
+    it('addClipPath should throw not implemented error', () => {
+      expect(() => editor.addClipPath('id', { type: 'rect' })).toThrow('Not implemented');
+    });
+
+    it('resetTransform should throw not implemented error', () => {
+      expect(() => { editor.resetTransform('id'); }).toThrow('Not implemented');
+    });
+
+    it('scaleElement should throw not implemented error', () => {
+      expect(() => { editor.scaleElement('id', 1, 1); }).toThrow('Not implemented');
+    });
+
+    it('rotateElement should throw not implemented error', () => {
+      expect(() => { editor.rotateElement('id', 90); }).toThrow('Not implemented');
+    });
+
+    it('setPosition should throw not implemented error', () => {
+      expect(() => { editor.setPosition('id', 0, 0); }).toThrow('Not implemented');
+    });
+
+    it('destroy should throw not implemented error', () => {
+      expect(() => { editor.destroy(); }).toThrow('Not implemented');
+    });
+
+    it('destroy should set isDestroyed to true before throwing', () => {
+      expect(editor.isDestroyed).toBe(false);
+
+      try {
+        editor.destroy();
+      } catch {
+        // Expected to throw
+      }
+
+      expect(editor.isDestroyed).toBe(true);
     });
   });
 

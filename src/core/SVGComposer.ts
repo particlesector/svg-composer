@@ -406,47 +406,144 @@ export class SVGComposer extends EditorEventEmitter {
   // ============================================================
 
   /**
+   * Gets the minimum and maximum zIndex values among all elements
+   *
+   * @returns Object with min and max zIndex values
+   */
+  private _getZIndexBounds(): { min: number; max: number } {
+    const elements = this._state.getAllElements();
+    if (elements.length === 0) {
+      return { min: 0, max: 0 };
+    }
+    const zIndexes = elements.map((el) => el.zIndex);
+    return {
+      min: Math.min(...zIndexes),
+      max: Math.max(...zIndexes),
+    };
+  }
+
+  /**
    * Brings an element to the front (highest z-index)
    *
    * @param id - Element ID
-   * @throws Error - Not implemented
+   * @throws Error if element does not exist
    */
-  bringToFront(_id: string): void {
-    // TODO: Implement bring to front
-    throw new Error('Not implemented: SVGComposer.bringToFront');
+  bringToFront(id: string): void {
+    const element = this._state.getElement(id);
+    if (!element) {
+      throw new Error(`Element with id "${id}" not found`);
+    }
+
+    const { max } = this._getZIndexBounds();
+    if (element.zIndex < max) {
+      this.updateElement(id, { zIndex: max + 1 });
+    }
+    // If already at front, do nothing (no history entry)
   }
 
   /**
    * Sends an element to the back (lowest z-index)
    *
    * @param id - Element ID
-   * @throws Error - Not implemented
+   * @throws Error if element does not exist
    */
-  sendToBack(_id: string): void {
-    // TODO: Implement send to back
-    throw new Error('Not implemented: SVGComposer.sendToBack');
+  sendToBack(id: string): void {
+    const element = this._state.getElement(id);
+    if (!element) {
+      throw new Error(`Element with id "${id}" not found`);
+    }
+
+    const { min } = this._getZIndexBounds();
+    if (element.zIndex > min) {
+      this.updateElement(id, { zIndex: min - 1 });
+    }
+    // If already at back, do nothing (no history entry)
   }
 
   /**
    * Moves an element up one level in z-order
    *
    * @param id - Element ID
-   * @throws Error - Not implemented
+   * @throws Error if element does not exist
    */
-  bringForward(_id: string): void {
-    // TODO: Implement bring forward
-    throw new Error('Not implemented: SVGComposer.bringForward');
+  bringForward(id: string): void {
+    const element = this._state.getElement(id);
+    if (!element) {
+      throw new Error(`Element with id "${id}" not found`);
+    }
+
+    // Find element with next higher zIndex
+    const elements = this._state.getAllElements();
+    const nextHigher = elements
+      .filter((el) => el.zIndex > element.zIndex)
+      .sort((a, b) => a.zIndex - b.zIndex)[0];
+
+    if (nextHigher) {
+      // Swap zIndexes
+      const tempZ = element.zIndex;
+      this._state.updateElement(id, { zIndex: nextHigher.zIndex });
+      this._state.updateElement(nextHigher.id, { zIndex: tempZ });
+      this._history.push(this._state.snapshot());
+
+      // Emit events for both elements
+      const updatedElement = this._state.getElement(id);
+      const updatedOther = this._state.getElement(nextHigher.id);
+      if (updatedElement) {
+        this.emit('element:updated', { id, element: updatedElement });
+      }
+      if (updatedOther) {
+        this.emit('element:updated', { id: nextHigher.id, element: updatedOther });
+      }
+      this.emit('state:changed', { state: this._state.state });
+      this.emit('history:changed', {
+        canUndo: this._history.canUndo(),
+        canRedo: this._history.canRedo(),
+      });
+    }
+    // If already at front, do nothing
   }
 
   /**
    * Moves an element down one level in z-order
    *
    * @param id - Element ID
-   * @throws Error - Not implemented
+   * @throws Error if element does not exist
    */
-  sendBackward(_id: string): void {
-    // TODO: Implement send backward
-    throw new Error('Not implemented: SVGComposer.sendBackward');
+  sendBackward(id: string): void {
+    const element = this._state.getElement(id);
+    if (!element) {
+      throw new Error(`Element with id "${id}" not found`);
+    }
+
+    // Find element with next lower zIndex
+    const elements = this._state.getAllElements();
+    const nextLower = elements
+      .filter((el) => el.zIndex < element.zIndex)
+      .sort((a, b) => b.zIndex - a.zIndex)[0];
+
+    if (nextLower) {
+      // Swap zIndexes
+      const tempZ = element.zIndex;
+      this._state.updateElement(id, { zIndex: nextLower.zIndex });
+      this._state.updateElement(nextLower.id, { zIndex: tempZ });
+      this._history.push(this._state.snapshot());
+
+      // Emit events for both elements
+      const updatedElement = this._state.getElement(id);
+      const updatedOther = this._state.getElement(nextLower.id);
+      if (updatedElement) {
+        this.emit('element:updated', { id, element: updatedElement });
+      }
+      if (updatedOther) {
+        this.emit('element:updated', { id: nextLower.id, element: updatedOther });
+      }
+      this.emit('state:changed', { state: this._state.state });
+      this.emit('history:changed', {
+        canUndo: this._history.canUndo(),
+        canRedo: this._history.canRedo(),
+      });
+    }
+    // If already at back, do nothing
   }
 
   /**
@@ -454,11 +551,10 @@ export class SVGComposer extends EditorEventEmitter {
    *
    * @param id - Element ID
    * @param zIndex - New z-index value
-   * @throws Error - Not implemented
+   * @throws Error if element does not exist
    */
-  setZIndex(_id: string, _zIndex: number): void {
-    // TODO: Implement z-index setter
-    throw new Error('Not implemented: SVGComposer.setZIndex');
+  setZIndex(id: string, zIndex: number): void {
+    this.updateElement(id, { zIndex });
   }
 
   // ============================================================
