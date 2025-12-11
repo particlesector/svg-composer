@@ -862,6 +862,440 @@ describe('SVGComposer', () => {
   });
 
   // ============================================================
+  // Transform Tests
+  // ============================================================
+
+  describe('moveElement', () => {
+    it('should add dx/dy to current position', () => {
+      const id = editor.addElement(
+        createTestElementData({ transform: createTestTransform({ x: 100, y: 200 }) }),
+      );
+
+      editor.moveElement(id, 50, -30);
+
+      const element = editor.getElement(id);
+      expect(element?.transform.x).toBe(150);
+      expect(element?.transform.y).toBe(170);
+    });
+
+    it('should throw for non-existent element', () => {
+      expect(() => {
+        editor.moveElement('non-existent', 10, 10);
+      }).toThrow('Element with id "non-existent" not found');
+    });
+
+    it('should handle negative values', () => {
+      const id = editor.addElement(
+        createTestElementData({ transform: createTestTransform({ x: 100, y: 100 }) }),
+      );
+
+      editor.moveElement(id, -150, -200);
+
+      const element = editor.getElement(id);
+      expect(element?.transform.x).toBe(-50);
+      expect(element?.transform.y).toBe(-100);
+    });
+
+    it('should preserve other transform properties', () => {
+      const id = editor.addElement(
+        createTestElementData({
+          transform: createTestTransform({ x: 10, y: 20, rotation: 45, scaleX: 2, scaleY: 0.5 }),
+        }),
+      );
+
+      editor.moveElement(id, 5, 10);
+
+      const element = editor.getElement(id);
+      expect(element?.transform.x).toBe(15);
+      expect(element?.transform.y).toBe(30);
+      expect(element?.transform.rotation).toBe(45);
+      expect(element?.transform.scaleX).toBe(2);
+      expect(element?.transform.scaleY).toBe(0.5);
+    });
+
+    it('should emit element:updated event', () => {
+      const id = editor.addElement(createTestElementData());
+      const handler = vi.fn();
+      editor.on('element:updated', handler);
+
+      editor.moveElement(id, 10, 20);
+
+      expect(handler).toHaveBeenCalledWith({
+        id,
+        element: expect.objectContaining({
+          transform: expect.objectContaining({ x: 10, y: 20 }),
+        }),
+      });
+    });
+
+    it('should save to history (undoable)', () => {
+      const id = editor.addElement(
+        createTestElementData({ transform: createTestTransform({ x: 0, y: 0 }) }),
+      );
+
+      editor.moveElement(id, 100, 100);
+      expect(editor.getElement(id)?.transform.x).toBe(100);
+
+      editor.undo();
+      expect(editor.getElement(id)?.transform.x).toBe(0);
+      expect(editor.getElement(id)?.transform.y).toBe(0);
+    });
+  });
+
+  describe('setPosition', () => {
+    it('should set absolute x/y position', () => {
+      const id = editor.addElement(
+        createTestElementData({ transform: createTestTransform({ x: 100, y: 200 }) }),
+      );
+
+      editor.setPosition(id, 500, 600);
+
+      const element = editor.getElement(id);
+      expect(element?.transform.x).toBe(500);
+      expect(element?.transform.y).toBe(600);
+    });
+
+    it('should throw for non-existent element', () => {
+      expect(() => {
+        editor.setPosition('non-existent', 0, 0);
+      }).toThrow('Element with id "non-existent" not found');
+    });
+
+    it('should preserve other transform properties', () => {
+      const id = editor.addElement(
+        createTestElementData({
+          transform: createTestTransform({ x: 10, y: 20, rotation: 90, scaleX: 1.5, scaleY: 2 }),
+        }),
+      );
+
+      editor.setPosition(id, 300, 400);
+
+      const element = editor.getElement(id);
+      expect(element?.transform.x).toBe(300);
+      expect(element?.transform.y).toBe(400);
+      expect(element?.transform.rotation).toBe(90);
+      expect(element?.transform.scaleX).toBe(1.5);
+      expect(element?.transform.scaleY).toBe(2);
+    });
+
+    it('should emit events correctly', () => {
+      const id = editor.addElement(createTestElementData());
+      const handler = vi.fn();
+      editor.on('element:updated', handler);
+
+      editor.setPosition(id, 250, 350);
+
+      expect(handler).toHaveBeenCalledWith({
+        id,
+        element: expect.objectContaining({
+          transform: expect.objectContaining({ x: 250, y: 350 }),
+        }),
+      });
+    });
+
+    it('should save to history (undoable)', () => {
+      const id = editor.addElement(
+        createTestElementData({ transform: createTestTransform({ x: 50, y: 75 }) }),
+      );
+
+      editor.setPosition(id, 200, 300);
+      expect(editor.getElement(id)?.transform.x).toBe(200);
+
+      editor.undo();
+      expect(editor.getElement(id)?.transform.x).toBe(50);
+      expect(editor.getElement(id)?.transform.y).toBe(75);
+    });
+  });
+
+  describe('rotateElement', () => {
+    it('should set rotation to specified degrees', () => {
+      const id = editor.addElement(
+        createTestElementData({ transform: createTestTransform({ rotation: 0 }) }),
+      );
+
+      editor.rotateElement(id, 45);
+
+      expect(editor.getElement(id)?.transform.rotation).toBe(45);
+    });
+
+    it('should throw for non-existent element', () => {
+      expect(() => {
+        editor.rotateElement('non-existent', 90);
+      }).toThrow('Element with id "non-existent" not found');
+    });
+
+    it('should preserve position and scale', () => {
+      const id = editor.addElement(
+        createTestElementData({
+          transform: createTestTransform({ x: 100, y: 200, scaleX: 2, scaleY: 3, rotation: 0 }),
+        }),
+      );
+
+      editor.rotateElement(id, 180);
+
+      const element = editor.getElement(id);
+      expect(element?.transform.rotation).toBe(180);
+      expect(element?.transform.x).toBe(100);
+      expect(element?.transform.y).toBe(200);
+      expect(element?.transform.scaleX).toBe(2);
+      expect(element?.transform.scaleY).toBe(3);
+    });
+
+    it('should handle values > 360', () => {
+      const id = editor.addElement(createTestElementData());
+
+      editor.rotateElement(id, 450);
+
+      expect(editor.getElement(id)?.transform.rotation).toBe(450);
+    });
+
+    it('should handle negative values', () => {
+      const id = editor.addElement(createTestElementData());
+
+      editor.rotateElement(id, -90);
+
+      expect(editor.getElement(id)?.transform.rotation).toBe(-90);
+    });
+
+    it('should emit events correctly', () => {
+      const id = editor.addElement(createTestElementData());
+      const handler = vi.fn();
+      editor.on('element:updated', handler);
+
+      editor.rotateElement(id, 270);
+
+      expect(handler).toHaveBeenCalledWith({
+        id,
+        element: expect.objectContaining({
+          transform: expect.objectContaining({ rotation: 270 }),
+        }),
+      });
+    });
+
+    it('should save to history (undoable)', () => {
+      const id = editor.addElement(
+        createTestElementData({ transform: createTestTransform({ rotation: 30 }) }),
+      );
+
+      editor.rotateElement(id, 120);
+      expect(editor.getElement(id)?.transform.rotation).toBe(120);
+
+      editor.undo();
+      expect(editor.getElement(id)?.transform.rotation).toBe(30);
+    });
+  });
+
+  describe('scaleElement', () => {
+    it('should set scaleX and scaleY', () => {
+      const id = editor.addElement(
+        createTestElementData({ transform: createTestTransform({ scaleX: 1, scaleY: 1 }) }),
+      );
+
+      editor.scaleElement(id, 2, 3);
+
+      const element = editor.getElement(id);
+      expect(element?.transform.scaleX).toBe(2);
+      expect(element?.transform.scaleY).toBe(3);
+    });
+
+    it('should throw for non-existent element', () => {
+      expect(() => {
+        editor.scaleElement('non-existent', 1, 1);
+      }).toThrow('Element with id "non-existent" not found');
+    });
+
+    it('should preserve position and rotation', () => {
+      const id = editor.addElement(
+        createTestElementData({
+          transform: createTestTransform({ x: 50, y: 100, rotation: 45, scaleX: 1, scaleY: 1 }),
+        }),
+      );
+
+      editor.scaleElement(id, 0.5, 2);
+
+      const element = editor.getElement(id);
+      expect(element?.transform.scaleX).toBe(0.5);
+      expect(element?.transform.scaleY).toBe(2);
+      expect(element?.transform.x).toBe(50);
+      expect(element?.transform.y).toBe(100);
+      expect(element?.transform.rotation).toBe(45);
+    });
+
+    it('should handle fractional values', () => {
+      const id = editor.addElement(createTestElementData());
+
+      editor.scaleElement(id, 0.25, 0.75);
+
+      const element = editor.getElement(id);
+      expect(element?.transform.scaleX).toBe(0.25);
+      expect(element?.transform.scaleY).toBe(0.75);
+    });
+
+    it('should emit events correctly', () => {
+      const id = editor.addElement(createTestElementData());
+      const handler = vi.fn();
+      editor.on('element:updated', handler);
+
+      editor.scaleElement(id, 1.5, 2.5);
+
+      expect(handler).toHaveBeenCalledWith({
+        id,
+        element: expect.objectContaining({
+          transform: expect.objectContaining({ scaleX: 1.5, scaleY: 2.5 }),
+        }),
+      });
+    });
+
+    it('should save to history (undoable)', () => {
+      const id = editor.addElement(
+        createTestElementData({ transform: createTestTransform({ scaleX: 1, scaleY: 1 }) }),
+      );
+
+      editor.scaleElement(id, 3, 4);
+      expect(editor.getElement(id)?.transform.scaleX).toBe(3);
+
+      editor.undo();
+      expect(editor.getElement(id)?.transform.scaleX).toBe(1);
+      expect(editor.getElement(id)?.transform.scaleY).toBe(1);
+    });
+  });
+
+  describe('resetTransform', () => {
+    it('should reset all transform properties to defaults', () => {
+      const id = editor.addElement(
+        createTestElementData({
+          transform: createTestTransform({ x: 100, y: 200, rotation: 45, scaleX: 2, scaleY: 3 }),
+        }),
+      );
+
+      editor.resetTransform(id);
+
+      const element = editor.getElement(id);
+      expect(element?.transform.x).toBe(0);
+      expect(element?.transform.y).toBe(0);
+      expect(element?.transform.rotation).toBe(0);
+      expect(element?.transform.scaleX).toBe(1);
+      expect(element?.transform.scaleY).toBe(1);
+    });
+
+    it('should throw for non-existent element', () => {
+      expect(() => {
+        editor.resetTransform('non-existent');
+      }).toThrow('Element with id "non-existent" not found');
+    });
+
+    it('should emit events correctly', () => {
+      const id = editor.addElement(
+        createTestElementData({
+          transform: createTestTransform({ x: 50, y: 50, rotation: 90 }),
+        }),
+      );
+      const handler = vi.fn();
+      editor.on('element:updated', handler);
+
+      editor.resetTransform(id);
+
+      expect(handler).toHaveBeenCalledWith({
+        id,
+        element: expect.objectContaining({
+          transform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
+        }),
+      });
+    });
+
+    it('should save to history (undoable)', () => {
+      const id = editor.addElement(
+        createTestElementData({
+          transform: createTestTransform({ x: 100, y: 200, rotation: 45, scaleX: 2, scaleY: 3 }),
+        }),
+      );
+
+      editor.resetTransform(id);
+      expect(editor.getElement(id)?.transform.x).toBe(0);
+
+      editor.undo();
+
+      const element = editor.getElement(id);
+      expect(element?.transform.x).toBe(100);
+      expect(element?.transform.y).toBe(200);
+      expect(element?.transform.rotation).toBe(45);
+      expect(element?.transform.scaleX).toBe(2);
+      expect(element?.transform.scaleY).toBe(3);
+    });
+  });
+
+  describe('transform integration', () => {
+    it('should undo moveElement correctly', () => {
+      const id = editor.addElement(
+        createTestElementData({ transform: createTestTransform({ x: 0, y: 0 }) }),
+      );
+
+      editor.moveElement(id, 100, 200);
+      expect(editor.getElement(id)?.transform.x).toBe(100);
+      expect(editor.getElement(id)?.transform.y).toBe(200);
+
+      editor.undo();
+
+      expect(editor.getElement(id)?.transform.x).toBe(0);
+      expect(editor.getElement(id)?.transform.y).toBe(0);
+    });
+
+    it('should undo resetTransform (restores previous transform)', () => {
+      const id = editor.addElement(
+        createTestElementData({
+          transform: createTestTransform({ x: 50, y: 100, rotation: 30, scaleX: 1.5, scaleY: 2 }),
+        }),
+      );
+
+      editor.resetTransform(id);
+      expect(editor.getElement(id)?.transform).toEqual({
+        x: 0,
+        y: 0,
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+      });
+
+      editor.undo();
+
+      expect(editor.getElement(id)?.transform).toEqual({
+        x: 50,
+        y: 100,
+        rotation: 30,
+        scaleX: 1.5,
+        scaleY: 2,
+      });
+    });
+
+    it('should handle multiple transform operations in sequence', () => {
+      const id = editor.addElement(
+        createTestElementData({ transform: createTestTransform({ x: 0, y: 0 }) }),
+      );
+
+      editor.moveElement(id, 100, 100);
+      editor.rotateElement(id, 45);
+      editor.scaleElement(id, 2, 2);
+
+      const element = editor.getElement(id);
+      expect(element?.transform.x).toBe(100);
+      expect(element?.transform.y).toBe(100);
+      expect(element?.transform.rotation).toBe(45);
+      expect(element?.transform.scaleX).toBe(2);
+      expect(element?.transform.scaleY).toBe(2);
+
+      // Undo all operations
+      editor.undo(); // undo scale
+      expect(editor.getElement(id)?.transform.scaleX).toBe(1);
+
+      editor.undo(); // undo rotate
+      expect(editor.getElement(id)?.transform.rotation).toBe(0);
+
+      editor.undo(); // undo move
+      expect(editor.getElement(id)?.transform.x).toBe(0);
+    });
+  });
+
+  // ============================================================
   // Z-Order Tests
   // ============================================================
 
@@ -1154,12 +1588,6 @@ describe('SVGComposer', () => {
       expect(() => editor.toSVG()).toThrow('Not implemented');
     });
 
-    it('moveElement should throw not implemented error', () => {
-      expect(() => {
-        editor.moveElement('id', 10, 10);
-      }).toThrow('Not implemented');
-    });
-
     it('render should throw not implemented error', () => {
       expect(() => {
         editor.render();
@@ -1202,30 +1630,6 @@ describe('SVGComposer', () => {
 
     it('addClipPath should throw not implemented error', () => {
       expect(() => editor.addClipPath('id', { type: 'rect' })).toThrow('Not implemented');
-    });
-
-    it('resetTransform should throw not implemented error', () => {
-      expect(() => {
-        editor.resetTransform('id');
-      }).toThrow('Not implemented');
-    });
-
-    it('scaleElement should throw not implemented error', () => {
-      expect(() => {
-        editor.scaleElement('id', 1, 1);
-      }).toThrow('Not implemented');
-    });
-
-    it('rotateElement should throw not implemented error', () => {
-      expect(() => {
-        editor.rotateElement('id', 90);
-      }).toThrow('Not implemented');
-    });
-
-    it('setPosition should throw not implemented error', () => {
-      expect(() => {
-        editor.setPosition('id', 0, 0);
-      }).toThrow('Not implemented');
     });
 
     it('destroy should throw not implemented error', () => {
