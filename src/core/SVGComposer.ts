@@ -345,11 +345,20 @@ export class SVGComposer extends EditorEventEmitter {
    * @param id - Element ID to move
    * @param dx - Delta X in viewBox units
    * @param dy - Delta Y in viewBox units
-   * @throws Error - Not implemented
+   * @throws Error if element does not exist
    */
-  moveElement(_id: string, _dx: number, _dy: number): void {
-    // TODO: Implement relative move
-    throw new Error('Not implemented: SVGComposer.moveElement');
+  moveElement(id: string, dx: number, dy: number): void {
+    const element = this._state.getElement(id);
+    if (!element) {
+      throw new Error(`Element with id "${id}" not found`);
+    }
+    this.updateElement(id, {
+      transform: {
+        ...element.transform,
+        x: element.transform.x + dx,
+        y: element.transform.y + dy,
+      },
+    });
   }
 
   /**
@@ -358,11 +367,20 @@ export class SVGComposer extends EditorEventEmitter {
    * @param id - Element ID to position
    * @param x - Absolute X in viewBox units
    * @param y - Absolute Y in viewBox units
-   * @throws Error - Not implemented
+   * @throws Error if element does not exist
    */
-  setPosition(_id: string, _x: number, _y: number): void {
-    // TODO: Implement absolute positioning
-    throw new Error('Not implemented: SVGComposer.setPosition');
+  setPosition(id: string, x: number, y: number): void {
+    const element = this._state.getElement(id);
+    if (!element) {
+      throw new Error(`Element with id "${id}" not found`);
+    }
+    this.updateElement(id, {
+      transform: {
+        ...element.transform,
+        x,
+        y,
+      },
+    });
   }
 
   /**
@@ -370,11 +388,19 @@ export class SVGComposer extends EditorEventEmitter {
    *
    * @param id - Element ID to rotate
    * @param degrees - Rotation angle in degrees
-   * @throws Error - Not implemented
+   * @throws Error if element does not exist
    */
-  rotateElement(_id: string, _degrees: number): void {
-    // TODO: Implement rotation
-    throw new Error('Not implemented: SVGComposer.rotateElement');
+  rotateElement(id: string, degrees: number): void {
+    const element = this._state.getElement(id);
+    if (!element) {
+      throw new Error(`Element with id "${id}" not found`);
+    }
+    this.updateElement(id, {
+      transform: {
+        ...element.transform,
+        rotation: degrees,
+      },
+    });
   }
 
   /**
@@ -383,22 +409,42 @@ export class SVGComposer extends EditorEventEmitter {
    * @param id - Element ID to scale
    * @param scaleX - X scale factor
    * @param scaleY - Y scale factor
-   * @throws Error - Not implemented
+   * @throws Error if element does not exist
    */
-  scaleElement(_id: string, _scaleX: number, _scaleY: number): void {
-    // TODO: Implement scaling
-    throw new Error('Not implemented: SVGComposer.scaleElement');
+  scaleElement(id: string, scaleX: number, scaleY: number): void {
+    const element = this._state.getElement(id);
+    if (!element) {
+      throw new Error(`Element with id "${id}" not found`);
+    }
+    this.updateElement(id, {
+      transform: {
+        ...element.transform,
+        scaleX,
+        scaleY,
+      },
+    });
   }
 
   /**
    * Resets an element's transform to default
    *
    * @param id - Element ID to reset
-   * @throws Error - Not implemented
+   * @throws Error if element does not exist
    */
-  resetTransform(_id: string): void {
-    // TODO: Implement transform reset
-    throw new Error('Not implemented: SVGComposer.resetTransform');
+  resetTransform(id: string): void {
+    const element = this._state.getElement(id);
+    if (!element) {
+      throw new Error(`Element with id "${id}" not found`);
+    }
+    this.updateElement(id, {
+      transform: {
+        x: 0,
+        y: 0,
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+      },
+    });
   }
 
   // ============================================================
