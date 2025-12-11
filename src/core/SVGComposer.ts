@@ -7,6 +7,7 @@ import type { BaseElement, ClipPath } from '../elements/types.js';
 import { State, DEFAULT_OPTIONS } from './State.js';
 import { History } from './History.js';
 import { EditorEventEmitter } from './EventEmitter.js';
+import { generateId } from '../utils/IdGenerator.js';
 
 /**
  * SVG Composer - A zero-dependency SVG canvas editor
@@ -49,6 +50,8 @@ export class SVGComposer extends EditorEventEmitter {
     this._container = container;
     this._state = new State(options);
     this._history = new History(options.historyLimit ?? DEFAULT_OPTIONS.historyLimit);
+    // Push initial state to history stack
+    this._history.push(this._state.snapshot());
   }
 
   /**
@@ -67,34 +70,86 @@ export class SVGComposer extends EditorEventEmitter {
    *
    * @param element - Element properties (id will be auto-generated)
    * @returns The generated element ID
-   * @throws Error - Not implemented
    */
-  addElement(_element: Omit<BaseElement, 'id'>): string {
-    // TODO: Implement element addition
-    // Should generate ID, add to state, emit event, push history
-    throw new Error('Not implemented: SVGComposer.addElement');
+  addElement(element: Omit<BaseElement, 'id'>): string {
+    // Generate ID and create full element
+    const id = generateId();
+    const fullElement = { ...element, id } as BaseElement;
+
+    // Add to state
+    this._state.addElement(fullElement);
+
+    // Save history after mutation (current state goes on stack)
+    this._history.push(this._state.snapshot());
+
+    // Emit events
+    this.emit('element:added', { element: fullElement });
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
+
+    return id;
   }
 
   /**
    * Removes an element from the canvas
    *
    * @param id - Element ID to remove
-   * @throws Error - Not implemented
+   * @throws Error if element does not exist
    */
-  removeElement(_id: string): void {
-    // TODO: Implement element removal
-    throw new Error('Not implemented: SVGComposer.removeElement');
+  removeElement(id: string): void {
+    // Verify element exists
+    if (!this._state.getElement(id)) {
+      throw new Error(`Element with id "${id}" not found`);
+    }
+
+    // Remove from state (also removes from selection)
+    this._state.removeElement(id);
+
+    // Save history after mutation (current state goes on stack)
+    this._history.push(this._state.snapshot());
+
+    // Emit events
+    this.emit('element:removed', { id });
+    this.emit('selection:changed', { selectedIds: this._state.getSelection() });
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
   }
 
   /**
    * Removes multiple elements from the canvas
    *
    * @param ids - Array of element IDs to remove
-   * @throws Error - Not implemented
    */
-  removeElements(_ids: string[]): void {
-    // TODO: Implement multiple element removal
-    throw new Error('Not implemented: SVGComposer.removeElements');
+  removeElements(ids: string[]): void {
+    // Filter to only existing elements
+    const validIds = ids.filter((id) => this._state.getElement(id) !== undefined);
+
+    if (validIds.length === 0) {
+      return; // Nothing to remove
+    }
+
+    // Remove each element
+    for (const id of validIds) {
+      this._state.removeElement(id);
+      this.emit('element:removed', { id });
+    }
+
+    // Save history once after batch mutation (current state goes on stack)
+    this._history.push(this._state.snapshot());
+
+    // Emit batch events
+    this.emit('selection:changed', { selectedIds: this._state.getSelection() });
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
   }
 
   /**
@@ -102,11 +157,33 @@ export class SVGComposer extends EditorEventEmitter {
    *
    * @param id - Element ID to update
    * @param updates - Partial element properties to update
-   * @throws Error - Not implemented
+   * @throws Error if element does not exist
    */
-  updateElement(_id: string, _updates: Partial<BaseElement>): void {
-    // TODO: Implement element update
-    throw new Error('Not implemented: SVGComposer.updateElement');
+  updateElement(id: string, updates: Partial<BaseElement>): void {
+    // Verify element exists
+    if (!this._state.getElement(id)) {
+      throw new Error(`Element with id "${id}" not found`);
+    }
+
+    // Update element
+    this._state.updateElement(id, updates);
+
+    // Save history after mutation (current state goes on stack)
+    this._history.push(this._state.snapshot());
+
+    // Get updated element for event (safe since we validated existence above)
+    const updatedElement = this._state.getElement(id);
+    if (!updatedElement) {
+      throw new Error(`Element with id "${id}" unexpectedly missing after update`);
+    }
+
+    // Emit events
+    this.emit('element:updated', { id, element: updatedElement });
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
   }
 
   /**
@@ -114,11 +191,33 @@ export class SVGComposer extends EditorEventEmitter {
    *
    * @param id - Element ID to replace
    * @param element - New element data
-   * @throws Error - Not implemented
+   * @throws Error if element does not exist or replacement ID does not match
    */
-  replaceElement(_id: string, _element: BaseElement): void {
-    // TODO: Implement element replacement
-    throw new Error('Not implemented: SVGComposer.replaceElement');
+  replaceElement(id: string, element: BaseElement): void {
+    // Verify original element exists
+    if (!this._state.getElement(id)) {
+      throw new Error(`Element with id "${id}" not found`);
+    }
+
+    // Ensure the replacement uses the same ID
+    if (element.id !== id) {
+      throw new Error(`Replacement element ID must match original ID "${id}"`);
+    }
+
+    // Remove old and add new
+    this._state.removeElement(id);
+    this._state.addElement(element);
+
+    // Save history after mutation (current state goes on stack)
+    this._history.push(this._state.snapshot());
+
+    // Emit events
+    this.emit('element:updated', { id, element });
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
   }
 
   /**
@@ -126,22 +225,18 @@ export class SVGComposer extends EditorEventEmitter {
    *
    * @param id - Element ID to find
    * @returns The element or undefined if not found
-   * @throws Error - Not implemented
    */
-  getElement(_id: string): BaseElement | undefined {
-    // TODO: Implement element retrieval
-    throw new Error('Not implemented: SVGComposer.getElement');
+  getElement(id: string): BaseElement | undefined {
+    return this._state.getElement(id);
   }
 
   /**
    * Gets all elements
    *
    * @returns Array of all elements
-   * @throws Error - Not implemented
    */
   getAllElements(): BaseElement[] {
-    // TODO: Implement get all elements
-    throw new Error('Not implemented: SVGComposer.getAllElements');
+    return this._state.getAllElements();
   }
 
   /**
@@ -149,11 +244,9 @@ export class SVGComposer extends EditorEventEmitter {
    *
    * @param type - Element type to filter by
    * @returns Array of elements matching the type
-   * @throws Error - Not implemented
    */
-  getElementsByType(_type: BaseElement['type']): BaseElement[] {
-    // TODO: Implement get elements by type
-    throw new Error('Not implemented: SVGComposer.getElementsByType');
+  getElementsByType(type: BaseElement['type']): BaseElement[] {
+    return this._state.getAllElements().filter((element) => element.type === type);
   }
 
   /**
@@ -176,64 +269,70 @@ export class SVGComposer extends EditorEventEmitter {
    * Selects one or more elements (replaces current selection)
    *
    * @param id - Element ID or array of IDs to select
-   * @throws Error - Not implemented
    */
-  select(_id: string | string[]): void {
-    // TODO: Implement selection
-    throw new Error('Not implemented: SVGComposer.select');
+  select(id: string | string[]): void {
+    const ids = Array.isArray(id) ? id : [id];
+    this._state.setSelection(ids);
+    this.emit('selection:changed', { selectedIds: this._state.getSelection() });
   }
 
   /**
    * Adds elements to the current selection
    *
    * @param id - Element ID or array of IDs to add to selection
-   * @throws Error - Not implemented
    */
-  addToSelection(_id: string | string[]): void {
-    // TODO: Implement add to selection
-    throw new Error('Not implemented: SVGComposer.addToSelection');
+  addToSelection(id: string | string[]): void {
+    const idsToAdd = Array.isArray(id) ? id : [id];
+    const currentSelection = this._state.getSelection();
+    const newSelection = [...new Set([...currentSelection, ...idsToAdd])];
+    this._state.setSelection(newSelection);
+    this.emit('selection:changed', { selectedIds: this._state.getSelection() });
   }
 
   /**
    * Removes elements from the current selection
    *
    * @param id - Element ID or array of IDs to remove from selection
-   * @throws Error - Not implemented
    */
-  removeFromSelection(_id: string | string[]): void {
-    // TODO: Implement remove from selection
-    throw new Error('Not implemented: SVGComposer.removeFromSelection');
+  removeFromSelection(id: string | string[]): void {
+    const idsToRemove = Array.isArray(id) ? id : [id];
+    const idsToRemoveSet = new Set(idsToRemove);
+    const currentSelection = this._state.getSelection();
+    const newSelection = currentSelection.filter((selectedId) => !idsToRemoveSet.has(selectedId));
+    this._state.setSelection(newSelection);
+    this.emit('selection:changed', { selectedIds: this._state.getSelection() });
   }
 
   /**
    * Clears the current selection
-   *
-   * @throws Error - Not implemented
    */
   clearSelection(): void {
-    // TODO: Implement clear selection
-    throw new Error('Not implemented: SVGComposer.clearSelection');
+    this._state.setSelection([]);
+    this.emit('selection:changed', { selectedIds: [] });
   }
 
   /**
    * Gets the currently selected elements
    *
    * @returns Array of selected elements
-   * @throws Error - Not implemented
    */
   getSelected(): BaseElement[] {
-    // TODO: Implement get selected
-    throw new Error('Not implemented: SVGComposer.getSelected');
+    return this._state
+      .getSelection()
+      .map((id) => this._state.getElement(id))
+      .filter((element): element is BaseElement => element !== undefined);
   }
 
   /**
    * Selects all visible, unlocked elements
-   *
-   * @throws Error - Not implemented
    */
   selectAll(): void {
-    // TODO: Implement select all
-    throw new Error('Not implemented: SVGComposer.selectAll');
+    const selectableIds = this._state
+      .getAllElements()
+      .filter((element) => element.visible && !element.locked)
+      .map((element) => element.id);
+    this._state.setSelection(selectableIds);
+    this.emit('selection:changed', { selectedIds: this._state.getSelection() });
   }
 
   // ============================================================
@@ -368,65 +467,71 @@ export class SVGComposer extends EditorEventEmitter {
 
   /**
    * Undoes the last operation
-   *
-   * @throws Error - Not implemented
    */
   undo(): void {
-    // TODO: Implement undo
-    throw new Error('Not implemented: SVGComposer.undo');
+    const previousState = this._history.undo();
+    if (previousState) {
+      this._state.restore(previousState);
+      this.emit('state:changed', { state: this._state.state });
+      this.emit('selection:changed', { selectedIds: this._state.getSelection() });
+      this.emit('history:changed', {
+        canUndo: this._history.canUndo(),
+        canRedo: this._history.canRedo(),
+      });
+    }
   }
 
   /**
    * Redoes the last undone operation
-   *
-   * @throws Error - Not implemented
    */
   redo(): void {
-    // TODO: Implement redo
-    throw new Error('Not implemented: SVGComposer.redo');
+    const nextState = this._history.redo();
+    if (nextState) {
+      this._state.restore(nextState);
+      this.emit('state:changed', { state: this._state.state });
+      this.emit('selection:changed', { selectedIds: this._state.getSelection() });
+      this.emit('history:changed', {
+        canUndo: this._history.canUndo(),
+        canRedo: this._history.canRedo(),
+      });
+    }
   }
 
   /**
    * Checks if undo is available
    *
    * @returns True if there are operations to undo
-   * @throws Error - Not implemented
    */
   canUndo(): boolean {
-    // TODO: Implement canUndo
-    throw new Error('Not implemented: SVGComposer.canUndo');
+    return this._history.canUndo();
   }
 
   /**
    * Checks if redo is available
    *
    * @returns True if there are operations to redo
-   * @throws Error - Not implemented
    */
   canRedo(): boolean {
-    // TODO: Implement canRedo
-    throw new Error('Not implemented: SVGComposer.canRedo');
+    return this._history.canRedo();
   }
 
   /**
    * Clears all history
-   *
-   * @throws Error - Not implemented
    */
   clearHistory(): void {
-    // TODO: Implement clear history
-    throw new Error('Not implemented: SVGComposer.clearHistory');
+    this._history.clear();
+    // Re-push current state as the new baseline
+    this._history.push(this._state.snapshot());
+    this.emit('history:changed', { canUndo: false, canRedo: false });
   }
 
   /**
    * Gets the current history size
    *
    * @returns Number of history entries
-   * @throws Error - Not implemented
    */
   getHistorySize(): number {
-    // TODO: Implement history size getter
-    throw new Error('Not implemented: SVGComposer.getHistorySize');
+    return this._history.size();
   }
 
   // ============================================================
