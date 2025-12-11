@@ -1161,15 +1161,21 @@ describe('SVGComposer', () => {
     });
 
     it('render should throw not implemented error', () => {
-      expect(() => { editor.render(); }).toThrow('Not implemented');
+      expect(() => {
+        editor.render();
+      }).toThrow('Not implemented');
     });
 
     it('clear should throw not implemented error', () => {
-      expect(() => { editor.clear(); }).toThrow('Not implemented');
+      expect(() => {
+        editor.clear();
+      }).toThrow('Not implemented');
     });
 
     it('setTool should throw not implemented error', () => {
-      expect(() => { editor.setTool('pan'); }).toThrow('Not implemented');
+      expect(() => {
+        editor.setTool('pan');
+      }).toThrow('Not implemented');
     });
 
     it('toJSON should throw not implemented error', () => {
@@ -1177,15 +1183,21 @@ describe('SVGComposer', () => {
     });
 
     it('fromJSON should throw not implemented error', () => {
-      expect(() => { editor.fromJSON('{}'); }).toThrow('Not implemented');
+      expect(() => {
+        editor.fromJSON('{}');
+      }).toThrow('Not implemented');
     });
 
     it('removeClipPath should throw not implemented error', () => {
-      expect(() => { editor.removeClipPath('id'); }).toThrow('Not implemented');
+      expect(() => {
+        editor.removeClipPath('id');
+      }).toThrow('Not implemented');
     });
 
     it('updateClipPath should throw not implemented error', () => {
-      expect(() => { editor.updateClipPath('id', {}); }).toThrow('Not implemented');
+      expect(() => {
+        editor.updateClipPath('id', {});
+      }).toThrow('Not implemented');
     });
 
     it('addClipPath should throw not implemented error', () => {
@@ -1193,23 +1205,33 @@ describe('SVGComposer', () => {
     });
 
     it('resetTransform should throw not implemented error', () => {
-      expect(() => { editor.resetTransform('id'); }).toThrow('Not implemented');
+      expect(() => {
+        editor.resetTransform('id');
+      }).toThrow('Not implemented');
     });
 
     it('scaleElement should throw not implemented error', () => {
-      expect(() => { editor.scaleElement('id', 1, 1); }).toThrow('Not implemented');
+      expect(() => {
+        editor.scaleElement('id', 1, 1);
+      }).toThrow('Not implemented');
     });
 
     it('rotateElement should throw not implemented error', () => {
-      expect(() => { editor.rotateElement('id', 90); }).toThrow('Not implemented');
+      expect(() => {
+        editor.rotateElement('id', 90);
+      }).toThrow('Not implemented');
     });
 
     it('setPosition should throw not implemented error', () => {
-      expect(() => { editor.setPosition('id', 0, 0); }).toThrow('Not implemented');
+      expect(() => {
+        editor.setPosition('id', 0, 0);
+      }).toThrow('Not implemented');
     });
 
     it('destroy should throw not implemented error', () => {
-      expect(() => { editor.destroy(); }).toThrow('Not implemented');
+      expect(() => {
+        editor.destroy();
+      }).toThrow('Not implemented');
     });
 
     it('destroy should set isDestroyed to true before throwing', () => {
