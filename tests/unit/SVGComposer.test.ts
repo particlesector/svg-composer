@@ -2741,38 +2741,166 @@ describe('SVGComposer', () => {
   });
 
   // ============================================================
-  // Stub Methods (Not Yet Implemented)
+  // Tools & Interaction
   // ============================================================
 
-  describe('stub implementations throw errors', () => {
-    it('render should throw not implemented error', () => {
+  describe('setTool', () => {
+    it('should set the current tool', () => {
+      expect(editor.getTool()).toBe('select'); // default
+      editor.setTool('pan');
+      expect(editor.getTool()).toBe('pan');
+    });
+
+    it('should emit tool:changed event', () => {
+      const handler = vi.fn();
+      editor.on('tool:changed', handler);
+
+      editor.setTool('add-image');
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith({ tool: 'add-image' });
+    });
+
+    it('should support all tool types', () => {
+      const tools: ('select' | 'pan' | 'add-image' | 'add-text' | 'add-shape')[] = [
+        'select', 'pan', 'add-image', 'add-text', 'add-shape',
+      ];
+
+      for (const tool of tools) {
+        editor.setTool(tool);
+        expect(editor.getTool()).toBe(tool);
+      }
+    });
+  });
+
+  // ============================================================
+  // Lifecycle
+  // ============================================================
+
+  describe('render', () => {
+    it('should render SVG to container innerHTML', () => {
+      expect(container.innerHTML).toBe('');
+      editor.render();
+      expect(container.innerHTML).toContain('<svg');
+      expect(container.innerHTML).toContain('viewBox="0 0 1200 1200"');
+    });
+
+    it('should render elements correctly', () => {
+      editor.addElement({
+        type: 'text',
+        content: 'Hello World',
+        fontSize: 24,
+        fontFamily: 'Arial',
+        fill: '#000000',
+        textAnchor: 'start',
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 1,
+        locked: false,
+        visible: true,
+      } as Omit<TextElement, 'id'>);
+
+      editor.render();
+
+      expect(container.innerHTML).toContain('Hello World');
+      expect(container.innerHTML).toContain('<text');
+    });
+
+    it('should throw if editor is destroyed', () => {
+      editor.destroy();
+
       expect(() => {
         editor.render();
-      }).toThrow('Not implemented');
+      }).toThrow('Cannot render: editor has been destroyed');
     });
 
-    it('setTool should throw not implemented error', () => {
-      expect(() => {
-        editor.setTool('pan');
-      }).toThrow('Not implemented');
+    it('should re-render on subsequent calls', () => {
+      editor.render();
+      const firstRender = container.innerHTML;
+
+      editor.addElement({
+        type: 'text',
+        content: 'New Text',
+        fontSize: 24,
+        fontFamily: 'Arial',
+        fill: '#000000',
+        textAnchor: 'start',
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 1,
+        locked: false,
+        visible: true,
+      } as Omit<TextElement, 'id'>);
+
+      editor.render();
+      const secondRender = container.innerHTML;
+
+      expect(secondRender).not.toBe(firstRender);
+      expect(secondRender).toContain('New Text');
+    });
+  });
+
+  describe('destroy', () => {
+    it('should clear container innerHTML', () => {
+      editor.render();
+      expect(container.innerHTML).not.toBe('');
+
+      editor.destroy();
+      expect(container.innerHTML).toBe('');
     });
 
-    it('destroy should throw not implemented error', () => {
-      expect(() => {
-        editor.destroy();
-      }).toThrow('Not implemented');
-    });
-
-    it('destroy should set isDestroyed to true before throwing', () => {
+    it('should set isDestroyed to true', () => {
       expect(editor.isDestroyed).toBe(false);
-
-      try {
-        editor.destroy();
-      } catch {
-        // Expected to throw
-      }
-
+      editor.destroy();
       expect(editor.isDestroyed).toBe(true);
+    });
+
+    it('should clear all elements', () => {
+      editor.addElement({
+        type: 'text',
+        content: 'Test',
+        fontSize: 24,
+        fontFamily: 'Arial',
+        fill: '#000000',
+        textAnchor: 'start',
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 1,
+        locked: false,
+        visible: true,
+      } as Omit<TextElement, 'id'>);
+
+      expect(editor.getAllElements().length).toBe(1);
+      editor.destroy();
+      expect(editor.getAllElements().length).toBe(0);
+    });
+
+    it('should be idempotent (calling twice does not throw)', () => {
+      editor.destroy();
+      expect(() => {
+        editor.destroy();
+      }).not.toThrow();
+      expect(editor.isDestroyed).toBe(true);
+    });
+
+    it('should clear history', () => {
+      editor.addElement({
+        type: 'text',
+        content: 'Test',
+        fontSize: 24,
+        fontFamily: 'Arial',
+        fill: '#000000',
+        textAnchor: 'start',
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 1,
+        locked: false,
+        visible: true,
+      } as Omit<TextElement, 'id'>);
+
+      expect(editor.canUndo()).toBe(true);
+      editor.destroy();
+      expect(editor.canUndo()).toBe(false);
     });
   });
 

@@ -1132,11 +1132,10 @@ export class SVGComposer extends EditorEventEmitter {
    * Sets the current tool
    *
    * @param tool - Tool type to activate
-   * @throws Error - Not implemented
    */
-  setTool(_tool: ToolType): void {
-    // TODO: Implement tool setter
-    throw new Error('Not implemented: SVGComposer.setTool');
+  setTool(tool: ToolType): void {
+    this._currentTool = tool;
+    this.emit('tool:changed', { tool });
   }
 
   /**
@@ -1155,23 +1154,45 @@ export class SVGComposer extends EditorEventEmitter {
   /**
    * Forces a re-render of the canvas
    *
-   * @throws Error - Not implemented
+   * @throws Error if editor has been destroyed
    */
   render(): void {
-    // TODO: Implement render
-    throw new Error('Not implemented: SVGComposer.render');
+    if (this._destroyed) {
+      throw new Error('Cannot render: editor has been destroyed');
+    }
+    const svg = this.toSVG();
+    this._container.innerHTML = svg;
   }
 
   /**
    * Destroys the editor and cleans up resources
    *
-   * @throws Error - Not implemented
+   * @remarks
+   * This method is idempotent - calling it multiple times is safe.
+   * After calling destroy, the editor cannot be used and render() will throw.
    */
   destroy(): void {
-    // TODO: Implement cleanup
-    // Should remove event listeners, clear DOM, etc.
+    if (this._destroyed) {
+      return; // Already destroyed, idempotent
+    }
+
+    // Clear DOM
+    this._container.innerHTML = '';
+
+    // Reset state to empty (no events emitted)
+    this._state.restore({
+      width: this._state.state.width,
+      height: this._state.state.height,
+      backgroundColor: this._state.state.backgroundColor,
+      elements: new Map(),
+      selectedIds: new Set(),
+    });
+
+    // Clear history
+    this._history.clear();
+
+    // Mark as destroyed
     this._destroyed = true;
-    throw new Error('Not implemented: SVGComposer.destroy');
   }
 
   /**
