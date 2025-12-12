@@ -2,8 +2,15 @@
  * Main SVG Composer editor class
  */
 
-import type { SVGComposerOptions, ToolType, BoundingBox } from './types.js';
-import type { BaseElement, ClipPath } from '../elements/types.js';
+import type { SVGComposerOptions, ToolType, BoundingBox, CanvasState, Transform } from './types.js';
+import type {
+  BaseElement,
+  ClipPath,
+  ImageElement,
+  TextElement,
+  ShapeElement,
+  GroupElement,
+} from '../elements/types.js';
 import { State, DEFAULT_OPTIONS } from './State.js';
 import { History } from './History.js';
 import { EditorEventEmitter } from './EventEmitter.js';
@@ -724,43 +731,223 @@ export class SVGComposer extends EditorEventEmitter {
    * Exports the canvas as SVG markup
    *
    * @returns Clean SVG markup string
-   * @throws Error - Not implemented
    */
   toSVG(): string {
-    // TODO: Implement SVG export
-    throw new Error('Not implemented: SVGComposer.toSVG');
+    const state = this._state.state;
+    const elements = this._state
+      .getAllElements()
+      .filter((el) => el.visible)
+      .sort((a, b) => a.zIndex - b.zIndex);
+
+    const svgElements = elements.map((el) => this._elementToSVG(el)).join('\n  ');
+    const viewBox = `0 0 ${String(state.width)} ${String(state.height)}`;
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">
+  <rect width="100%" height="100%" fill="${state.backgroundColor}" />
+  ${svgElements}
+</svg>`;
+  }
+
+  /**
+   * Converts an element to SVG markup
+   */
+  private _elementToSVG(element: BaseElement): string {
+    const transform = this._buildTransformAttr(element.transform);
+    const opacity = element.opacity !== 1 ? ` opacity="${String(element.opacity)}"` : '';
+
+    switch (element.type) {
+    case 'image': {
+      const el = element as ImageElement;
+      const w = String(el.width);
+      const h = String(el.height);
+      return `<image href="${el.src}" width="${w}" height="${h}"${transform}${opacity} />`;
+    }
+    case 'text': {
+      const el = element as TextElement;
+      const fs = String(el.fontSize);
+      const content = this._escapeXml(el.content);
+      return `<text font-size="${fs}" font-family="${el.fontFamily}" ` +
+        `fill="${el.fill}" text-anchor="${el.textAnchor}"${transform}${opacity}>` +
+        `${content}</text>`;
+    }
+    case 'shape': {
+      const el = element as ShapeElement;
+      return this._shapeToSVG(el, transform, opacity);
+    }
+    case 'group': {
+      const el = element as GroupElement;
+      const children = el.children
+        .map((id) => {
+          const child = this._state.getElement(id);
+          return child ? this._elementToSVG(child) : '';
+        })
+        .filter((s) => s !== '')
+        .join('');
+      return `<g${transform}${opacity}>${children}</g>`;
+    }
+    default:
+      return '';
+    }
+  }
+
+  /**
+   * Builds a transform attribute string from a Transform object
+   */
+  private _buildTransformAttr(t: Transform): string {
+    const transforms: string[] = [];
+    if (t.x !== 0 || t.y !== 0) {
+      transforms.push(`translate(${String(t.x)}, ${String(t.y)})`);
+    }
+    if (t.rotation !== 0) {
+      transforms.push(`rotate(${String(t.rotation)})`);
+    }
+    if (t.scaleX !== 1 || t.scaleY !== 1) {
+      transforms.push(`scale(${String(t.scaleX)}, ${String(t.scaleY)})`);
+    }
+    return transforms.length > 0 ? ` transform="${transforms.join(' ')}"` : '';
+  }
+
+  /**
+   * Converts a ShapeElement to SVG markup
+   */
+  private _shapeToSVG(el: ShapeElement, transform: string, opacity: string): string {
+    const sw = String(el.strokeWidth);
+    const common = `fill="${el.fill}" stroke="${el.stroke}" stroke-width="${sw}"` +
+      `${transform}${opacity}`;
+    switch (el.shapeType) {
+    case 'rect': {
+      const w = String(el.width ?? 0);
+      const h = String(el.height ?? 0);
+      const rx = el.rx !== undefined && el.rx !== 0 ? ` rx="${String(el.rx)}"` : '';
+      return `<rect width="${w}" height="${h}"${rx} ${common} />`;
+    }
+    case 'circle':
+      return `<circle r="${String(el.r ?? 0)}" ${common} />`;
+    case 'ellipse':
+      return `<ellipse rx="${String(el.rx ?? 0)}" ry="${String(el.ry ?? 0)}" ${common} />`;
+    case 'path':
+      return `<path d="${el.path ?? ''}" ${common} />`;
+    default:
+      return '';
+    }
+  }
+
+  /**
+   * Escapes special XML characters in a string
+   */
+  private _escapeXml(str: string): string {
+    return str.replace(/[<>&'"]/g, (c) => {
+      const escapeMap: Record<string, string> = {
+        '<': '&lt;',
+        '>': '&gt;',
+        '&': '&amp;',
+        "'": '&apos;',
+        '"': '&quot;',
+      };
+      return escapeMap[c] ?? c;
+    });
   }
 
   /**
    * Exports the canvas state as JSON
    *
    * @returns JSON string representation of state
-   * @throws Error - Not implemented
    */
   toJSON(): string {
-    // TODO: Implement JSON export
-    throw new Error('Not implemented: SVGComposer.toJSON');
+    const snapshot = this._state.snapshot();
+
+    // Convert Map to Record (plain object)
+    const elements: Record<string, BaseElement> = {};
+    for (const [id, element] of snapshot.elements) {
+      elements[id] = element;
+    }
+
+    // Convert Set to array
+    const selectedIds = Array.from(snapshot.selectedIds);
+
+    const serialized = {
+      version: 1,
+      width: snapshot.width,
+      height: snapshot.height,
+      backgroundColor: snapshot.backgroundColor,
+      elements,
+      selectedIds,
+    };
+
+    return JSON.stringify(serialized);
   }
 
   /**
    * Restores canvas state from JSON
    *
    * @param json - JSON string to restore from
-   * @throws Error - Not implemented
    */
-  fromJSON(_json: string): void {
-    // TODO: Implement JSON import
-    throw new Error('Not implemented: SVGComposer.fromJSON');
+  fromJSON(json: string): void {
+    const parsed = JSON.parse(json) as {
+      version: number;
+      width: number;
+      height: number;
+      backgroundColor: string;
+      elements: Record<string, BaseElement>;
+      selectedIds: string[];
+    };
+
+    // Convert Record back to Map
+    const elements = new Map<string, BaseElement>();
+    for (const [id, element] of Object.entries(parsed.elements)) {
+      elements.set(id, element);
+    }
+
+    // Convert array back to Set
+    const selectedIds = new Set<string>(parsed.selectedIds);
+
+    const canvasState: CanvasState = {
+      width: parsed.width,
+      height: parsed.height,
+      backgroundColor: parsed.backgroundColor,
+      elements,
+      selectedIds,
+    };
+
+    // Restore state
+    this._state.restore(canvasState);
+
+    // Clear history and set new baseline
+    this._history.clear();
+    this._history.push(this._state.snapshot());
+
+    // Emit events
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('selection:changed', { selectedIds: Array.from(selectedIds) });
+    this.emit('history:changed', { canUndo: false, canRedo: false });
   }
 
   /**
    * Clears all elements from the canvas
-   *
-   * @throws Error - Not implemented
    */
   clear(): void {
-    // TODO: Implement clear
-    throw new Error('Not implemented: SVGComposer.clear');
+    const allElements = this._state.getAllElements();
+
+    if (allElements.length === 0) {
+      return; // Nothing to clear
+    }
+
+    // Remove all elements (also clears selection)
+    for (const element of allElements) {
+      this._state.removeElement(element.id);
+      this.emit('element:removed', { id: element.id });
+    }
+
+    // Save history after batch mutation
+    this._history.push(this._state.snapshot());
+
+    // Emit events
+    this.emit('selection:changed', { selectedIds: [] });
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
   }
 
   // ============================================================
