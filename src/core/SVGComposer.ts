@@ -756,37 +756,38 @@ export class SVGComposer extends EditorEventEmitter {
     const opacity = element.opacity !== 1 ? ` opacity="${String(element.opacity)}"` : '';
 
     switch (element.type) {
-    case 'image': {
-      const el = element as ImageElement;
-      const w = String(el.width);
-      const h = String(el.height);
-      return `<image href="${el.src}" width="${w}" height="${h}"${transform}${opacity} />`;
-    }
-    case 'text': {
-      const el = element as TextElement;
-      const fs = String(el.fontSize);
-      const content = this._escapeXml(el.content);
-      return `<text font-size="${fs}" font-family="${el.fontFamily}" ` +
+      case 'image': {
+        const el = element as ImageElement;
+        const w = String(el.width);
+        const h = String(el.height);
+        return `<image href="${el.src}" width="${w}" height="${h}"${transform}${opacity} />`;
+      }
+      case 'text': {
+        const el = element as TextElement;
+        const fs = String(el.fontSize);
+        const content = this._escapeXml(el.content);
+        // prettier-ignore
+        return `<text font-size="${fs}" font-family="${el.fontFamily}" ` +
         `fill="${el.fill}" text-anchor="${el.textAnchor}"${transform}${opacity}>` +
         `${content}</text>`;
-    }
-    case 'shape': {
-      const el = element as ShapeElement;
-      return this._shapeToSVG(el, transform, opacity);
-    }
-    case 'group': {
-      const el = element as GroupElement;
-      const children = el.children
-        .map((id) => {
-          const child = this._state.getElement(id);
-          return child ? this._elementToSVG(child) : '';
-        })
-        .filter((s) => s !== '')
-        .join('');
-      return `<g${transform}${opacity}>${children}</g>`;
-    }
-    default:
-      return '';
+      }
+      case 'shape': {
+        const el = element as ShapeElement;
+        return this._shapeToSVG(el, transform, opacity);
+      }
+      case 'group': {
+        const el = element as GroupElement;
+        const children = el.children
+          .map((id) => {
+            const child = this._state.getElement(id);
+            return child ? this._elementToSVG(child) : '';
+          })
+          .filter((s) => s !== '')
+          .join('');
+        return `<g${transform}${opacity}>${children}</g>`;
+      }
+      default:
+        return '';
     }
   }
 
@@ -812,23 +813,24 @@ export class SVGComposer extends EditorEventEmitter {
    */
   private _shapeToSVG(el: ShapeElement, transform: string, opacity: string): string {
     const sw = String(el.strokeWidth);
+    // prettier-ignore
     const common = `fill="${el.fill}" stroke="${el.stroke}" stroke-width="${sw}"` +
       `${transform}${opacity}`;
     switch (el.shapeType) {
-    case 'rect': {
-      const w = String(el.width ?? 0);
-      const h = String(el.height ?? 0);
-      const rx = el.rx !== undefined && el.rx !== 0 ? ` rx="${String(el.rx)}"` : '';
-      return `<rect width="${w}" height="${h}"${rx} ${common} />`;
-    }
-    case 'circle':
-      return `<circle r="${String(el.r ?? 0)}" ${common} />`;
-    case 'ellipse':
-      return `<ellipse rx="${String(el.rx ?? 0)}" ry="${String(el.ry ?? 0)}" ${common} />`;
-    case 'path':
-      return `<path d="${el.path ?? ''}" ${common} />`;
-    default:
-      return '';
+      case 'rect': {
+        const w = String(el.width ?? 0);
+        const h = String(el.height ?? 0);
+        const rx = el.rx !== undefined && el.rx !== 0 ? ` rx="${String(el.rx)}"` : '';
+        return `<rect width="${w}" height="${h}"${rx} ${common} />`;
+      }
+      case 'circle':
+        return `<circle r="${String(el.r ?? 0)}" ${common} />`;
+      case 'ellipse':
+        return `<ellipse rx="${String(el.rx ?? 0)}" ry="${String(el.ry ?? 0)}" ${common} />`;
+      case 'path':
+        return `<path d="${el.path ?? ''}" ${common} />`;
+      default:
+        return '';
     }
   }
 
