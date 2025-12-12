@@ -1,6 +1,0 @@
-# Placeholder for interaction module
-# This directory will contain:
-# - InteractionManager.ts - Input handling
-# - SelectionTool.ts - Selection logic
-# - TransformHandles.ts - Resize/rotate handles
-# - Tools.ts - Tool definitions
