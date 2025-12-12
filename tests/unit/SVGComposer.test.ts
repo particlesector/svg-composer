@@ -1574,6 +1574,421 @@ describe('SVGComposer', () => {
   });
 
   // ============================================================
+  // Export/Import Tests
+  // ============================================================
+
+  describe('clear', () => {
+    it('should remove all elements', () => {
+      editor.addElement(createTestElementData());
+      editor.addElement(createTestElementData());
+      editor.addElement(createTestElementData());
+      expect(editor.getAllElements()).toHaveLength(3);
+
+      editor.clear();
+
+      expect(editor.getAllElements()).toHaveLength(0);
+    });
+
+    it('should clear selection', () => {
+      const id = editor.addElement(createTestElementData());
+      editor.select(id);
+      expect(editor.getSelected()).toHaveLength(1);
+
+      editor.clear();
+
+      expect(editor.getSelected()).toHaveLength(0);
+    });
+
+    it('should do nothing if already empty (no history entry)', () => {
+      expect(editor.getAllElements()).toHaveLength(0);
+      editor.clearHistory();
+      expect(editor.canUndo()).toBe(false);
+
+      editor.clear();
+
+      expect(editor.canUndo()).toBe(false);
+    });
+
+    it('should emit element:removed for each element', () => {
+      const id1 = editor.addElement(createTestElementData());
+      const id2 = editor.addElement(createTestElementData());
+      const handler = vi.fn();
+      editor.on('element:removed', handler);
+
+      editor.clear();
+
+      expect(handler).toHaveBeenCalledTimes(2);
+      expect(handler).toHaveBeenCalledWith({ id: id1 });
+      expect(handler).toHaveBeenCalledWith({ id: id2 });
+    });
+
+    it('should emit selection:changed with empty array', () => {
+      editor.addElement(createTestElementData());
+      const handler = vi.fn();
+      editor.on('selection:changed', handler);
+
+      editor.clear();
+
+      expect(handler).toHaveBeenCalledWith({ selectedIds: [] });
+    });
+
+    it('should save to history (undoable)', () => {
+      const id1 = editor.addElement(createTestElementData());
+      const id2 = editor.addElement(createTestElementData());
+
+      editor.clear();
+      expect(editor.getAllElements()).toHaveLength(0);
+
+      editor.undo();
+
+      expect(editor.getAllElements()).toHaveLength(2);
+      expect(editor.getElement(id1)).toBeDefined();
+      expect(editor.getElement(id2)).toBeDefined();
+    });
+  });
+
+  describe('toJSON', () => {
+    it('should return valid JSON string', () => {
+      editor.addElement(createTestElementData());
+
+      const json = editor.toJSON();
+
+      expect(() => JSON.parse(json) as unknown).not.toThrow();
+    });
+
+    it('should include all canvas properties', () => {
+      const customEditor = new SVGComposer(container, {
+        width: 800,
+        height: 600,
+        backgroundColor: '#ff0000',
+      });
+
+      const json = customEditor.toJSON();
+      const parsed = JSON.parse(json) as { width: number; height: number; backgroundColor: string };
+
+      expect(parsed.width).toBe(800);
+      expect(parsed.height).toBe(600);
+      expect(parsed.backgroundColor).toBe('#ff0000');
+    });
+
+    it('should serialize all elements', () => {
+      editor.addElement(createTestElementData({ opacity: 0.5 }));
+      editor.addElement(createTestElementData({ opacity: 0.75 }));
+
+      const json = editor.toJSON();
+      const parsed = JSON.parse(json) as { elements: Record<string, unknown> };
+
+      const elements = Object.values(parsed.elements);
+      expect(elements).toHaveLength(2);
+    });
+
+    it('should include version field', () => {
+      const json = editor.toJSON();
+      const parsed = JSON.parse(json) as { version: number };
+
+      expect(parsed.version).toBe(1);
+    });
+
+    it('should serialize selection state', () => {
+      const id = editor.addElement(createTestElementData());
+      editor.select(id);
+
+      const json = editor.toJSON();
+      const parsed = JSON.parse(json) as { selectedIds: string[] };
+
+      expect(parsed.selectedIds).toContain(id);
+    });
+  });
+
+  describe('fromJSON', () => {
+    it('should restore elements from JSON', () => {
+      const id = editor.addElement(createTestElementData({ opacity: 0.5 }));
+      const json = editor.toJSON();
+
+      // Create new editor and restore
+      const newEditor = new SVGComposer(container);
+      newEditor.fromJSON(json);
+
+      expect(newEditor.getElement(id)).toBeDefined();
+      expect(newEditor.getElement(id)?.opacity).toBe(0.5);
+    });
+
+    it('should restore canvas properties', () => {
+      const customEditor = new SVGComposer(container, {
+        width: 800,
+        height: 600,
+        backgroundColor: '#ff0000',
+      });
+      const json = customEditor.toJSON();
+
+      editor.fromJSON(json);
+      const restoredJson = editor.toJSON();
+      const parsed = JSON.parse(restoredJson) as {
+        width: number;
+        height: number;
+        backgroundColor: string;
+      };
+
+      expect(parsed.width).toBe(800);
+      expect(parsed.height).toBe(600);
+      expect(parsed.backgroundColor).toBe('#ff0000');
+    });
+
+    it('should restore selection state', () => {
+      const id = editor.addElement(createTestElementData());
+      editor.select(id);
+      const json = editor.toJSON();
+
+      const newEditor = new SVGComposer(container);
+      newEditor.fromJSON(json);
+
+      expect(newEditor.getSelected().map((e) => e.id)).toContain(id);
+    });
+
+    it('should clear history after restore', () => {
+      editor.addElement(createTestElementData());
+      editor.addElement(createTestElementData());
+      expect(editor.canUndo()).toBe(true);
+
+      const json = editor.toJSON();
+      editor.fromJSON(json);
+
+      expect(editor.canUndo()).toBe(false);
+      expect(editor.canRedo()).toBe(false);
+    });
+
+    it('should emit state:changed event', () => {
+      const json = editor.toJSON();
+      const handler = vi.fn();
+      editor.on('state:changed', handler);
+
+      editor.fromJSON(json);
+
+      expect(handler).toHaveBeenCalled();
+    });
+
+    it('should emit selection:changed event', () => {
+      const json = editor.toJSON();
+      const handler = vi.fn();
+      editor.on('selection:changed', handler);
+
+      editor.fromJSON(json);
+
+      expect(handler).toHaveBeenCalled();
+    });
+
+    it('should throw on invalid JSON', () => {
+      expect(() => {
+        editor.fromJSON('invalid json');
+      }).toThrow();
+    });
+
+    it('should round-trip preserve state', () => {
+      const id = editor.addElement(
+        createTestElementData({
+          opacity: 0.75,
+          zIndex: 5,
+          transform: createTestTransform({ x: 100, y: 200, rotation: 45 }),
+        }),
+      );
+      editor.select(id);
+
+      const json = editor.toJSON();
+      const newEditor = new SVGComposer(container);
+      newEditor.fromJSON(json);
+
+      const restored = newEditor.getElement(id);
+      expect(restored?.opacity).toBe(0.75);
+      expect(restored?.zIndex).toBe(5);
+      expect(restored?.transform.x).toBe(100);
+      expect(restored?.transform.y).toBe(200);
+      expect(restored?.transform.rotation).toBe(45);
+    });
+  });
+
+  describe('toSVG', () => {
+    it('should return valid SVG string with viewBox', () => {
+      const svg = editor.toSVG();
+
+      expect(svg).toContain('<svg');
+      expect(svg).toContain('xmlns="http://www.w3.org/2000/svg"');
+      expect(svg).toContain('viewBox="0 0 1200 1200"');
+      expect(svg).toContain('</svg>');
+    });
+
+    it('should include background rect', () => {
+      const svg = editor.toSVG();
+
+      expect(svg).toContain('<rect width="100%" height="100%" fill="#ffffff"');
+    });
+
+    it('should render image elements', () => {
+      editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 50,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const svg = editor.toSVG();
+
+      expect(svg).toContain('<image');
+      expect(svg).toContain('href="test.jpg"');
+      expect(svg).toContain('width="100"');
+      expect(svg).toContain('height="50"');
+    });
+
+    it('should render text elements with proper escaping', () => {
+      editor.addElement({
+        type: 'text',
+        content: 'Hello <World> & "Test"',
+        fontSize: 16,
+        fontFamily: 'Arial',
+        fill: '#000000',
+        textAnchor: 'start',
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const svg = editor.toSVG();
+
+      expect(svg).toContain('<text');
+      expect(svg).toContain('Hello &lt;World&gt; &amp; &quot;Test&quot;');
+      expect(svg).toContain('font-size="16"');
+      expect(svg).toContain('font-family="Arial"');
+    });
+
+    it('should render shape elements', () => {
+      editor.addElement({
+        type: 'shape',
+        shapeType: 'rect',
+        width: 100,
+        height: 50,
+        fill: '#ff0000',
+        stroke: '#000000',
+        strokeWidth: 2,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const svg = editor.toSVG();
+
+      expect(svg).toContain('<rect');
+      expect(svg).toContain('width="100"');
+      expect(svg).toContain('height="50"');
+      expect(svg).toContain('fill="#ff0000"');
+    });
+
+    it('should apply transforms correctly', () => {
+      editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 50,
+        transform: createTestTransform({ x: 50, y: 100, rotation: 45, scaleX: 2, scaleY: 1.5 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const svg = editor.toSVG();
+
+      expect(svg).toContain('transform="translate(50, 100) rotate(45) scale(2, 1.5)"');
+    });
+
+    it('should respect zIndex ordering', () => {
+      editor.addElement({
+        type: 'image',
+        src: 'back.jpg',
+        width: 100,
+        height: 50,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 1,
+        locked: false,
+        visible: true,
+      });
+      editor.addElement({
+        type: 'image',
+        src: 'front.jpg',
+        width: 100,
+        height: 50,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 10,
+        locked: false,
+        visible: true,
+      });
+
+      const svg = editor.toSVG();
+
+      const backIndex = svg.indexOf('back.jpg');
+      const frontIndex = svg.indexOf('front.jpg');
+      expect(backIndex).toBeLessThan(frontIndex);
+    });
+
+    it('should skip hidden elements', () => {
+      editor.addElement({
+        type: 'image',
+        src: 'visible.jpg',
+        width: 100,
+        height: 50,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+      editor.addElement({
+        type: 'image',
+        src: 'hidden.jpg',
+        width: 100,
+        height: 50,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: false,
+      });
+
+      const svg = editor.toSVG();
+
+      expect(svg).toContain('visible.jpg');
+      expect(svg).not.toContain('hidden.jpg');
+    });
+
+    it('should include opacity when not 1', () => {
+      editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 50,
+        transform: createTestTransform(),
+        opacity: 0.5,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const svg = editor.toSVG();
+
+      expect(svg).toContain('opacity="0.5"');
+    });
+  });
+
+  // ============================================================
   // Stub Methods (Not Yet Implemented)
   // ============================================================
 
@@ -1584,35 +1999,15 @@ describe('SVGComposer', () => {
       }).toThrow('Not implemented');
     });
 
-    it('toSVG should throw not implemented error', () => {
-      expect(() => editor.toSVG()).toThrow('Not implemented');
-    });
-
     it('render should throw not implemented error', () => {
       expect(() => {
         editor.render();
       }).toThrow('Not implemented');
     });
 
-    it('clear should throw not implemented error', () => {
-      expect(() => {
-        editor.clear();
-      }).toThrow('Not implemented');
-    });
-
     it('setTool should throw not implemented error', () => {
       expect(() => {
         editor.setTool('pan');
-      }).toThrow('Not implemented');
-    });
-
-    it('toJSON should throw not implemented error', () => {
-      expect(() => editor.toJSON()).toThrow('Not implemented');
-    });
-
-    it('fromJSON should throw not implemented error', () => {
-      expect(() => {
-        editor.fromJSON('{}');
       }).toThrow('Not implemented');
     });
 
