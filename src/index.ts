@@ -36,3 +36,25 @@ export { generateId } from './utils/IdGenerator.js';
 export { State, DEFAULT_OPTIONS } from './core/State.js';
 export { History } from './core/History.js';
 export { EventEmitter, EditorEventEmitter } from './core/EventEmitter.js';
+
+// Interaction types
+export type {
+  ScreenPoint,
+  ViewBoxPoint,
+  InteractionState,
+  HandleType,
+  HitTestResult,
+  DragState,
+  ResizeState,
+  RotateState,
+  ViewportState,
+  HandleConfig,
+} from './interaction/types.js';
+
+export { DEFAULT_HANDLE_CONFIG, DEFAULT_VIEWPORT_STATE } from './interaction/types.js';
+
+// Interaction utilities
+export {
+  CoordinateTransformer,
+  type CoordinateTransformerConfig,
+} from './interaction/CoordinateTransformer.js';
