@@ -1989,16 +1989,493 @@ describe('SVGComposer', () => {
   });
 
   // ============================================================
+  // Spatial Query
+  // ============================================================
+
+  describe('getElementsInBounds', () => {
+    it('returns empty array for empty canvas', () => {
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toEqual([]);
+    });
+
+    it('returns empty array when no elements in bounds', () => {
+      editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 50,
+        height: 50,
+        transform: { x: 200, y: 200, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toEqual([]);
+    });
+
+    it('finds image element fully inside bounds', () => {
+      const id = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 50,
+        height: 50,
+        transform: { x: 10, y: 10, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(id);
+    });
+
+    it('finds image element partially overlapping bounds', () => {
+      const id = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: { x: 50, y: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(id);
+    });
+
+    it('handles rect shape elements', () => {
+      const id = editor.addElement({
+        type: 'shape',
+        shapeType: 'rect',
+        width: 50,
+        height: 50,
+        fill: '#000',
+        stroke: '#000',
+        strokeWidth: 1,
+        transform: { x: 10, y: 10, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(id);
+    });
+
+    it('handles circle shape elements', () => {
+      const id = editor.addElement({
+        type: 'shape',
+        shapeType: 'circle',
+        r: 25,
+        fill: '#000',
+        stroke: '#000',
+        strokeWidth: 1,
+        transform: { x: 50, y: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(id);
+    });
+
+    it('handles ellipse shape elements', () => {
+      const id = editor.addElement({
+        type: 'shape',
+        shapeType: 'ellipse',
+        rx: 30,
+        ry: 20,
+        fill: '#000',
+        stroke: '#000',
+        strokeWidth: 1,
+        transform: { x: 50, y: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(id);
+    });
+
+    it('handles text elements', () => {
+      const id = editor.addElement({
+        type: 'text',
+        content: 'Hello',
+        fontSize: 16,
+        fontFamily: 'Arial',
+        fill: '#000',
+        textAnchor: 'start',
+        transform: { x: 10, y: 30, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(id);
+    });
+
+    it('returns multiple matching elements', () => {
+      editor.addElement({
+        type: 'image',
+        src: 'test1.jpg',
+        width: 30,
+        height: 30,
+        transform: { x: 10, y: 10, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      editor.addElement({
+        type: 'image',
+        src: 'test2.jpg',
+        width: 30,
+        height: 30,
+        transform: { x: 50, y: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 1,
+        locked: false,
+        visible: true,
+      });
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toHaveLength(2);
+    });
+  });
+
+  // ============================================================
+  // Clipping
+  // ============================================================
+
+  describe('addClipPath', () => {
+    it('adds rect clip path and returns ID', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const clipId = editor.addClipPath(elementId, {
+        type: 'rect',
+        x: 0,
+        y: 0,
+        width: 50,
+        height: 50,
+      });
+
+      expect(clipId).toBeDefined();
+      expect(typeof clipId).toBe('string');
+
+      const element = editor.getElement(elementId);
+      expect(element?.clipPath).toBeDefined();
+      expect(element?.clipPath?.id).toBe(clipId);
+      expect(element?.clipPath?.type).toBe('rect');
+    });
+
+    it('adds circle clip path', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      editor.addClipPath(elementId, {
+        type: 'circle',
+        cx: 50,
+        cy: 50,
+        r: 25,
+      });
+
+      const element = editor.getElement(elementId);
+      expect(element?.clipPath?.type).toBe('circle');
+      expect(element?.clipPath?.r).toBe(25);
+    });
+
+    it('adds ellipse clip path', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      editor.addClipPath(elementId, {
+        type: 'ellipse',
+        cx: 50,
+        cy: 50,
+        rx: 30,
+        ry: 20,
+      });
+
+      const element = editor.getElement(elementId);
+      expect(element?.clipPath?.type).toBe('ellipse');
+      expect(element?.clipPath?.rx).toBe(30);
+      expect(element?.clipPath?.ry).toBe(20);
+    });
+
+    it('throws on non-existent element', () => {
+      expect(() => {
+        editor.addClipPath('non-existent', { type: 'rect' });
+      }).toThrow('Element not found');
+    });
+
+    it('emits correct events', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const updatedHandler = vi.fn();
+      const stateHandler = vi.fn();
+      const historyHandler = vi.fn();
+
+      editor.on('element:updated', updatedHandler);
+      editor.on('state:changed', stateHandler);
+      editor.on('history:changed', historyHandler);
+
+      editor.addClipPath(elementId, { type: 'rect' });
+
+      expect(updatedHandler).toHaveBeenCalled();
+      expect(stateHandler).toHaveBeenCalled();
+      expect(historyHandler).toHaveBeenCalled();
+    });
+
+    it('is undoable', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      editor.addClipPath(elementId, { type: 'rect' });
+      expect(editor.getElement(elementId)?.clipPath).toBeDefined();
+
+      editor.undo();
+      expect(editor.getElement(elementId)?.clipPath).toBeUndefined();
+    });
+  });
+
+  describe('removeClipPath', () => {
+    it('removes existing clip path', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      editor.addClipPath(elementId, { type: 'rect' });
+      expect(editor.getElement(elementId)?.clipPath).toBeDefined();
+
+      editor.removeClipPath(elementId);
+      expect(editor.getElement(elementId)?.clipPath).toBeUndefined();
+    });
+
+    it('throws on non-existent element', () => {
+      expect(() => {
+        editor.removeClipPath('non-existent');
+      }).toThrow('Element not found');
+    });
+
+    it('throws if element has no clip path', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      expect(() => {
+        editor.removeClipPath(elementId);
+      }).toThrow('Element has no clip path');
+    });
+
+    it('emits correct events', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      editor.addClipPath(elementId, { type: 'rect' });
+
+      const updatedHandler = vi.fn();
+      const stateHandler = vi.fn();
+
+      editor.on('element:updated', updatedHandler);
+      editor.on('state:changed', stateHandler);
+
+      editor.removeClipPath(elementId);
+
+      expect(updatedHandler).toHaveBeenCalled();
+      expect(stateHandler).toHaveBeenCalled();
+    });
+  });
+
+  describe('updateClipPath', () => {
+    it('updates clip path properties', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      editor.addClipPath(elementId, { type: 'rect', width: 50, height: 50 });
+
+      editor.updateClipPath(elementId, { width: 100, height: 100 });
+
+      const element = editor.getElement(elementId);
+      expect(element?.clipPath?.width).toBe(100);
+      expect(element?.clipPath?.height).toBe(100);
+    });
+
+    it('preserves clip path ID', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const clipId = editor.addClipPath(elementId, { type: 'rect' });
+
+      editor.updateClipPath(elementId, { width: 100 });
+
+      const element = editor.getElement(elementId);
+      expect(element?.clipPath?.id).toBe(clipId);
+    });
+
+    it('throws on non-existent element', () => {
+      expect(() => {
+        editor.updateClipPath('non-existent', { width: 100 });
+      }).toThrow('Element not found');
+    });
+
+    it('throws if element has no clip path', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      expect(() => {
+        editor.updateClipPath(elementId, { width: 100 });
+      }).toThrow('Element has no clip path');
+    });
+
+    it('partial updates merge correctly', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      editor.addClipPath(elementId, { type: 'rect', x: 10, y: 20, width: 50, height: 60 });
+
+      editor.updateClipPath(elementId, { width: 100 });
+
+      const element = editor.getElement(elementId);
+      expect(element?.clipPath?.x).toBe(10);
+      expect(element?.clipPath?.y).toBe(20);
+      expect(element?.clipPath?.width).toBe(100);
+      expect(element?.clipPath?.height).toBe(60);
+    });
+  });
+
+  // ============================================================
   // Stub Methods (Not Yet Implemented)
   // ============================================================
 
   describe('stub implementations throw errors', () => {
-    it('getElementsInBounds should throw not implemented error', () => {
-      expect(() => {
-        editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
-      }).toThrow('Not implemented');
-    });
-
     it('render should throw not implemented error', () => {
       expect(() => {
         editor.render();
@@ -2009,22 +2486,6 @@ describe('SVGComposer', () => {
       expect(() => {
         editor.setTool('pan');
       }).toThrow('Not implemented');
-    });
-
-    it('removeClipPath should throw not implemented error', () => {
-      expect(() => {
-        editor.removeClipPath('id');
-      }).toThrow('Not implemented');
-    });
-
-    it('updateClipPath should throw not implemented error', () => {
-      expect(() => {
-        editor.updateClipPath('id', {});
-      }).toThrow('Not implemented');
-    });
-
-    it('addClipPath should throw not implemented error', () => {
-      expect(() => editor.addClipPath('id', { type: 'rect' })).toThrow('Not implemented');
     });
 
     it('destroy should throw not implemented error', () => {
