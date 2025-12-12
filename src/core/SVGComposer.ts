@@ -260,12 +260,118 @@ export class SVGComposer extends EditorEventEmitter {
    * Gets elements within a bounding box
    *
    * @param bounds - Bounding box to search within
-   * @returns Array of elements within the bounds
-   * @throws Error - Not implemented
+   * @returns Array of elements that intersect with the bounds
    */
-  getElementsInBounds(_bounds: BoundingBox): BaseElement[] {
-    // TODO: Implement spatial query
-    throw new Error('Not implemented: SVGComposer.getElementsInBounds');
+  getElementsInBounds(bounds: BoundingBox): BaseElement[] {
+    const elements = this._state.getAllElements();
+    return elements.filter((el) => {
+      const box = this._getElementBounds(el);
+      return box !== null && this._boundsIntersect(bounds, box);
+    });
+  }
+
+  /**
+   * Calculates the bounding box for an element
+   */
+  private _getElementBounds(element: BaseElement): BoundingBox | null {
+    const t = element.transform;
+
+    switch (element.type) {
+      case 'image': {
+        const el = element as ImageElement;
+        return { x: t.x, y: t.y, width: el.width, height: el.height };
+      }
+      case 'text': {
+        const el = element as TextElement;
+        // Approximate text bounds using fontSize and content length
+        const approxWidth = el.content.length * el.fontSize * 0.6;
+        return { x: t.x, y: t.y - el.fontSize, width: approxWidth, height: el.fontSize };
+      }
+      case 'shape': {
+        const el = element as ShapeElement;
+        return this._getShapeBounds(el, t);
+      }
+      case 'group': {
+        const el = element as GroupElement;
+        return this._getGroupBounds(el);
+      }
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Calculates the bounding box for a shape element
+   */
+  private _getShapeBounds(el: ShapeElement, t: Transform): BoundingBox | null {
+    switch (el.shapeType) {
+      case 'rect':
+        return { x: t.x, y: t.y, width: el.width ?? 0, height: el.height ?? 0 };
+      case 'circle': {
+        const r = el.r ?? 0;
+        return { x: t.x - r, y: t.y - r, width: r * 2, height: r * 2 };
+      }
+      case 'ellipse': {
+        const rx = el.rx ?? 0;
+        const ry = el.ry ?? 0;
+        return { x: t.x - rx, y: t.y - ry, width: rx * 2, height: ry * 2 };
+      }
+      case 'path':
+        // Path bounds would require parsing the path data - skip for now
+        return null;
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Calculates the bounding box for a group element (union of children)
+   */
+  private _getGroupBounds(group: GroupElement): BoundingBox | null {
+    if (group.children.length === 0) {
+      return null;
+    }
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (const childId of group.children) {
+      const child = this._state.getElement(childId);
+      if (child === undefined) {
+        continue;
+      }
+      const childBounds = this._getElementBounds(child);
+      if (childBounds === null) {
+        continue;
+      }
+
+      minX = Math.min(minX, childBounds.x);
+      minY = Math.min(minY, childBounds.y);
+      maxX = Math.max(maxX, childBounds.x + childBounds.width);
+      maxY = Math.max(maxY, childBounds.y + childBounds.height);
+    }
+
+    if (minX === Infinity) {
+      return null;
+    }
+
+    // Apply group transform offset
+    const t = group.transform;
+    return { x: minX + t.x, y: minY + t.y, width: maxX - minX, height: maxY - minY };
+  }
+
+  /**
+   * Tests if two bounding boxes intersect (AABB collision)
+   */
+  private _boundsIntersect(a: BoundingBox, b: BoundingBox): boolean {
+    return !(
+      a.x > b.x + b.width ||
+      a.x + a.width < b.x ||
+      a.y > b.y + b.height ||
+      a.y + a.height < b.y
+    );
   }
 
   // ============================================================
@@ -693,22 +799,63 @@ export class SVGComposer extends EditorEventEmitter {
    * @param elementId - Element ID to apply clip to
    * @param clipPath - Clip path definition (id will be auto-generated)
    * @returns The generated clip path ID
-   * @throws Error - Not implemented
+   * @throws Error if element not found
    */
-  addClipPath(_elementId: string, _clipPath: Omit<ClipPath, 'id'>): string {
-    // TODO: Implement clip path addition
-    throw new Error('Not implemented: SVGComposer.addClipPath');
+  addClipPath(elementId: string, clipPath: Omit<ClipPath, 'id'>): string {
+    const element = this._state.getElement(elementId);
+    if (element === undefined) {
+      throw new Error(`Element not found: ${elementId}`);
+    }
+
+    const id = generateId();
+    const fullClipPath: ClipPath = { ...clipPath, id };
+
+    this._state.updateElement(elementId, { clipPath: fullClipPath });
+    this._history.push(this._state.snapshot());
+
+    const updatedElement = this._state.getElement(elementId);
+    if (updatedElement !== undefined) {
+      this.emit('element:updated', { id: elementId, element: updatedElement });
+    }
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
+
+    return id;
   }
 
   /**
    * Removes a clip path from an element
    *
    * @param elementId - Element ID to remove clip from
-   * @throws Error - Not implemented
+   * @throws Error if element not found or has no clip path
    */
-  removeClipPath(_elementId: string): void {
-    // TODO: Implement clip path removal
-    throw new Error('Not implemented: SVGComposer.removeClipPath');
+  removeClipPath(elementId: string): void {
+    const element = this._state.getElement(elementId);
+    if (element === undefined) {
+      throw new Error(`Element not found: ${elementId}`);
+    }
+    if (element.clipPath === undefined) {
+      throw new Error(`Element has no clip path: ${elementId}`);
+    }
+
+    // Create element copy without clipPath property and replace in state
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { clipPath: _removed, ...elementWithoutClip } = element;
+    this._state.state.elements.set(elementId, elementWithoutClip as BaseElement);
+    this._history.push(this._state.snapshot());
+
+    const updatedElement = this._state.getElement(elementId);
+    if (updatedElement !== undefined) {
+      this.emit('element:updated', { id: elementId, element: updatedElement });
+    }
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
   }
 
   /**
@@ -716,11 +863,36 @@ export class SVGComposer extends EditorEventEmitter {
    *
    * @param elementId - Element ID with the clip path
    * @param updates - Partial clip path properties to update
-   * @throws Error - Not implemented
+   * @throws Error if element not found or has no clip path
    */
-  updateClipPath(_elementId: string, _updates: Partial<ClipPath>): void {
-    // TODO: Implement clip path update
-    throw new Error('Not implemented: SVGComposer.updateClipPath');
+  updateClipPath(elementId: string, updates: Partial<ClipPath>): void {
+    const element = this._state.getElement(elementId);
+    if (element === undefined) {
+      throw new Error(`Element not found: ${elementId}`);
+    }
+    if (element.clipPath === undefined) {
+      throw new Error(`Element has no clip path: ${elementId}`);
+    }
+
+    // Merge updates but preserve the original ID
+    const updatedClipPath: ClipPath = {
+      ...element.clipPath,
+      ...updates,
+      id: element.clipPath.id,
+    };
+
+    this._state.updateElement(elementId, { clipPath: updatedClipPath });
+    this._history.push(this._state.snapshot());
+
+    const updatedElement = this._state.getElement(elementId);
+    if (updatedElement !== undefined) {
+      this.emit('element:updated', { id: elementId, element: updatedElement });
+    }
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
   }
 
   // ============================================================

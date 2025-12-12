@@ -4,7 +4,13 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SVGComposer } from '../../src/core/SVGComposer.js';
-import type { BaseElement, ImageElement, TextElement } from '../../src/elements/types.js';
+import type {
+  BaseElement,
+  ImageElement,
+  TextElement,
+  ShapeElement,
+  GroupElement,
+} from '../../src/elements/types.js';
 import type { Transform } from '../../src/core/types.js';
 
 // Helper to create test transforms
@@ -1989,16 +1995,756 @@ describe('SVGComposer', () => {
   });
 
   // ============================================================
+  // Spatial Query
+  // ============================================================
+
+  describe('getElementsInBounds', () => {
+    it('returns empty array for empty canvas', () => {
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toEqual([]);
+    });
+
+    it('returns empty array when no elements in bounds', () => {
+      editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 50,
+        height: 50,
+        transform: { x: 200, y: 200, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toEqual([]);
+    });
+
+    it('finds image element fully inside bounds', () => {
+      const id = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 50,
+        height: 50,
+        transform: { x: 10, y: 10, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(id);
+    });
+
+    it('finds image element partially overlapping bounds', () => {
+      const id = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: { x: 50, y: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(id);
+    });
+
+    it('handles rect shape elements', () => {
+      const id = editor.addElement({
+        type: 'shape',
+        shapeType: 'rect',
+        width: 50,
+        height: 50,
+        fill: '#000',
+        stroke: '#000',
+        strokeWidth: 1,
+        transform: { x: 10, y: 10, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(id);
+    });
+
+    it('handles circle shape elements', () => {
+      const id = editor.addElement({
+        type: 'shape',
+        shapeType: 'circle',
+        r: 25,
+        fill: '#000',
+        stroke: '#000',
+        strokeWidth: 1,
+        transform: { x: 50, y: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(id);
+    });
+
+    it('handles ellipse shape elements', () => {
+      const id = editor.addElement({
+        type: 'shape',
+        shapeType: 'ellipse',
+        rx: 30,
+        ry: 20,
+        fill: '#000',
+        stroke: '#000',
+        strokeWidth: 1,
+        transform: { x: 50, y: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(id);
+    });
+
+    it('handles text elements', () => {
+      const id = editor.addElement({
+        type: 'text',
+        content: 'Hello',
+        fontSize: 16,
+        fontFamily: 'Arial',
+        fill: '#000',
+        textAnchor: 'start',
+        transform: { x: 10, y: 30, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(id);
+    });
+
+    it('returns multiple matching elements', () => {
+      editor.addElement({
+        type: 'image',
+        src: 'test1.jpg',
+        width: 30,
+        height: 30,
+        transform: { x: 10, y: 10, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      editor.addElement({
+        type: 'image',
+        src: 'test2.jpg',
+        width: 30,
+        height: 30,
+        transform: { x: 50, y: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 1,
+        locked: false,
+        visible: true,
+      });
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toHaveLength(2);
+    });
+
+    it('skips path shapes (no bounds calculation)', () => {
+      editor.addElement({
+        type: 'shape',
+        shapeType: 'path',
+        path: 'M0 0 L100 100',
+        fill: '#000',
+        stroke: '#000',
+        strokeWidth: 1,
+        transform: { x: 10, y: 10, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 200, height: 200 });
+      expect(result).toHaveLength(0);
+    });
+
+    it('handles group elements with children', () => {
+      const childId = editor.addElement({
+        type: 'image',
+        src: 'child.jpg',
+        width: 50,
+        height: 50,
+        transform: { x: 10, y: 10, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const groupId = editor.addElement({
+        type: 'group',
+        children: [childId],
+        transform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 1,
+        locked: false,
+        visible: true,
+      } as Omit<GroupElement, 'id'>);
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result.some((el) => el.id === groupId)).toBe(true);
+    });
+
+    it('skips empty groups', () => {
+      editor.addElement({
+        type: 'group',
+        children: [],
+        transform: { x: 10, y: 10, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<GroupElement, 'id'>);
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toHaveLength(0);
+    });
+
+    it('handles groups with missing child IDs gracefully', () => {
+      editor.addElement({
+        type: 'group',
+        children: ['non-existent-id'],
+        transform: { x: 10, y: 10, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<GroupElement, 'id'>);
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toHaveLength(0);
+    });
+
+    it('handles groups with only path children (all null bounds)', () => {
+      const pathId = editor.addElement({
+        type: 'shape',
+        shapeType: 'path',
+        path: 'M0 0 L50 50',
+        fill: '#000',
+        stroke: '#000',
+        strokeWidth: 1,
+        transform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ShapeElement, 'id'>);
+
+      editor.addElement({
+        type: 'group',
+        children: [pathId],
+        transform: { x: 10, y: 10, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 1,
+        locked: false,
+        visible: true,
+      } as Omit<GroupElement, 'id'>);
+
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toHaveLength(0);
+    });
+
+    it('applies group transform offset to children bounds', () => {
+      const childId = editor.addElement({
+        type: 'image',
+        src: 'child.jpg',
+        width: 20,
+        height: 20,
+        transform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      // Group at position 50,50 with child at 0,0 means child is at 50,50
+      const groupId = editor.addElement({
+        type: 'group',
+        children: [childId],
+        transform: { x: 50, y: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 1,
+        locked: false,
+        visible: true,
+      } as Omit<GroupElement, 'id'>);
+
+      // Query bounds 0-40 should not find the group (child is at 50,50)
+      const result1 = editor.getElementsInBounds({ x: 0, y: 0, width: 40, height: 40 });
+      expect(result1.some((el) => el.id === groupId)).toBe(false);
+
+      // Query bounds 40-80 should find the group
+      const result2 = editor.getElementsInBounds({ x: 40, y: 40, width: 40, height: 40 });
+      expect(result2.some((el) => el.id === groupId)).toBe(true);
+    });
+  });
+
+  // ============================================================
+  // Clipping
+  // ============================================================
+
+  describe('addClipPath', () => {
+    it('adds rect clip path and returns ID', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const clipId = editor.addClipPath(elementId, {
+        type: 'rect',
+        x: 0,
+        y: 0,
+        width: 50,
+        height: 50,
+      });
+
+      expect(clipId).toBeDefined();
+      expect(typeof clipId).toBe('string');
+
+      const element = editor.getElement(elementId);
+      expect(element?.clipPath).toBeDefined();
+      expect(element?.clipPath?.id).toBe(clipId);
+      expect(element?.clipPath?.type).toBe('rect');
+    });
+
+    it('adds circle clip path', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      editor.addClipPath(elementId, {
+        type: 'circle',
+        cx: 50,
+        cy: 50,
+        r: 25,
+      });
+
+      const element = editor.getElement(elementId);
+      expect(element?.clipPath?.type).toBe('circle');
+      expect(element?.clipPath?.r).toBe(25);
+    });
+
+    it('adds ellipse clip path', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      editor.addClipPath(elementId, {
+        type: 'ellipse',
+        cx: 50,
+        cy: 50,
+        rx: 30,
+        ry: 20,
+      });
+
+      const element = editor.getElement(elementId);
+      expect(element?.clipPath?.type).toBe('ellipse');
+      expect(element?.clipPath?.rx).toBe(30);
+      expect(element?.clipPath?.ry).toBe(20);
+    });
+
+    it('throws on non-existent element', () => {
+      expect(() => {
+        editor.addClipPath('non-existent', { type: 'rect' });
+      }).toThrow('Element not found');
+    });
+
+    it('emits correct events', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const updatedHandler = vi.fn();
+      const stateHandler = vi.fn();
+      const historyHandler = vi.fn();
+
+      editor.on('element:updated', updatedHandler);
+      editor.on('state:changed', stateHandler);
+      editor.on('history:changed', historyHandler);
+
+      editor.addClipPath(elementId, { type: 'rect' });
+
+      expect(updatedHandler).toHaveBeenCalled();
+      expect(stateHandler).toHaveBeenCalled();
+      expect(historyHandler).toHaveBeenCalled();
+    });
+
+    it('is undoable', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      editor.addClipPath(elementId, { type: 'rect' });
+      expect(editor.getElement(elementId)?.clipPath).toBeDefined();
+
+      editor.undo();
+      expect(editor.getElement(elementId)?.clipPath).toBeUndefined();
+    });
+  });
+
+  describe('removeClipPath', () => {
+    it('removes existing clip path', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      editor.addClipPath(elementId, { type: 'rect' });
+      expect(editor.getElement(elementId)?.clipPath).toBeDefined();
+
+      editor.removeClipPath(elementId);
+      expect(editor.getElement(elementId)?.clipPath).toBeUndefined();
+    });
+
+    it('throws on non-existent element', () => {
+      expect(() => {
+        editor.removeClipPath('non-existent');
+      }).toThrow('Element not found');
+    });
+
+    it('throws if element has no clip path', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      expect(() => {
+        editor.removeClipPath(elementId);
+      }).toThrow('Element has no clip path');
+    });
+
+    it('emits correct events', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      editor.addClipPath(elementId, { type: 'rect' });
+
+      const updatedHandler = vi.fn();
+      const stateHandler = vi.fn();
+
+      editor.on('element:updated', updatedHandler);
+      editor.on('state:changed', stateHandler);
+
+      editor.removeClipPath(elementId);
+
+      expect(updatedHandler).toHaveBeenCalled();
+      expect(stateHandler).toHaveBeenCalled();
+    });
+
+    it('is undoable', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      editor.addClipPath(elementId, { type: 'rect' });
+      editor.removeClipPath(elementId);
+      expect(editor.getElement(elementId)?.clipPath).toBeUndefined();
+
+      editor.undo();
+      expect(editor.getElement(elementId)?.clipPath).toBeDefined();
+    });
+  });
+
+  describe('updateClipPath', () => {
+    it('updates clip path properties', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      editor.addClipPath(elementId, { type: 'rect', width: 50, height: 50 });
+
+      editor.updateClipPath(elementId, { width: 100, height: 100 });
+
+      const element = editor.getElement(elementId);
+      expect(element?.clipPath?.width).toBe(100);
+      expect(element?.clipPath?.height).toBe(100);
+    });
+
+    it('preserves clip path ID', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const clipId = editor.addClipPath(elementId, { type: 'rect' });
+
+      editor.updateClipPath(elementId, { width: 100 });
+
+      const element = editor.getElement(elementId);
+      expect(element?.clipPath?.id).toBe(clipId);
+    });
+
+    it('throws on non-existent element', () => {
+      expect(() => {
+        editor.updateClipPath('non-existent', { width: 100 });
+      }).toThrow('Element not found');
+    });
+
+    it('throws if element has no clip path', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      expect(() => {
+        editor.updateClipPath(elementId, { width: 100 });
+      }).toThrow('Element has no clip path');
+    });
+
+    it('partial updates merge correctly', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      editor.addClipPath(elementId, { type: 'rect', x: 10, y: 20, width: 50, height: 60 });
+
+      editor.updateClipPath(elementId, { width: 100 });
+
+      const element = editor.getElement(elementId);
+      expect(element?.clipPath?.x).toBe(10);
+      expect(element?.clipPath?.y).toBe(20);
+      expect(element?.clipPath?.width).toBe(100);
+      expect(element?.clipPath?.height).toBe(60);
+    });
+
+    it('is undoable', () => {
+      const elementId = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 100,
+        height: 100,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      editor.addClipPath(elementId, { type: 'rect', width: 50 });
+      editor.updateClipPath(elementId, { width: 100 });
+      expect(editor.getElement(elementId)?.clipPath?.width).toBe(100);
+
+      editor.undo();
+      expect(editor.getElement(elementId)?.clipPath?.width).toBe(50);
+    });
+  });
+
+  describe('clipping on different element types', () => {
+    it('adds clip path to text element', () => {
+      const elementId = editor.addElement({
+        type: 'text',
+        content: 'Hello',
+        fontSize: 16,
+        fontFamily: 'Arial',
+        fill: '#000',
+        textAnchor: 'start',
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<TextElement, 'id'>);
+
+      const clipId = editor.addClipPath(elementId, { type: 'circle', cx: 50, cy: 50, r: 25 });
+
+      const element = editor.getElement(elementId);
+      expect(element?.clipPath?.id).toBe(clipId);
+      expect(element?.clipPath?.type).toBe('circle');
+    });
+
+    it('adds clip path to shape element', () => {
+      const elementId = editor.addElement({
+        type: 'shape',
+        shapeType: 'rect',
+        width: 100,
+        height: 100,
+        fill: '#000',
+        stroke: '#000',
+        strokeWidth: 1,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ShapeElement, 'id'>);
+
+      const clipId = editor.addClipPath(elementId, {
+        type: 'ellipse',
+        cx: 50,
+        cy: 50,
+        rx: 40,
+        ry: 30,
+      });
+
+      const element = editor.getElement(elementId);
+      expect(element?.clipPath?.id).toBe(clipId);
+      expect(element?.clipPath?.type).toBe('ellipse');
+    });
+
+    it('adds clip path to group element', () => {
+      const childId = editor.addElement({
+        type: 'image',
+        src: 'child.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      const groupId = editor.addElement({
+        type: 'group',
+        children: [childId],
+        transform: createTestTransform(),
+        opacity: 1,
+        zIndex: 1,
+        locked: false,
+        visible: true,
+      } as Omit<GroupElement, 'id'>);
+
+      const clipId = editor.addClipPath(groupId, { type: 'rect', width: 100, height: 100 });
+
+      const element = editor.getElement(groupId);
+      expect(element?.clipPath?.id).toBe(clipId);
+      expect(element?.clipPath?.type).toBe('rect');
+    });
+  });
+
+  // ============================================================
   // Stub Methods (Not Yet Implemented)
   // ============================================================
 
   describe('stub implementations throw errors', () => {
-    it('getElementsInBounds should throw not implemented error', () => {
-      expect(() => {
-        editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
-      }).toThrow('Not implemented');
-    });
-
     it('render should throw not implemented error', () => {
       expect(() => {
         editor.render();
@@ -2009,22 +2755,6 @@ describe('SVGComposer', () => {
       expect(() => {
         editor.setTool('pan');
       }).toThrow('Not implemented');
-    });
-
-    it('removeClipPath should throw not implemented error', () => {
-      expect(() => {
-        editor.removeClipPath('id');
-      }).toThrow('Not implemented');
-    });
-
-    it('updateClipPath should throw not implemented error', () => {
-      expect(() => {
-        editor.updateClipPath('id', {});
-      }).toThrow('Not implemented');
-    });
-
-    it('addClipPath should throw not implemented error', () => {
-      expect(() => editor.addClipPath('id', { type: 'rect' })).toThrow('Not implemented');
     });
 
     it('destroy should throw not implemented error', () => {

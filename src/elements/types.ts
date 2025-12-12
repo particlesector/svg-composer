@@ -22,6 +22,8 @@ export interface BaseElement {
   locked: boolean;
   /** Whether the element is visible */
   visible: boolean;
+  /** Optional clip path applied to this element */
+  clipPath?: ClipPath;
 }
 
 /**
@@ -35,8 +37,6 @@ export interface ImageElement extends BaseElement {
   width: number;
   /** Original height in viewBox units */
   height: number;
-  /** Optional clip-path ID reference */
-  clipPath?: string;
 }
 
 /**
