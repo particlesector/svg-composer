@@ -2763,7 +2763,11 @@ describe('SVGComposer', () => {
 
     it('should support all tool types', () => {
       const tools: ('select' | 'pan' | 'add-image' | 'add-text' | 'add-shape')[] = [
-        'select', 'pan', 'add-image', 'add-text', 'add-shape',
+        'select',
+        'pan',
+        'add-image',
+        'add-text',
+        'add-shape',
       ];
 
       for (const tool of tools) {
