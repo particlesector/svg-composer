@@ -34,16 +34,7 @@ export type InteractionState =
 /**
  * Handle types for resize and rotate operations
  */
-export type HandleType =
-  | 'nw'
-  | 'n'
-  | 'ne'
-  | 'w'
-  | 'e'
-  | 'sw'
-  | 's'
-  | 'se'
-  | 'rotate';
+export type HandleType = 'nw' | 'n' | 'ne' | 'w' | 'e' | 'sw' | 's' | 'se' | 'rotate';
 
 /**
  * Result of a hit test operation
