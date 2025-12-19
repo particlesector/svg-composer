@@ -46,9 +46,7 @@ function createTestState(
 }
 
 // Helper to create element getter function
-function createElementGetter(
-  elements: BaseElement[],
-): (id: string) => BaseElement | undefined {
+function createElementGetter(elements: BaseElement[]): (id: string) => BaseElement | undefined {
   const map = new Map<string, BaseElement>();
   for (const el of elements) {
     map.set(el.id, el);
@@ -57,10 +55,7 @@ function createElementGetter(
 }
 
 // Test elements
-function createImageElement(
-  id: string,
-  overrides?: Partial<ImageElement>,
-): ImageElement {
+function createImageElement(id: string, overrides?: Partial<ImageElement>): ImageElement {
   return {
     id,
     type: 'image',
@@ -76,10 +71,7 @@ function createImageElement(
   };
 }
 
-function createTextElement(
-  id: string,
-  overrides?: Partial<TextElement>,
-): TextElement {
+function createTextElement(id: string, overrides?: Partial<TextElement>): TextElement {
   return {
     id,
     type: 'text',
@@ -97,10 +89,7 @@ function createTextElement(
   };
 }
 
-function createShapeElement(
-  id: string,
-  overrides?: Partial<ShapeElement>,
-): ShapeElement {
+function createShapeElement(id: string, overrides?: Partial<ShapeElement>): ShapeElement {
   return {
     id,
     type: 'shape',
@@ -394,9 +383,7 @@ describe('SVGRenderer', () => {
         const state = createTestState([element]);
         const svg = renderer.toSVG(state, createElementGetter([element]));
 
-        expect(svg).toContain(
-          'transform="translate(50, 100) rotate(45) scale(2, 1.5)"',
-        );
+        expect(svg).toContain('transform="translate(50, 100) rotate(45) scale(2, 1.5)"');
       });
 
       it('should omit transform attribute when all values are default', () => {
@@ -469,10 +456,7 @@ describe('SVGRenderer', () => {
           zIndex: 5,
         });
         const state = createTestState([front, back, middle]); // Add in wrong order
-        const svg = renderer.toSVG(
-          state,
-          createElementGetter([front, back, middle]),
-        );
+        const svg = renderer.toSVG(state, createElementGetter([front, back, middle]));
 
         const backIndex = svg.indexOf('back.jpg');
         const middleIndex = svg.indexOf('middle.jpg');
@@ -585,19 +569,14 @@ describe('SVGRenderer', () => {
         const element1 = createImageElement('img-1', { clipPath });
         const element2 = createImageElement('img-2', { clipPath, src: 'other.jpg' });
         const state = createTestState([element1, element2]);
-        const svg = renderer.toSVG(
-          state,
-          createElementGetter([element1, element2]),
-        );
+        const svg = renderer.toSVG(state, createElementGetter([element1, element2]));
 
         // Count occurrences of the clip path definition
-        const clipPathCount = (svg.match(/<clipPath id="shared-clip">/g) ?? [])
-          .length;
+        const clipPathCount = (svg.match(/<clipPath id="shared-clip">/g) ?? []).length;
         expect(clipPathCount).toBe(1);
 
         // Both elements should reference it
-        const clipRefCount = (svg.match(/clip-path="url\(#shared-clip\)"/g) ?? [])
-          .length;
+        const clipRefCount = (svg.match(/clip-path="url\(#shared-clip\)"/g) ?? []).length;
         expect(clipRefCount).toBe(2);
       });
 
@@ -814,16 +793,12 @@ describe('SVGRenderer', () => {
         const state = createTestState([element]);
         renderer.render(container, state, createElementGetter([element]));
 
-        expect(
-          container.querySelector('image[data-element-id="img-1"]'),
-        ).not.toBeNull();
+        expect(container.querySelector('image[data-element-id="img-1"]')).not.toBeNull();
 
         const hidden = createImageElement('img-1', { visible: false });
         renderer.updateElement(hidden, createElementGetter([hidden]));
 
-        expect(
-          container.querySelector('image[data-element-id="img-1"]'),
-        ).toBeNull();
+        expect(container.querySelector('image[data-element-id="img-1"]')).toBeNull();
       });
     });
 
@@ -833,15 +808,11 @@ describe('SVGRenderer', () => {
         const state = createTestState([element]);
         renderer.render(container, state, createElementGetter([element]));
 
-        expect(
-          container.querySelector('image[data-element-id="img-1"]'),
-        ).not.toBeNull();
+        expect(container.querySelector('image[data-element-id="img-1"]')).not.toBeNull();
 
         renderer.removeElement('img-1');
 
-        expect(
-          container.querySelector('image[data-element-id="img-1"]'),
-        ).toBeNull();
+        expect(container.querySelector('image[data-element-id="img-1"]')).toBeNull();
       });
     });
   });

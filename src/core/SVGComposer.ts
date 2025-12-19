@@ -1049,11 +1049,7 @@ export class SVGComposer extends EditorEventEmitter {
     if (this._destroyed) {
       throw new Error('Cannot render: editor has been destroyed');
     }
-    this._renderer.render(
-      this._container,
-      this._state.state,
-      (id) => this._state.getElement(id),
-    );
+    this._renderer.render(this._container, this._state.state, (id) => this._state.getElement(id));
   }
 
   /**

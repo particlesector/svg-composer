@@ -11,12 +11,7 @@ import type {
   GroupElement,
 } from '../elements/types.js';
 import type { CanvasState, Transform } from '../core/types.js';
-import type {
-  SVGRendererConfig,
-  ClipPathDef,
-  RenderContext,
-  ElementGetter,
-} from './types.js';
+import type { SVGRendererConfig, ClipPathDef, RenderContext, ElementGetter } from './types.js';
 
 /**
  * Default configuration values
@@ -78,9 +73,7 @@ export class SVGRenderer {
     };
 
     // Render all elements and collect clip paths
-    const svgElements = elements
-      .map((el) => this._elementToSVG(el, context))
-      .join('\n  ');
+    const svgElements = elements.map((el) => this._elementToSVG(el, context)).join('\n  ');
 
     // Build defs section with clip paths
     const defsContent = this._buildDefsContent(context.clipPaths);
@@ -105,37 +98,22 @@ export class SVGRenderer {
    */
   initialize(container: HTMLElement, state: CanvasState): void {
     // Create root SVG element
-    this._rootSvg = document.createElementNS(
-      'http://www.w3.org/2000/svg',
-      'svg',
-    );
-    this._rootSvg.setAttribute(
-      'viewBox',
-      `0 0 ${String(state.width)} ${String(state.height)}`,
-    );
+    this._rootSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    this._rootSvg.setAttribute('viewBox', `0 0 ${String(state.width)} ${String(state.height)}`);
 
     // Create defs element for clip paths
-    this._defsElement = document.createElementNS(
-      'http://www.w3.org/2000/svg',
-      'defs',
-    );
+    this._defsElement = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
     this._rootSvg.appendChild(this._defsElement);
 
     // Create background rect
-    this._backgroundRect = document.createElementNS(
-      'http://www.w3.org/2000/svg',
-      'rect',
-    );
+    this._backgroundRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     this._backgroundRect.setAttribute('width', '100%');
     this._backgroundRect.setAttribute('height', '100%');
     this._backgroundRect.setAttribute('fill', state.backgroundColor);
     this._rootSvg.appendChild(this._backgroundRect);
 
     // Create content group for elements
-    this._contentGroup = document.createElementNS(
-      'http://www.w3.org/2000/svg',
-      'g',
-    );
+    this._contentGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     this._contentGroup.setAttribute('id', `${this._config.idPrefix}content`);
     this._rootSvg.appendChild(this._contentGroup);
 
@@ -218,7 +196,9 @@ export class SVGRenderer {
    * @param getElement - Function to retrieve elements by ID
    */
   addElement(element: BaseElement, getElement: ElementGetter): void {
-    if (!this._contentGroup) {return;}
+    if (!this._contentGroup) {
+      return;
+    }
 
     const context: RenderContext = {
       clipPaths: new Map(),
@@ -226,7 +206,9 @@ export class SVGRenderer {
     };
 
     const svgElement = this._createDOMElement(element, context);
-    if (!svgElement) {return;}
+    if (!svgElement) {
+      return;
+    }
 
     // Find the correct insertion position based on zIndex
     const insertBefore = this._findInsertPosition(element.zIndex);
@@ -249,7 +231,9 @@ export class SVGRenderer {
    * @param getElement - Function to retrieve elements by ID
    */
   updateElement(element: BaseElement, getElement: ElementGetter): void {
-    if (!this._contentGroup) {return;}
+    if (!this._contentGroup) {
+      return;
+    }
 
     const existingEl = this._elementMap.get(element.id);
     if (!existingEl) {
@@ -331,8 +315,7 @@ export class SVGRenderer {
    */
   private _elementToSVG(element: BaseElement, context: RenderContext): string {
     const transform = this._buildTransformAttr(element.transform);
-    const opacity =
-      element.opacity !== 1 ? ` opacity="${String(element.opacity)}"` : '';
+    const opacity = element.opacity !== 1 ? ` opacity="${String(element.opacity)}"` : '';
     const clipAttr = this._collectClipPath(element, context);
 
     switch (element.type) {
@@ -362,9 +345,7 @@ export class SVGRenderer {
         const children = el.children
           .map((id) => {
             const child = context.getElement(id);
-            return child?.visible === true
-              ? this._elementToSVG(child, context)
-              : '';
+            return child?.visible === true ? this._elementToSVG(child, context) : '';
           })
           .filter((s) => s !== '')
           .join('');
@@ -393,8 +374,7 @@ export class SVGRenderer {
       case 'rect': {
         const w = String(el.width ?? 0);
         const h = String(el.height ?? 0);
-        const rx =
-          el.rx !== undefined && el.rx !== 0 ? ` rx="${String(el.rx)}"` : '';
+        const rx = el.rx !== undefined && el.rx !== 0 ? ` rx="${String(el.rx)}"` : '';
         return `<rect width="${w}" height="${h}"${rx} ${common} />`;
       }
       case 'circle':
@@ -440,10 +420,7 @@ export class SVGRenderer {
   /**
    * Collects a clip path from an element and returns the clip-path attribute
    */
-  private _collectClipPath(
-    element: BaseElement,
-    context: RenderContext,
-  ): string {
+  private _collectClipPath(element: BaseElement, context: RenderContext): string {
     if (!element.clipPath) {
       return '';
     }
@@ -469,9 +446,7 @@ export class SVGRenderer {
         const w = String(clipPath.width ?? 0);
         const h = String(clipPath.height ?? 0);
         const rx =
-          clipPath.rx !== undefined && clipPath.rx !== 0
-            ? ` rx="${String(clipPath.rx)}"`
-            : '';
+          clipPath.rx !== undefined && clipPath.rx !== 0 ? ` rx="${String(clipPath.rx)}"` : '';
         shapeMarkup = `<rect x="${x}" y="${y}" width="${w}" height="${h}"${rx} />`;
         break;
       }
@@ -525,10 +500,7 @@ export class SVGRenderer {
   /**
    * Creates a DOM element from an element definition
    */
-  private _createDOMElement(
-    element: BaseElement,
-    context: RenderContext,
-  ): SVGElement | null {
+  private _createDOMElement(element: BaseElement, context: RenderContext): SVGElement | null {
     if (!element.visible) {
       return null;
     }
@@ -563,10 +535,7 @@ export class SVGRenderer {
    * Creates an image SVG element
    */
   private _createImageElement(element: ImageElement): SVGImageElement {
-    const img = document.createElementNS(
-      'http://www.w3.org/2000/svg',
-      'image',
-    );
+    const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
     img.setAttribute('href', element.src);
     img.setAttribute('width', String(element.width));
     img.setAttribute('height', String(element.height));
@@ -577,10 +546,7 @@ export class SVGRenderer {
    * Creates a text SVG element
    */
   private _createTextElement(element: TextElement): SVGTextElement {
-    const text = document.createElementNS(
-      'http://www.w3.org/2000/svg',
-      'text',
-    );
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     text.setAttribute('font-size', String(element.fontSize));
     text.setAttribute('font-family', element.fontFamily);
     text.setAttribute('fill', element.fill);
@@ -597,10 +563,7 @@ export class SVGRenderer {
 
     switch (element.shapeType) {
       case 'rect': {
-        shape = document.createElementNS(
-          'http://www.w3.org/2000/svg',
-          'rect',
-        );
+        shape = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         shape.setAttribute('width', String(element.width ?? 0));
         shape.setAttribute('height', String(element.height ?? 0));
         if (element.rx !== undefined && element.rx !== 0) {
@@ -609,35 +572,23 @@ export class SVGRenderer {
         break;
       }
       case 'circle': {
-        shape = document.createElementNS(
-          'http://www.w3.org/2000/svg',
-          'circle',
-        );
+        shape = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         shape.setAttribute('r', String(element.r ?? 0));
         break;
       }
       case 'ellipse': {
-        shape = document.createElementNS(
-          'http://www.w3.org/2000/svg',
-          'ellipse',
-        );
+        shape = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
         shape.setAttribute('rx', String(element.rx ?? 0));
         shape.setAttribute('ry', String(element.ry ?? 0));
         break;
       }
       case 'path': {
-        shape = document.createElementNS(
-          'http://www.w3.org/2000/svg',
-          'path',
-        );
+        shape = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         shape.setAttribute('d', element.path ?? '');
         break;
       }
       default:
-        shape = document.createElementNS(
-          'http://www.w3.org/2000/svg',
-          'g',
-        );
+        shape = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     }
 
     shape.setAttribute('fill', element.fill);
@@ -650,14 +601,8 @@ export class SVGRenderer {
   /**
    * Creates a group SVG element with children
    */
-  private _createGroupElement(
-    element: GroupElement,
-    context: RenderContext,
-  ): SVGGElement {
-    const group = document.createElementNS(
-      'http://www.w3.org/2000/svg',
-      'g',
-    );
+  private _createGroupElement(element: GroupElement, context: RenderContext): SVGGElement {
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
     for (const childId of element.children) {
       const child = context.getElement(childId);
@@ -722,10 +667,7 @@ export class SVGRenderer {
    * More efficient than parsing markup via DOMParser.
    */
   private _createClipPathDOMElement(clipPath: ClipPath): SVGClipPathElement {
-    const clipPathEl = document.createElementNS(
-      'http://www.w3.org/2000/svg',
-      'clipPath',
-    );
+    const clipPathEl = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
     clipPathEl.setAttribute('id', clipPath.id);
 
     let shapeEl: SVGElement;
@@ -780,7 +722,9 @@ export class SVGRenderer {
    * Adds clip paths to the defs element
    */
   private _addClipPathsToDefs(clipPaths: Map<string, ClipPath>): void {
-    if (!this._defsElement) {return;}
+    if (!this._defsElement) {
+      return;
+    }
 
     for (const [id, clipPath] of clipPaths) {
       if (!this._renderedClipPaths.has(id)) {
