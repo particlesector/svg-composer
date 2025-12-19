@@ -15,6 +15,7 @@ import { State, DEFAULT_OPTIONS } from './State.js';
 import { History } from './History.js';
 import { EditorEventEmitter } from './EventEmitter.js';
 import { generateId } from '../utils/IdGenerator.js';
+import { SVGRenderer } from '../rendering/SVGRenderer.js';
 
 /**
  * SVG Composer - A zero-dependency SVG canvas editor
@@ -43,6 +44,7 @@ export class SVGComposer extends EditorEventEmitter {
   private readonly _container: HTMLElement;
   protected readonly _state: State;
   protected readonly _history: History;
+  private readonly _renderer: SVGRenderer;
   private _currentTool: ToolType = 'select';
   private _destroyed = false;
 
@@ -57,6 +59,7 @@ export class SVGComposer extends EditorEventEmitter {
     this._container = container;
     this._state = new State(options);
     this._history = new History(options.historyLimit ?? DEFAULT_OPTIONS.historyLimit);
+    this._renderer = new SVGRenderer();
     // Push initial state to history stack
     this._history.push(this._state.snapshot());
   }
@@ -905,121 +908,7 @@ export class SVGComposer extends EditorEventEmitter {
    * @returns Clean SVG markup string
    */
   toSVG(): string {
-    const state = this._state.state;
-    const elements = this._state
-      .getAllElements()
-      .filter((el) => el.visible)
-      .sort((a, b) => a.zIndex - b.zIndex);
-
-    const svgElements = elements.map((el) => this._elementToSVG(el)).join('\n  ');
-    const viewBox = `0 0 ${String(state.width)} ${String(state.height)}`;
-
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">
-  <rect width="100%" height="100%" fill="${state.backgroundColor}" />
-  ${svgElements}
-</svg>`;
-  }
-
-  /**
-   * Converts an element to SVG markup
-   */
-  private _elementToSVG(element: BaseElement): string {
-    const transform = this._buildTransformAttr(element.transform);
-    const opacity = element.opacity !== 1 ? ` opacity="${String(element.opacity)}"` : '';
-
-    switch (element.type) {
-      case 'image': {
-        const el = element as ImageElement;
-        const w = String(el.width);
-        const h = String(el.height);
-        return `<image href="${el.src}" width="${w}" height="${h}"${transform}${opacity} />`;
-      }
-      case 'text': {
-        const el = element as TextElement;
-        const fs = String(el.fontSize);
-        const content = this._escapeXml(el.content);
-        // prettier-ignore
-        return `<text font-size="${fs}" font-family="${el.fontFamily}" ` +
-        `fill="${el.fill}" text-anchor="${el.textAnchor}"${transform}${opacity}>` +
-        `${content}</text>`;
-      }
-      case 'shape': {
-        const el = element as ShapeElement;
-        return this._shapeToSVG(el, transform, opacity);
-      }
-      case 'group': {
-        const el = element as GroupElement;
-        const children = el.children
-          .map((id) => {
-            const child = this._state.getElement(id);
-            return child ? this._elementToSVG(child) : '';
-          })
-          .filter((s) => s !== '')
-          .join('');
-        return `<g${transform}${opacity}>${children}</g>`;
-      }
-      default:
-        return '';
-    }
-  }
-
-  /**
-   * Builds a transform attribute string from a Transform object
-   */
-  private _buildTransformAttr(t: Transform): string {
-    const transforms: string[] = [];
-    if (t.x !== 0 || t.y !== 0) {
-      transforms.push(`translate(${String(t.x)}, ${String(t.y)})`);
-    }
-    if (t.rotation !== 0) {
-      transforms.push(`rotate(${String(t.rotation)})`);
-    }
-    if (t.scaleX !== 1 || t.scaleY !== 1) {
-      transforms.push(`scale(${String(t.scaleX)}, ${String(t.scaleY)})`);
-    }
-    return transforms.length > 0 ? ` transform="${transforms.join(' ')}"` : '';
-  }
-
-  /**
-   * Converts a ShapeElement to SVG markup
-   */
-  private _shapeToSVG(el: ShapeElement, transform: string, opacity: string): string {
-    const sw = String(el.strokeWidth);
-    // prettier-ignore
-    const common = `fill="${el.fill}" stroke="${el.stroke}" stroke-width="${sw}"` +
-      `${transform}${opacity}`;
-    switch (el.shapeType) {
-      case 'rect': {
-        const w = String(el.width ?? 0);
-        const h = String(el.height ?? 0);
-        const rx = el.rx !== undefined && el.rx !== 0 ? ` rx="${String(el.rx)}"` : '';
-        return `<rect width="${w}" height="${h}"${rx} ${common} />`;
-      }
-      case 'circle':
-        return `<circle r="${String(el.r ?? 0)}" ${common} />`;
-      case 'ellipse':
-        return `<ellipse rx="${String(el.rx ?? 0)}" ry="${String(el.ry ?? 0)}" ${common} />`;
-      case 'path':
-        return `<path d="${el.path ?? ''}" ${common} />`;
-      default:
-        return '';
-    }
-  }
-
-  /**
-   * Escapes special XML characters in a string
-   */
-  private _escapeXml(str: string): string {
-    return str.replace(/[<>&'"]/g, (c) => {
-      const escapeMap: Record<string, string> = {
-        '<': '&lt;',
-        '>': '&gt;',
-        '&': '&amp;',
-        "'": '&apos;',
-        '"': '&quot;',
-      };
-      return escapeMap[c] ?? c;
-    });
+    return this._renderer.toSVG(this._state.state, (id) => this._state.getElement(id));
   }
 
   /**
@@ -1160,8 +1049,11 @@ export class SVGComposer extends EditorEventEmitter {
     if (this._destroyed) {
       throw new Error('Cannot render: editor has been destroyed');
     }
-    const svg = this.toSVG();
-    this._container.innerHTML = svg;
+    this._renderer.render(
+      this._container,
+      this._state.state,
+      (id) => this._state.getElement(id),
+    );
   }
 
   /**
@@ -1176,8 +1068,8 @@ export class SVGComposer extends EditorEventEmitter {
       return; // Already destroyed, idempotent
     }
 
-    // Clear DOM
-    this._container.innerHTML = '';
+    // Clean up renderer
+    this._renderer.destroy();
 
     // Reset state to empty (no events emitted)
     this._state.restore({

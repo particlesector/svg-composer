@@ -58,3 +58,12 @@ export {
   CoordinateTransformer,
   type CoordinateTransformerConfig,
 } from './interaction/CoordinateTransformer.js';
+
+// Rendering
+export { SVGRenderer } from './rendering/SVGRenderer.js';
+export type {
+  SVGRendererConfig,
+  ClipPathDef,
+  RenderContext,
+  ElementGetter,
+} from './rendering/types.js';
