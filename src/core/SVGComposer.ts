@@ -16,6 +16,9 @@ import { History } from './History.js';
 import { EditorEventEmitter } from './EventEmitter.js';
 import { generateId } from '../utils/IdGenerator.js';
 import { SVGRenderer } from '../rendering/SVGRenderer.js';
+import { InteractionManager } from '../interaction/InteractionManager.js';
+import { SelectTool } from '../interaction/tools/SelectTool.js';
+import { PanTool } from '../interaction/tools/PanTool.js';
 
 /**
  * SVG Composer - A zero-dependency SVG canvas editor
@@ -45,8 +48,10 @@ export class SVGComposer extends EditorEventEmitter {
   protected readonly _state: State;
   protected readonly _history: History;
   private readonly _renderer: SVGRenderer;
+  private _interactionManager: InteractionManager | null = null;
   private _currentTool: ToolType = 'select';
   private _destroyed = false;
+  private _interactionInitialized = false;
 
   /**
    * Creates a new SVGComposer instance
@@ -197,6 +202,47 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
+   * Updates an element's properties without creating a history entry.
+   * Use this for intermediate updates during drag/resize/rotate operations,
+   * then call pushHistory() when the operation completes.
+   *
+   * @param id - Element ID to update
+   * @param updates - Partial element properties to update
+   * @throws Error if element does not exist
+   */
+  updateElementSilent(id: string, updates: Partial<BaseElement>): void {
+    // Verify element exists
+    if (!this._state.getElement(id)) {
+      throw new Error(`Element with id "${id}" not found`);
+    }
+
+    // Update element without pushing to history
+    this._state.updateElement(id, updates);
+
+    // Get updated element for event
+    const updatedElement = this._state.getElement(id);
+    if (!updatedElement) {
+      throw new Error(`Element with id "${id}" unexpectedly missing after update`);
+    }
+
+    // Emit element update event but NOT history:changed
+    this.emit('element:updated', { id, element: updatedElement });
+    this.emit('state:changed', { state: this._state.state });
+  }
+
+  /**
+   * Pushes the current state to history.
+   * Call this after a series of silent updates to create a single undo point.
+   */
+  pushHistory(): void {
+    this._history.push(this._state.snapshot());
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
+  }
+
+  /**
    * Replaces an element entirely
    *
    * @param id - Element ID to replace
@@ -278,17 +324,40 @@ export class SVGComposer extends EditorEventEmitter {
    */
   private _getElementBounds(element: BaseElement): BoundingBox | null {
     const t = element.transform;
+    const scaleX = t.scaleX;
+    const scaleY = t.scaleY;
 
     switch (element.type) {
       case 'image': {
         const el = element as ImageElement;
-        return { x: t.x, y: t.y, width: el.width, height: el.height };
+        return {
+          x: t.x,
+          y: t.y,
+          width: el.width * scaleX,
+          height: el.height * scaleY,
+        };
       }
       case 'text': {
         const el = element as TextElement;
         // Approximate text bounds using fontSize and content length
-        const approxWidth = el.content.length * el.fontSize * 0.6;
-        return { x: t.x, y: t.y - el.fontSize, width: approxWidth, height: el.fontSize };
+        // Must match HitTester.getElementBounds for consistency
+        const estimatedWidth = el.content.length * el.fontSize * 0.6 * scaleX;
+        const estimatedHeight = el.fontSize * 1.2 * scaleY;
+
+        // Adjust x based on text anchor
+        let adjustedX = t.x;
+        if (el.textAnchor === 'middle') {
+          adjustedX = t.x - estimatedWidth / 2;
+        } else if (el.textAnchor === 'end') {
+          adjustedX = t.x - estimatedWidth;
+        }
+
+        return {
+          x: adjustedX,
+          y: t.y - estimatedHeight,
+          width: estimatedWidth,
+          height: estimatedHeight,
+        };
       }
       case 'shape': {
         const el = element as ShapeElement;
@@ -307,16 +376,31 @@ export class SVGComposer extends EditorEventEmitter {
    * Calculates the bounding box for a shape element
    */
   private _getShapeBounds(el: ShapeElement, t: Transform): BoundingBox | null {
+    const scaleX = t.scaleX;
+    const scaleY = t.scaleY;
+
     switch (el.shapeType) {
       case 'rect':
-        return { x: t.x, y: t.y, width: el.width ?? 0, height: el.height ?? 0 };
+        return {
+          x: t.x,
+          y: t.y,
+          width: (el.width ?? 0) * scaleX,
+          height: (el.height ?? 0) * scaleY,
+        };
       case 'circle': {
         const r = el.r ?? 0;
-        return { x: t.x - r, y: t.y - r, width: r * 2, height: r * 2 };
+        const scaledRx = r * scaleX;
+        const scaledRy = r * scaleY;
+        return {
+          x: t.x - scaledRx,
+          y: t.y - scaledRy,
+          width: scaledRx * 2,
+          height: scaledRy * 2,
+        };
       }
       case 'ellipse': {
-        const rx = el.rx ?? 0;
-        const ry = el.ry ?? 0;
+        const rx = (el.rx ?? 0) * scaleX;
+        const ry = (el.ry ?? 0) * scaleY;
         return { x: t.x - rx, y: t.y - ry, width: rx * 2, height: ry * 2 };
       }
       case 'path':
@@ -449,6 +533,80 @@ export class SVGComposer extends EditorEventEmitter {
       .map((element) => element.id);
     this._state.setSelection(selectableIds);
     this.emit('selection:changed', { selectedIds: this._state.getSelection() });
+  }
+
+  /**
+   * Gets the currently selected element IDs
+   *
+   * @returns Array of selected element IDs
+   */
+  getSelection(): string[] {
+    return this._state.getSelection();
+  }
+
+  /**
+   * Gets the bounding box of the current selection
+   *
+   * @returns Combined bounding box of all selected elements, or null if none
+   */
+  getSelectionBounds(): BoundingBox | null {
+    const selectedElements = this.getSelected();
+    if (selectedElements.length === 0) {
+      return null;
+    }
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (const element of selectedElements) {
+      const bounds = this._getElementBounds(element);
+      if (bounds) {
+        minX = Math.min(minX, bounds.x);
+        minY = Math.min(minY, bounds.y);
+        maxX = Math.max(maxX, bounds.x + bounds.width);
+        maxY = Math.max(maxY, bounds.y + bounds.height);
+      }
+    }
+
+    if (minX === Infinity) {
+      return null;
+    }
+
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+    };
+  }
+
+  /**
+   * Gets the rotation of the current selection
+   * For multi-selection, returns 0 (combined selection has no rotation)
+   *
+   * @returns Rotation in degrees
+   */
+  getSelectionRotation(): number {
+    const selectedElements = this.getSelected();
+    const first = selectedElements[0];
+    if (selectedElements.length === 1 && first) {
+      return first.transform.rotation;
+    }
+    return 0;
+  }
+
+  /**
+   * Gets the canvas size
+   *
+   * @returns Canvas dimensions
+   */
+  getCanvasSize(): { width: number; height: number } {
+    return {
+      width: this._state.state.width,
+      height: this._state.state.height,
+    };
   }
 
   // ============================================================
@@ -1024,6 +1182,9 @@ export class SVGComposer extends EditorEventEmitter {
    */
   setTool(tool: ToolType): void {
     this._currentTool = tool;
+    if (this._interactionManager) {
+      this._interactionManager.setTool(tool);
+    }
     this.emit('tool:changed', { tool });
   }
 
@@ -1050,6 +1211,76 @@ export class SVGComposer extends EditorEventEmitter {
       throw new Error('Cannot render: editor has been destroyed');
     }
     this._renderer.render(this._container, this._state.state, (id) => this._state.getElement(id));
+
+    // Initialize interaction manager on first render (after SVG is in DOM)
+    if (!this._interactionInitialized && this._renderer.svgRoot) {
+      this._initializeInteraction();
+      this._interactionInitialized = true;
+    }
+
+    // Update selection handles
+    if (this._interactionManager) {
+      this._interactionManager.updateHandles();
+    }
+  }
+
+  /**
+   * Initializes the interaction manager
+   */
+  private _initializeInteraction(): void {
+    const svgRoot = this._renderer.svgRoot;
+    if (!svgRoot) {
+      return;
+    }
+
+    this._interactionManager = new InteractionManager({
+      container: this._container,
+      svgRoot,
+      composer: {
+        select: (id: string): void => {
+          this.select(id);
+        },
+        addToSelection: (id: string): void => {
+          this.addToSelection(id);
+        },
+        removeFromSelection: (id: string): void => {
+          this.removeFromSelection(id);
+        },
+        clearSelection: (): void => {
+          this.clearSelection();
+        },
+        getSelection: (): string[] => this.getSelection(),
+        updateElement: (id: string, updates: Partial<BaseElement>): void => {
+          this.updateElement(id, updates);
+        },
+        updateElementSilent: (id: string, updates: Partial<BaseElement>): void => {
+          this.updateElementSilent(id, updates);
+        },
+        pushHistory: (): void => {
+          this.pushHistory();
+        },
+        getElement: (id: string): BaseElement | undefined => this.getElement(id),
+        removeElement: (id: string): void => {
+          this.removeElement(id);
+        },
+        getCanvasSize: (): { width: number; height: number } => this.getCanvasSize(),
+      },
+      getElements: (): BaseElement[] => this.getAllElements(),
+      getSelectionBounds: (): BoundingBox | null => this.getSelectionBounds(),
+      getSelectionRotation: (): number => this.getSelectionRotation(),
+      idPrefix: this._renderer.idPrefix,
+      onRequestRender: (): void => {
+        this.render();
+      },
+    });
+
+    // Create and register tools
+    const toolContext = this._interactionManager.createToolContext();
+    this._interactionManager.registerTool(new SelectTool(toolContext));
+    this._interactionManager.registerTool(new PanTool(toolContext));
+
+    // Initialize
+    this._interactionManager.initialize();
   }
 
   /**
@@ -1062,6 +1293,12 @@ export class SVGComposer extends EditorEventEmitter {
   destroy(): void {
     if (this._destroyed) {
       return; // Already destroyed, idempotent
+    }
+
+    // Clean up interaction manager
+    if (this._interactionManager) {
+      this._interactionManager.destroy();
+      this._interactionManager = null;
     }
 
     // Clean up renderer
@@ -1081,6 +1318,7 @@ export class SVGComposer extends EditorEventEmitter {
 
     // Mark as destroyed
     this._destroyed = true;
+    this._interactionInitialized = false;
   }
 
   /**

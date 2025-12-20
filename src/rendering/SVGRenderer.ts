@@ -50,6 +50,20 @@ export class SVGRenderer {
     this._config = { ...DEFAULT_CONFIG, ...config };
   }
 
+  /**
+   * Gets the root SVG element (for overlay purposes)
+   */
+  get svgRoot(): SVGSVGElement | null {
+    return this._rootSvg;
+  }
+
+  /**
+   * Gets the ID prefix used for element IDs
+   */
+  get idPrefix(): string {
+    return this._config.idPrefix;
+  }
+
   // ============================================================
   // SVG String Generation
   // ============================================================
@@ -314,7 +328,8 @@ export class SVGRenderer {
    * Converts an element to SVG markup string
    */
   private _elementToSVG(element: BaseElement, context: RenderContext): string {
-    const transform = this._buildTransformAttr(element.transform);
+    const rotationCenter = this._getRotationCenter(element);
+    const transform = this._buildTransformAttr(element.transform, rotationCenter);
     const opacity = element.opacity !== 1 ? ` opacity="${String(element.opacity)}"` : '';
     const clipAttr = this._collectClipPath(element, context);
 
@@ -332,8 +347,8 @@ export class SVGRenderer {
         const content = this._escapeXml(el.content);
         return (
           `<text font-size="${fs}" font-family="${el.fontFamily}" ` +
-          `fill="${el.fill}" text-anchor="${el.textAnchor}"${transform}${opacity}${clipAttr}>` +
-          `${content}</text>`
+          `fill="${el.fill}" text-anchor="${el.textAnchor}" style="user-select: none"` +
+          `${transform}${opacity}${clipAttr}>${content}</text>`
         );
       }
       case 'shape': {
@@ -392,8 +407,8 @@ export class SVGRenderer {
    * Builds a transform attribute string from a Transform object.
    * Returns empty string if no transforms needed, otherwise returns ' transform="..."'.
    */
-  private _buildTransformAttr(t: Transform): string {
-    const str = this._buildTransformString(t);
+  private _buildTransformAttr(t: Transform, rotationCenter?: { x: number; y: number }): string {
+    const str = this._buildTransformString(t, rotationCenter);
     return str ? ` transform="${str}"` : '';
   }
 
@@ -551,6 +566,8 @@ export class SVGRenderer {
     text.setAttribute('font-family', element.fontFamily);
     text.setAttribute('fill', element.fill);
     text.setAttribute('text-anchor', element.textAnchor);
+    // Prevent text selection when interacting with canvas
+    text.setAttribute('style', 'user-select: none');
     text.textContent = element.content;
     return text;
   }
@@ -625,8 +642,11 @@ export class SVGRenderer {
     element: BaseElement,
     context: RenderContext,
   ): void {
+    // Calculate rotation center based on element type
+    const rotationCenter = this._getRotationCenter(element);
+
     // Apply transform
-    const transformStr = this._buildTransformString(element.transform);
+    const transformStr = this._buildTransformString(element.transform, rotationCenter);
     if (transformStr) {
       svgElement.setAttribute('transform', transformStr);
     }
@@ -646,15 +666,89 @@ export class SVGRenderer {
   }
 
   /**
-   * Builds a transform string (without the attribute wrapper)
+   * Gets the rotation center for an element based on its type and dimensions.
+   * The rotation center is in the coordinate system after translate but before scale.
+   *
+   * For rectangles and images, this is the scaled center (width * scaleX / 2, height * scaleY / 2).
+   * For circles and ellipses, they're already centered at origin, so no offset is needed.
    */
-  private _buildTransformString(t: Transform): string {
+  private _getRotationCenter(element: BaseElement): { x: number; y: number } | undefined {
+    const t = element.transform;
+
+    if (element.type === 'image') {
+      const img = element as ImageElement;
+      return {
+        x: (img.width / 2) * t.scaleX,
+        y: (img.height / 2) * t.scaleY,
+      };
+    }
+
+    if (element.type === 'shape') {
+      const shape = element as ShapeElement;
+      if (shape.shapeType === 'rect') {
+        return {
+          x: ((shape.width ?? 0) / 2) * t.scaleX,
+          y: ((shape.height ?? 0) / 2) * t.scaleY,
+        };
+      }
+      // circle, ellipse, path are centered at origin - no offset needed
+    }
+
+    if (element.type === 'text') {
+      const text = element as TextElement;
+      // Text baseline is at y=0, text extends upward (negative y)
+      // Approximate width matches the bounds calculation in SVGComposer
+      const approxWidth = text.content.length * text.fontSize * 0.6;
+      const height = text.fontSize;
+
+      // For 'start' anchor: text starts at x=0, extends right
+      // For 'middle' anchor: text is centered at x=0
+      // For 'end' anchor: text ends at x=0, extends left
+      let centerX: number;
+      switch (text.textAnchor) {
+        case 'middle':
+          centerX = 0;
+          break;
+        case 'end':
+          centerX = -approxWidth / 2;
+          break;
+        case 'start':
+        default:
+          centerX = approxWidth / 2;
+          break;
+      }
+
+      return {
+        x: centerX * t.scaleX,
+        y: (-height / 2) * t.scaleY, // Negative because text is above baseline
+      };
+    }
+
+    // Groups and other types use default rotation at origin
+    return undefined;
+  }
+
+  /**
+   * Builds a transform string (without the attribute wrapper)
+   *
+   * @param t - The transform to convert
+   * @param rotationCenter - Optional center point for rotation
+   *                         (in post-translate, pre-scale coords)
+   */
+  private _buildTransformString(t: Transform, rotationCenter?: { x: number; y: number }): string {
     const transforms: string[] = [];
     if (t.x !== 0 || t.y !== 0) {
       transforms.push(`translate(${String(t.x)}, ${String(t.y)})`);
     }
     if (t.rotation !== 0) {
-      transforms.push(`rotate(${String(t.rotation)})`);
+      if (rotationCenter && (rotationCenter.x !== 0 || rotationCenter.y !== 0)) {
+        // Rotate around the specified center point
+        transforms.push(
+          `rotate(${String(t.rotation)}, ${String(rotationCenter.x)}, ${String(rotationCenter.y)})`,
+        );
+      } else {
+        transforms.push(`rotate(${String(t.rotation)})`);
+      }
     }
     if (t.scaleX !== 1 || t.scaleY !== 1) {
       transforms.push(`scale(${String(t.scaleX)}, ${String(t.scaleY)})`);

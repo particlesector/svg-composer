@@ -350,14 +350,16 @@ describe('SVGRenderer', () => {
         expect(svg).toContain('transform="translate(100, 200)"');
       });
 
-      it('should apply rotation transform', () => {
+      it('should apply rotation transform with center for images', () => {
         const element = createImageElement('img-1', {
           transform: createTestTransform({ rotation: 45 }),
         });
         const state = createTestState([element]);
         const svg = renderer.toSVG(state, createElementGetter([element]));
 
-        expect(svg).toContain('transform="rotate(45)"');
+        // Images rotate around their center (width/2, height/2)
+        // Default image is 100x50, so center is (50, 25)
+        expect(svg).toContain('transform="rotate(45, 50, 25)"');
       });
 
       it('should apply scale transform', () => {
@@ -383,7 +385,8 @@ describe('SVGRenderer', () => {
         const state = createTestState([element]);
         const svg = renderer.toSVG(state, createElementGetter([element]));
 
-        expect(svg).toContain('transform="translate(50, 100) rotate(45) scale(2, 1.5)"');
+        // Rotation center accounts for scale: (100/2 * 2, 50/2 * 1.5) = (100, 37.5)
+        expect(svg).toContain('transform="translate(50, 100) rotate(45, 100, 37.5) scale(2, 1.5)"');
       });
 
       it('should omit transform attribute when all values are default', () => {

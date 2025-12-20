@@ -47,11 +47,44 @@
       padding: 20px;
     }
 
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      background: #1a1a2e;
+      color: #eee;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: background 0.2s;
+    }
+
+    .toolbar button:hover {
+      background: #2a2a4e;
+    }
+
+    .toolbar button.active {
+      background: #4a4aff;
+    }
+
+    .toolbar .separator {
+      width: 1px;
+      background: #333;
+      margin: 0 8px;
+    }
+
     #canvas {
       width: 100%;
       aspect-ratio: 1;
       background: #fff;
       border-radius: 4px;
+      cursor: default;
     }
 
     .sidebar {
@@ -87,6 +120,20 @@
       color: #6bff6b;
     }
 
+    .selection-info {
+      padding: 12px;
+      background: #1a1a2e;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.8rem;
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+
+    .selection-info .label {
+      color: #888;
+    }
+
     .info {
       color: #888;
       font-size: 0.875rem;
@@ -98,6 +145,22 @@
       padding: 2px 6px;
       border-radius: 3px;
       font-size: 0.8rem;
+    }
+
+    .info ul {
+      margin: 10px 0 10px 20px;
+    }
+
+    .info li {
+      margin: 4px 0;
+    }
+
+    kbd {
+      background: #333;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 0.75rem;
+      font-family: monospace;
     }
 
     @media (max-width: 900px) {
@@ -115,6 +178,17 @@
 
   <div class="container">
     <div class="canvas-wrapper">
+      <div class="toolbar">
+        <button id="btn-select" class="active">Select</button>
+        <button id="btn-pan">Pan</button>
+        <div class="separator"></div>
+        <button id="btn-add-rect">Add Rectangle</button>
+        <button id="btn-add-circle">Add Circle</button>
+        <button id="btn-add-text">Add Text</button>
+        <div class="separator"></div>
+        <button id="btn-clear">Clear Selection</button>
+        <button id="btn-delete">Delete Selected</button>
+      </div>
       <div id="canvas"></div>
     </div>
 
@@ -122,26 +196,35 @@
       <h2>Status</h2>
       <div id="status" class="status">Initializing...</div>
 
-      <h2>About</h2>
+      <h2>Selection</h2>
+      <div id="selection-info" class="selection-info">
+        <div><span class="label">Selected:</span> None</div>
+      </div>
+
+      <h2>Controls</h2>
       <div class="info">
-        <p>
-          This is a demo page for SVG Composer. The library is currently in
-          development with stub implementations.
-        </p>
+        <p><strong>Select Tool:</strong></p>
+        <ul>
+          <li>Click to select an element</li>
+          <li><kbd>Shift</kbd> + click for multi-select</li>
+          <li>Drag to move selected elements</li>
+          <li>Drag handles to resize</li>
+          <li>Drag rotation handle to rotate</li>
+          <li><kbd>Shift</kbd> while rotating snaps to 15&deg;</li>
+          <li><kbd>Space</kbd> + drag to pan temporarily</li>
+          <li><kbd>Escape</kbd> to clear selection</li>
+          <li><kbd>Delete</kbd> to remove selected</li>
+        </ul>
         <br>
-        <p>
-          Once implemented, you'll be able to:
-        </p>
-        <ul style="margin: 10px 0 10px 20px;">
-          <li>Add images, text, and shapes</li>
-          <li>Transform elements (move, rotate, scale)</li>
-          <li>Manage z-order and selection</li>
-          <li>Export to SVG or JSON</li>
-          <li>Undo/redo operations</li>
+        <p><strong>Pan Tool:</strong></p>
+        <ul>
+          <li>Drag to pan the canvas</li>
+          <li>Scroll to zoom in/out</li>
         </ul>
         <br>
         <p>
-          Check the console for detailed output.
+          Check the console for detailed output.<br>
+          <code>window.editor</code> is available for debugging.
         </p>
       </div>
     </div>
@@ -151,10 +234,55 @@
   <script src="../dist/svg-composer.js"></script>
   <script>
     const statusEl = document.getElementById('status');
+    const selectionInfoEl = document.getElementById('selection-info');
 
     function setStatus(message, type = 'info') {
       statusEl.textContent = message;
       statusEl.className = 'status ' + type;
+    }
+
+    function updateSelectionInfo(editor) {
+      const selection = editor.getSelection();
+      if (selection.length === 0) {
+        selectionInfoEl.innerHTML = '<div><span class="label">Selected:</span> None</div>';
+        return;
+      }
+
+      let html = `<div><span class="label">Selected:</span> ${selection.length} element(s)</div>`;
+
+      for (const id of selection) {
+        const element = editor.getElement(id);
+        if (element && element.transform) {
+          const t = element.transform;
+          const x = typeof t.x === 'number' ? Math.round(t.x) : 0;
+          const y = typeof t.y === 'number' ? Math.round(t.y) : 0;
+          const scaleX = typeof t.scaleX === 'number' ? t.scaleX.toFixed(2) : '1.00';
+          const scaleY = typeof t.scaleY === 'number' ? t.scaleY.toFixed(2) : '1.00';
+          const rotation = typeof t.rotation === 'number' ? Math.round(t.rotation) : 0;
+
+          html += `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #333;">`;
+          html += `<div><span class="label">ID:</span> ${element.id.substring(0, 8)}...</div>`;
+          html += `<div><span class="label">Type:</span> ${element.type}</div>`;
+          html += `<div><span class="label">Position:</span> (${x}, ${y})</div>`;
+          html += `<div><span class="label">Scale:</span> (${scaleX}, ${scaleY})</div>`;
+          html += `<div><span class="label">Rotation:</span> ${rotation}&deg;</div>`;
+          html += `</div>`;
+        }
+      }
+
+      selectionInfoEl.innerHTML = html;
+    }
+
+    // Helper to create default transform
+    function createTransform(overrides) {
+      return {
+        x: 0,
+        y: 0,
+        scaleX: 1,
+        scaleY: 1,
+        rotation: 0,
+        ...overrides
+      };
     }
 
     try {
@@ -169,22 +297,234 @@
       const editor = new SVGComposer.SVGComposer(container, {
         width: 1200,
         height: 1200,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#f8f9fa'
       });
 
       console.log('SVGComposer instance created:', editor);
-      console.log('Container:', editor.container);
-      console.log('Current tool:', editor.getTool());
 
-      setStatus('Editor initialized successfully!', 'success');
+      let zIndexCounter = 0;
 
-      // Try to call a method (will throw "Not implemented")
-      try {
-        editor.toSVG();
-      } catch (e) {
-        console.log('Expected error (stub):', e.message);
-        setStatus('Editor loaded. Methods are stubs (not implemented yet).', 'info');
+      // Add some demo elements using addElement with full element structure
+      const rect1 = editor.addElement({
+        type: 'shape',
+        transform: createTransform({ x: 100, y: 100 }),
+        opacity: 1,
+        zIndex: zIndexCounter++,
+        locked: false,
+        visible: true,
+        shapeType: 'rect',
+        width: 200,
+        height: 150,
+        fill: '#4a90d9',
+        stroke: '#2a6cb0',
+        strokeWidth: 2
+      });
+      console.log('Added rectangle:', rect1);
+
+      const rect2 = editor.addElement({
+        type: 'shape',
+        transform: createTransform({ x: 400, y: 150, rotation: 15 }),
+        opacity: 1,
+        zIndex: zIndexCounter++,
+        locked: false,
+        visible: true,
+        shapeType: 'rect',
+        width: 120,
+        height: 120,
+        fill: '#d94a4a',
+        stroke: '#b02a2a',
+        strokeWidth: 2,
+        rx: 12
+      });
+      console.log('Added rounded rectangle:', rect2);
+
+      const circle = editor.addElement({
+        type: 'shape',
+        transform: createTransform({ x: 250, y: 450 }),
+        opacity: 1,
+        zIndex: zIndexCounter++,
+        locked: false,
+        visible: true,
+        shapeType: 'circle',
+        r: 80,
+        fill: '#4ad97a',
+        stroke: '#2ab05a',
+        strokeWidth: 2
+      });
+      console.log('Added circle:', circle);
+
+      const ellipse = editor.addElement({
+        type: 'shape',
+        transform: createTransform({ x: 550, y: 400, rotation: -10 }),
+        opacity: 1,
+        zIndex: zIndexCounter++,
+        locked: false,
+        visible: true,
+        shapeType: 'ellipse',
+        rx: 100,
+        ry: 60,
+        fill: '#d9a84a',
+        stroke: '#b0882a',
+        strokeWidth: 2
+      });
+      console.log('Added ellipse:', ellipse);
+
+      const text1 = editor.addElement({
+        type: 'text',
+        transform: createTransform({ x: 600, y: 100 }),
+        opacity: 1,
+        zIndex: zIndexCounter++,
+        locked: false,
+        visible: true,
+        content: 'SVG Composer',
+        fontSize: 48,
+        fontFamily: 'Arial, sans-serif',
+        fill: '#333',
+        textAnchor: 'start'
+      });
+      console.log('Added text:', text1);
+
+      const text2 = editor.addElement({
+        type: 'text',
+        transform: createTransform({ x: 600, y: 180 }),
+        opacity: 1,
+        zIndex: zIndexCounter++,
+        locked: false,
+        visible: true,
+        content: 'Click to select, drag to move!',
+        fontSize: 24,
+        fontFamily: 'Arial, sans-serif',
+        fill: '#666',
+        textAnchor: 'start'
+      });
+      console.log('Added text:', text2);
+
+      // Initial render
+      editor.render();
+
+      // Listen for selection changes
+      editor.on('selection:changed', (data) => {
+        console.log('Selection changed:', data);
+        updateSelectionInfo(editor);
+      });
+
+      // Listen for element updates
+      editor.on('element:updated', (data) => {
+        console.log('Element updated:', data);
+        updateSelectionInfo(editor);
+      });
+
+      // Listen for tool changes
+      editor.on('tool:changed', (data) => {
+        console.log('Tool changed:', data);
+        updateToolButtons(data.tool);
+      });
+
+      setStatus('Editor ready! Click on shapes to interact.', 'success');
+
+      // Tool button handlers
+      const btnSelect = document.getElementById('btn-select');
+      const btnPan = document.getElementById('btn-pan');
+      const btnAddRect = document.getElementById('btn-add-rect');
+      const btnAddCircle = document.getElementById('btn-add-circle');
+      const btnAddText = document.getElementById('btn-add-text');
+      const btnClear = document.getElementById('btn-clear');
+      const btnDelete = document.getElementById('btn-delete');
+
+      function updateToolButtons(tool) {
+        btnSelect.classList.toggle('active', tool === 'select');
+        btnPan.classList.toggle('active', tool === 'pan');
       }
+
+      btnSelect.addEventListener('click', () => {
+        editor.setTool('select');
+      });
+
+      btnPan.addEventListener('click', () => {
+        editor.setTool('pan');
+      });
+
+      let textCounter = 0;
+
+      btnAddRect.addEventListener('click', () => {
+        const id = editor.addElement({
+          type: 'shape',
+          transform: createTransform({
+            x: 200 + Math.random() * 400,
+            y: 200 + Math.random() * 400
+          }),
+          opacity: 1,
+          zIndex: zIndexCounter++,
+          locked: false,
+          visible: true,
+          shapeType: 'rect',
+          width: 100 + Math.random() * 100,
+          height: 80 + Math.random() * 80,
+          fill: `hsl(${Math.random() * 360}, 70%, 60%)`,
+          stroke: '#333',
+          strokeWidth: 1
+        });
+        editor.render();
+        editor.select(id);
+        console.log('Added new rectangle:', id);
+      });
+
+      btnAddCircle.addEventListener('click', () => {
+        const id = editor.addElement({
+          type: 'shape',
+          transform: createTransform({
+            x: 200 + Math.random() * 400,
+            y: 200 + Math.random() * 400
+          }),
+          opacity: 1,
+          zIndex: zIndexCounter++,
+          locked: false,
+          visible: true,
+          shapeType: 'circle',
+          r: 40 + Math.random() * 40,
+          fill: `hsl(${Math.random() * 360}, 70%, 60%)`,
+          stroke: '#333',
+          strokeWidth: 1
+        });
+        editor.render();
+        editor.select(id);
+        console.log('Added new circle:', id);
+      });
+
+      btnAddText.addEventListener('click', () => {
+        textCounter++;
+        const id = editor.addElement({
+          type: 'text',
+          transform: createTransform({
+            x: 200 + Math.random() * 400,
+            y: 200 + Math.random() * 400
+          }),
+          opacity: 1,
+          zIndex: zIndexCounter++,
+          locked: false,
+          visible: true,
+          content: `Text ${textCounter}`,
+          fontSize: 24 + Math.random() * 24,
+          fontFamily: 'Arial, sans-serif',
+          fill: `hsl(${Math.random() * 360}, 70%, 40%)`,
+          textAnchor: 'start'
+        });
+        editor.render();
+        editor.select(id);
+        console.log('Added new text:', id);
+      });
+
+      btnClear.addEventListener('click', () => {
+        editor.clearSelection();
+      });
+
+      btnDelete.addEventListener('click', () => {
+        const selection = editor.getSelection();
+        for (const id of selection) {
+          editor.removeElement(id);
+        }
+        editor.render();
+      });
 
       // Make editor available globally for console debugging
       window.editor = editor;
