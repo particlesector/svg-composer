@@ -1911,7 +1911,8 @@ describe('SVGComposer', () => {
 
       const svg = editor.toSVG();
 
-      expect(svg).toContain('transform="translate(50, 100) rotate(45) scale(2, 1.5)"');
+      // Rotation center accounts for scale: (100/2 * 2, 50/2 * 1.5) = (100, 37.5)
+      expect(svg).toContain('transform="translate(50, 100) rotate(45, 100, 37.5) scale(2, 1.5)"');
     });
 
     it('should respect zIndex ordering', () => {
