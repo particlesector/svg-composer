@@ -42,6 +42,15 @@ export class HitTester {
   }
 
   /**
+   * Gets all elements for tools that need to calculate z-index
+   *
+   * @returns Array of all elements
+   */
+  getElements(): BaseElement[] {
+    return this._config.getElements();
+  }
+
+  /**
    * Performs a hit test at the given point
    *
    * @param point - Point in viewBox coordinates

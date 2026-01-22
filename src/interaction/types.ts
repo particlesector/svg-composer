@@ -29,7 +29,8 @@ export type InteractionState =
   | 'dragging'
   | 'resizing'
   | 'rotating'
-  | 'panning';
+  | 'panning'
+  | 'drawing';
 
 /**
  * Handle types for resize and rotate operations

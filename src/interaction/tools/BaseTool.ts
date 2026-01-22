@@ -23,6 +23,8 @@ export interface ToolComposerAccess {
   clearSelection(): void;
   /** Get selected element IDs */
   getSelection(): string[];
+  /** Add a new element to the canvas */
+  addElement(element: Omit<BaseElement, 'id'>): string;
   /** Update an element (creates history entry) */
   updateElement(id: string, updates: Partial<BaseElement>): void;
   /** Update an element without creating a history entry (use during drag/resize/rotate) */

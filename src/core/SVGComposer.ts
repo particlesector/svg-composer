@@ -19,6 +19,9 @@ import { SVGRenderer } from '../rendering/SVGRenderer.js';
 import { InteractionManager } from '../interaction/InteractionManager.js';
 import { SelectTool } from '../interaction/tools/SelectTool.js';
 import { PanTool } from '../interaction/tools/PanTool.js';
+import { AddShapeTool } from '../interaction/tools/AddShapeTool.js';
+import { AddTextTool } from '../interaction/tools/AddTextTool.js';
+import { AddImageTool } from '../interaction/tools/AddImageTool.js';
 
 /**
  * SVG Composer - A zero-dependency SVG canvas editor
@@ -1285,6 +1288,9 @@ export class SVGComposer extends EditorEventEmitter {
           this.clearSelection();
         },
         getSelection: (): string[] => this.getSelection(),
+        addElement: (element: Omit<BaseElement, 'id'>): string => {
+          return this.addElement(element);
+        },
         updateElement: (id: string, updates: Partial<BaseElement>): void => {
           this.updateElement(id, updates);
         },
@@ -1313,6 +1319,9 @@ export class SVGComposer extends EditorEventEmitter {
     const toolContext = this._interactionManager.createToolContext();
     this._interactionManager.registerTool(new SelectTool(toolContext));
     this._interactionManager.registerTool(new PanTool(toolContext));
+    this._interactionManager.registerTool(new AddShapeTool(toolContext));
+    this._interactionManager.registerTool(new AddTextTool(toolContext));
+    this._interactionManager.registerTool(new AddImageTool(toolContext));
 
     // Initialize
     this._interactionManager.initialize();
