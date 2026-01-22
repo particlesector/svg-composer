@@ -823,7 +823,9 @@ describe('SVGRenderer', () => {
         renderer.initialize(container, state);
 
         // Should not throw
-        expect(() => renderer.removeElement('non-existent')).not.toThrow();
+        expect(() => {
+          renderer.removeElement('non-existent');
+        }).not.toThrow();
       });
     });
 

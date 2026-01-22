@@ -321,7 +321,7 @@ export class SVGRenderer {
     const newOpacity = element.opacity !== 1 ? String(element.opacity) : null;
     const currentOpacity = svgElement.getAttribute('opacity');
     if (newOpacity !== currentOpacity) {
-      if (newOpacity) {
+      if (newOpacity !== null) {
         svgElement.setAttribute('opacity', newOpacity);
       } else {
         svgElement.removeAttribute('opacity');
@@ -332,11 +332,11 @@ export class SVGRenderer {
     const newClipPath = element.clipPath ? `url(#${element.clipPath.id})` : null;
     const currentClipPath = svgElement.getAttribute('clip-path');
     if (newClipPath !== currentClipPath) {
-      if (element.clipPath) {
+      if (element.clipPath && newClipPath !== null) {
         if (!context.clipPaths.has(element.clipPath.id)) {
           context.clipPaths.set(element.clipPath.id, element.clipPath);
         }
-        svgElement.setAttribute('clip-path', newClipPath!);
+        svgElement.setAttribute('clip-path', newClipPath);
       } else {
         svgElement.removeAttribute('clip-path');
       }
@@ -954,7 +954,7 @@ export class SVGRenderer {
 
     for (const [id, entry] of this._elementMap) {
       // Skip the element being repositioned
-      if (excludeId && id === excludeId) {
+      if (excludeId !== undefined && id === excludeId) {
         continue;
       }
 
@@ -1001,7 +1001,11 @@ export class SVGRenderer {
    * @returns The viewBox attribute string "minX minY width height"
    */
   private _calculateViewBox(width: number, height: number, viewportState?: ViewportState): string {
-    if (!viewportState || (viewportState.panX === 0 && viewportState.panY === 0 && viewportState.zoom === 1)) {
+    const isDefaultViewport =
+      !viewportState ||
+      (viewportState.panX === 0 && viewportState.panY === 0 && viewportState.zoom === 1);
+
+    if (isDefaultViewport) {
       return `0 0 ${String(width)} ${String(height)}`;
     }
 
