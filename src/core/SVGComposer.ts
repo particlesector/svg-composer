@@ -1102,30 +1102,56 @@ export class SVGComposer extends EditorEventEmitter {
    * Restores canvas state from JSON
    *
    * @param json - JSON string to restore from
+   * @throws Error if JSON is invalid or missing required fields
    */
   fromJSON(json: string): void {
-    const parsed = JSON.parse(json) as {
-      version: number;
-      width: number;
-      height: number;
-      backgroundColor: string;
-      elements: Record<string, BaseElement>;
-      selectedIds: string[];
-    };
+    // Parse as unknown first to allow validation
+    let parsed: unknown;
+
+    try {
+      parsed = JSON.parse(json) as unknown;
+    } catch (error) {
+      throw new Error(`Invalid JSON: ${error instanceof Error ? error.message : 'Parse error'}`);
+    }
+
+    // Validate that parsed is an object
+    if (typeof parsed !== 'object' || parsed === null) {
+      throw new Error('Invalid state: expected an object');
+    }
+
+    const data = parsed as Record<string, unknown>;
+
+    // Validate required fields
+    const width = data['width'];
+    const height = data['height'];
+    const elementsData = data['elements'];
+
+    if (typeof width !== 'number' || typeof height !== 'number') {
+      throw new Error('Invalid state: missing or invalid width/height');
+    }
+    if (typeof elementsData !== 'object' || elementsData === null) {
+      throw new Error('Invalid state: missing or invalid elements');
+    }
 
     // Convert Record back to Map
     const elements = new Map<string, BaseElement>();
-    for (const [id, element] of Object.entries(parsed.elements)) {
+    for (const [id, element] of Object.entries(elementsData as Record<string, BaseElement>)) {
       elements.set(id, element);
     }
 
-    // Convert array back to Set
-    const selectedIds = new Set<string>(parsed.selectedIds);
+    // Convert array back to Set (with fallback for missing field)
+    const selectedIdsData = data['selectedIds'];
+    const selectedIdsArray = Array.isArray(selectedIdsData) ? (selectedIdsData as string[]) : [];
+    const selectedIds = new Set<string>(selectedIdsArray);
+
+    // Get optional backgroundColor with fallback
+    const bgColor = data['backgroundColor'];
+    const backgroundColor = typeof bgColor === 'string' ? bgColor : '#ffffff';
 
     const canvasState: CanvasState = {
-      width: parsed.width,
-      height: parsed.height,
-      backgroundColor: parsed.backgroundColor,
+      width,
+      height,
+      backgroundColor,
       elements,
       selectedIds,
     };
@@ -1210,7 +1236,16 @@ export class SVGComposer extends EditorEventEmitter {
     if (this._destroyed) {
       throw new Error('Cannot render: editor has been destroyed');
     }
-    this._renderer.render(this._container, this._state.state, (id) => this._state.getElement(id));
+
+    // Get viewport state from interaction manager if available
+    const viewportState = this._interactionManager?.getViewportState();
+
+    this._renderer.render(
+      this._container,
+      this._state.state,
+      (id) => this._state.getElement(id),
+      viewportState,
+    );
 
     // Initialize interaction manager on first render (after SVG is in DOM)
     if (!this._interactionInitialized && this._renderer.svgRoot) {

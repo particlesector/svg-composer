@@ -1786,7 +1786,39 @@ describe('SVGComposer', () => {
     it('should throw on invalid JSON', () => {
       expect(() => {
         editor.fromJSON('invalid json');
-      }).toThrow();
+      }).toThrow('Invalid JSON');
+    });
+
+    it('should throw on non-object JSON', () => {
+      expect(() => {
+        editor.fromJSON('"just a string"');
+      }).toThrow('expected an object');
+    });
+
+    it('should throw on missing width/height', () => {
+      expect(() => {
+        editor.fromJSON('{"elements": {}}');
+      }).toThrow('missing or invalid width/height');
+    });
+
+    it('should throw on missing elements', () => {
+      expect(() => {
+        editor.fromJSON('{"width": 100, "height": 100}');
+      }).toThrow('missing or invalid elements');
+    });
+
+    it('should handle missing selectedIds gracefully', () => {
+      const json = '{"width": 100, "height": 100, "elements": {}}';
+      expect(() => {
+        editor.fromJSON(json);
+      }).not.toThrow();
+    });
+
+    it('should handle missing backgroundColor gracefully', () => {
+      const json = '{"width": 100, "height": 100, "elements": {}, "selectedIds": []}';
+      editor.fromJSON(json);
+      // Should use default background color
+      expect(editor.toJSON()).toContain('#ffffff');
     });
 
     it('should round-trip preserve state', () => {

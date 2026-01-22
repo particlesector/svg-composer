@@ -11,7 +11,13 @@ import type {
   GroupElement,
 } from '../elements/types.js';
 import type { CanvasState, Transform } from '../core/types.js';
-import type { SVGRendererConfig, ClipPathDef, RenderContext, ElementGetter } from './types.js';
+import type {
+  SVGRendererConfig,
+  ClipPathDef,
+  RenderContext,
+  ElementGetter,
+  ViewportState,
+} from './types.js';
 
 /**
  * Default configuration values
@@ -38,7 +44,8 @@ export class SVGRenderer {
   private _contentGroup: SVGGElement | null = null;
 
   // Track rendered elements for differential updates
-  private readonly _elementMap = new Map<string, SVGElement>();
+  // Stores both SVG element and z-index for proper ordering
+  private readonly _elementMap = new Map<string, { element: SVGElement; zIndex: number }>();
   private readonly _renderedClipPaths = new Set<string>();
 
   /**
@@ -142,8 +149,14 @@ export class SVGRenderer {
    * @param container - The HTML element to render into
    * @param state - The canvas state to render
    * @param getElement - Function to retrieve elements by ID
+   * @param viewportState - Optional viewport state for pan/zoom
    */
-  render(container: HTMLElement, state: CanvasState, getElement: ElementGetter): void {
+  render(
+    container: HTMLElement,
+    state: CanvasState,
+    getElement: ElementGetter,
+    viewportState?: ViewportState,
+  ): void {
     // Initialize if not already done
     if (this._rootSvg?.parentElement !== container) {
       this.initialize(container, state);
@@ -159,9 +172,9 @@ export class SVGRenderer {
       return;
     }
 
-    // Update viewBox if needed
+    // Update viewBox based on viewport state (pan/zoom)
     const currentViewBox = rootSvg.getAttribute('viewBox');
-    const newViewBox = `0 0 ${String(state.width)} ${String(state.height)}`;
+    const newViewBox = this._calculateViewBox(state.width, state.height, viewportState);
     if (currentViewBox !== newViewBox) {
       rootSvg.setAttribute('viewBox', newViewBox);
     }
@@ -191,7 +204,7 @@ export class SVGRenderer {
       const svgElement = this._createDOMElement(element, context);
       if (svgElement) {
         contentGroup.appendChild(svgElement);
-        this._elementMap.set(element.id, svgElement);
+        this._elementMap.set(element.id, { element: svgElement, zIndex: element.zIndex });
       }
     }
 
@@ -232,14 +245,14 @@ export class SVGRenderer {
       this._contentGroup.appendChild(svgElement);
     }
 
-    this._elementMap.set(element.id, svgElement);
+    this._elementMap.set(element.id, { element: svgElement, zIndex: element.zIndex });
 
     // Add any new clip paths
     this._addClipPathsToDefs(context.clipPaths);
   }
 
   /**
-   * Updates an existing element in the DOM
+   * Updates an existing element in the DOM using attribute-level diffing
    *
    * @param element - The updated element
    * @param getElement - Function to retrieve elements by ID
@@ -249,45 +262,176 @@ export class SVGRenderer {
       return;
     }
 
-    const existingEl = this._elementMap.get(element.id);
-    if (!existingEl) {
+    const existingEntry = this._elementMap.get(element.id);
+    if (!existingEntry) {
       // Element doesn't exist, add it
       this.addElement(element, getElement);
       return;
     }
 
-    // For now, replace the element entirely
-    // TODO: Implement attribute-level diffing for better performance
-    const context: RenderContext = {
-      clipPaths: new Map(),
-      getElement,
-    };
+    const existingEl = existingEntry.element;
 
-    const newElement = this._createDOMElement(element, context);
-    if (!newElement) {
-      // Element is now hidden, remove it
+    // If element is now hidden, remove it
+    if (!element.visible) {
       existingEl.remove();
       this._elementMap.delete(element.id);
       return;
     }
 
-    // Replace the old element
-    existingEl.replaceWith(newElement);
-    this._elementMap.set(element.id, newElement);
+    const context: RenderContext = {
+      clipPaths: new Map(),
+      getElement,
+    };
+
+    // Update attributes using diffing
+    this._updateElementAttributes(existingEl, element, context);
 
     // Check if z-index changed and reposition if needed
-    const insertBefore = this._findInsertPosition(element.zIndex);
-    const currentNext = newElement.nextElementSibling;
-    if (insertBefore !== currentNext) {
+    const oldZIndex = existingEntry.zIndex;
+    if (element.zIndex !== oldZIndex) {
+      const insertBefore = this._findInsertPosition(element.zIndex, element.id);
       if (insertBefore) {
-        this._contentGroup.insertBefore(newElement, insertBefore);
+        this._contentGroup.insertBefore(existingEl, insertBefore);
       } else {
-        this._contentGroup.appendChild(newElement);
+        this._contentGroup.appendChild(existingEl);
       }
+      // Update stored z-index
+      existingEntry.zIndex = element.zIndex;
     }
 
     // Add any new clip paths
     this._addClipPathsToDefs(context.clipPaths);
+  }
+
+  /**
+   * Updates element attributes by diffing old and new values
+   */
+  private _updateElementAttributes(
+    svgElement: SVGElement,
+    element: BaseElement,
+    context: RenderContext,
+  ): void {
+    // Update transform
+    const rotationCenter = this._getRotationCenter(element);
+    const newTransform = this._buildTransformString(element.transform, rotationCenter);
+    const currentTransform = svgElement.getAttribute('transform') ?? '';
+    if (newTransform !== currentTransform) {
+      if (newTransform) {
+        svgElement.setAttribute('transform', newTransform);
+      } else {
+        svgElement.removeAttribute('transform');
+      }
+    }
+
+    // Update opacity
+    const newOpacity = element.opacity !== 1 ? String(element.opacity) : null;
+    const currentOpacity = svgElement.getAttribute('opacity');
+    if (newOpacity !== currentOpacity) {
+      if (newOpacity !== null) {
+        svgElement.setAttribute('opacity', newOpacity);
+      } else {
+        svgElement.removeAttribute('opacity');
+      }
+    }
+
+    // Update clip path
+    const newClipPath = element.clipPath ? `url(#${element.clipPath.id})` : null;
+    const currentClipPath = svgElement.getAttribute('clip-path');
+    if (newClipPath !== currentClipPath) {
+      if (element.clipPath && newClipPath !== null) {
+        if (!context.clipPaths.has(element.clipPath.id)) {
+          context.clipPaths.set(element.clipPath.id, element.clipPath);
+        }
+        svgElement.setAttribute('clip-path', newClipPath);
+      } else {
+        svgElement.removeAttribute('clip-path');
+      }
+    }
+
+    // Update type-specific attributes
+    this._updateTypeSpecificAttributes(svgElement, element);
+  }
+
+  /**
+   * Updates type-specific attributes for an element
+   */
+  private _updateTypeSpecificAttributes(svgElement: SVGElement, element: BaseElement): void {
+    switch (element.type) {
+      case 'image':
+        this._updateImageAttributes(svgElement as SVGImageElement, element as ImageElement);
+        break;
+      case 'text':
+        this._updateTextAttributes(svgElement as SVGTextElement, element as TextElement);
+        break;
+      case 'shape':
+        this._updateShapeAttributes(svgElement, element as ShapeElement);
+        break;
+      // Groups don't need attribute updates (only children which are handled separately)
+    }
+  }
+
+  /**
+   * Updates image element attributes
+   */
+  private _updateImageAttributes(svgElement: SVGImageElement, element: ImageElement): void {
+    this._setAttributeIfChanged(svgElement, 'href', element.src);
+    this._setAttributeIfChanged(svgElement, 'width', String(element.width));
+    this._setAttributeIfChanged(svgElement, 'height', String(element.height));
+  }
+
+  /**
+   * Updates text element attributes
+   */
+  private _updateTextAttributes(svgElement: SVGTextElement, element: TextElement): void {
+    this._setAttributeIfChanged(svgElement, 'font-size', String(element.fontSize));
+    this._setAttributeIfChanged(svgElement, 'font-family', element.fontFamily);
+    this._setAttributeIfChanged(svgElement, 'fill', element.fill);
+    this._setAttributeIfChanged(svgElement, 'text-anchor', element.textAnchor);
+
+    // Update text content
+    if (svgElement.textContent !== element.content) {
+      svgElement.textContent = element.content;
+    }
+  }
+
+  /**
+   * Updates shape element attributes
+   */
+  private _updateShapeAttributes(svgElement: SVGElement, element: ShapeElement): void {
+    this._setAttributeIfChanged(svgElement, 'fill', element.fill);
+    this._setAttributeIfChanged(svgElement, 'stroke', element.stroke);
+    this._setAttributeIfChanged(svgElement, 'stroke-width', String(element.strokeWidth));
+
+    switch (element.shapeType) {
+      case 'rect':
+        this._setAttributeIfChanged(svgElement, 'width', String(element.width ?? 0));
+        this._setAttributeIfChanged(svgElement, 'height', String(element.height ?? 0));
+        if (element.rx !== undefined && element.rx !== 0) {
+          this._setAttributeIfChanged(svgElement, 'rx', String(element.rx));
+        } else {
+          svgElement.removeAttribute('rx');
+        }
+        break;
+      case 'circle':
+        this._setAttributeIfChanged(svgElement, 'r', String(element.r ?? 0));
+        break;
+      case 'ellipse':
+        this._setAttributeIfChanged(svgElement, 'rx', String(element.rx ?? 0));
+        this._setAttributeIfChanged(svgElement, 'ry', String(element.ry ?? 0));
+        break;
+      case 'path':
+        this._setAttributeIfChanged(svgElement, 'd', element.path ?? '');
+        break;
+    }
+  }
+
+  /**
+   * Sets an attribute only if it has changed
+   */
+  private _setAttributeIfChanged(element: SVGElement, name: string, value: string): void {
+    if (element.getAttribute(name) !== value) {
+      element.setAttribute(name, value);
+    }
   }
 
   /**
@@ -296,9 +440,9 @@ export class SVGRenderer {
    * @param id - The ID of the element to remove
    */
   removeElement(id: string): void {
-    const element = this._elementMap.get(id);
-    if (element) {
-      element.remove();
+    const entry = this._elementMap.get(id);
+    if (entry) {
+      entry.element.remove();
       this._elementMap.delete(id);
     }
     // Note: Orphaned clip paths are not removed automatically
@@ -802,14 +946,34 @@ export class SVGRenderer {
   }
 
   /**
-   * Finds the insertion position for an element based on z-index
-   * Note: Currently returns null as z-index tracking requires element state access.
-   * This will be improved when incremental updates are fully implemented.
+   * Finds the insertion position for an element based on z-index.
+   * Returns the first element with a higher z-index, or null if the element
+   * should be appended at the end.
+   *
+   * @param zIndex - The z-index of the element to insert
+   * @param excludeId - Optional ID of element to exclude (when repositioning)
+   * @returns The element to insert before, or null to append at end
    */
-  private _findInsertPosition(_zIndex: number): SVGElement | null {
-    // For now, always append at end - z-index ordering is handled by full re-render
-    // TODO: Implement proper z-index based insertion when element state is tracked
-    return null;
+  private _findInsertPosition(zIndex: number, excludeId?: string): SVGElement | null {
+    // Find all elements with higher z-index and get the one with lowest z-index among them
+    let insertBeforeEntry: { element: SVGElement; zIndex: number } | null = null;
+
+    for (const [id, entry] of this._elementMap) {
+      // Skip the element being repositioned
+      if (excludeId !== undefined && id === excludeId) {
+        continue;
+      }
+
+      // Find elements with higher z-index
+      if (entry.zIndex > zIndex) {
+        // Keep the one with the lowest z-index among those higher than ours
+        if (!insertBeforeEntry || entry.zIndex < insertBeforeEntry.zIndex) {
+          insertBeforeEntry = entry;
+        }
+      }
+    }
+
+    return insertBeforeEntry?.element ?? null;
   }
 
   /**
@@ -827,5 +991,39 @@ export class SVGRenderer {
         this._renderedClipPaths.add(id);
       }
     }
+  }
+
+  /**
+   * Calculates the viewBox string based on canvas size and viewport state.
+   *
+   * The viewBox defines which portion of the canvas is visible:
+   * - zoom > 1: zoomed in (smaller viewBox = see less canvas)
+   * - zoom < 1: zoomed out (larger viewBox = see more canvas)
+   * - panX/panY: offsets the visible area
+   *
+   * @param width - Canvas width
+   * @param height - Canvas height
+   * @param viewportState - Optional viewport state with pan/zoom
+   * @returns The viewBox attribute string "minX minY width height"
+   */
+  private _calculateViewBox(width: number, height: number, viewportState?: ViewportState): string {
+    const isDefaultViewport =
+      !viewportState ||
+      (viewportState.panX === 0 && viewportState.panY === 0 && viewportState.zoom === 1);
+
+    if (isDefaultViewport) {
+      return `0 0 ${String(width)} ${String(height)}`;
+    }
+
+    // When zoomed in (zoom > 1), we see a smaller portion of the canvas
+    // viewBox width/height = canvas size / zoom
+    const viewWidth = width / viewportState.zoom;
+    const viewHeight = height / viewportState.zoom;
+
+    // Pan values define the top-left corner of the visible area
+    const minX = viewportState.panX;
+    const minY = viewportState.panY;
+
+    return `${String(minX)} ${String(minY)} ${String(viewWidth)} ${String(viewHeight)}`;
   }
 }
