@@ -1111,9 +1111,7 @@ export class SVGComposer extends EditorEventEmitter {
     try {
       parsed = JSON.parse(json) as unknown;
     } catch (error) {
-      throw new Error(
-        `Invalid JSON: ${error instanceof Error ? error.message : 'Parse error'}`,
-      );
+      throw new Error(`Invalid JSON: ${error instanceof Error ? error.message : 'Parse error'}`);
     }
 
     // Validate that parsed is an object
@@ -1143,7 +1141,7 @@ export class SVGComposer extends EditorEventEmitter {
 
     // Convert array back to Set (with fallback for missing field)
     const selectedIdsData = data['selectedIds'];
-    const selectedIdsArray = Array.isArray(selectedIdsData) ? selectedIdsData as string[] : [];
+    const selectedIdsArray = Array.isArray(selectedIdsData) ? (selectedIdsData as string[]) : [];
     const selectedIds = new Set<string>(selectedIdsArray);
 
     // Get optional backgroundColor with fallback

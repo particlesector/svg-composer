@@ -1164,10 +1164,13 @@ describe('SelectTool', () => {
 
   describe('mouse up edge cases', () => {
     it('should return false when no operation in progress', () => {
-      const result = selectTool.onMouseUp(new MouseEvent('mouseup', { clientX: 100, clientY: 100 }), {
-        x: 200,
-        y: 200,
-      });
+      const result = selectTool.onMouseUp(
+        new MouseEvent('mouseup', { clientX: 100, clientY: 100 }),
+        {
+          x: 200,
+          y: 200,
+        },
+      );
 
       expect(result).toBe(false);
     });

@@ -11,7 +11,13 @@ import type {
   GroupElement,
 } from '../elements/types.js';
 import type { CanvasState, Transform } from '../core/types.js';
-import type { SVGRendererConfig, ClipPathDef, RenderContext, ElementGetter, ViewportState } from './types.js';
+import type {
+  SVGRendererConfig,
+  ClipPathDef,
+  RenderContext,
+  ElementGetter,
+  ViewportState,
+} from './types.js';
 
 /**
  * Default configuration values
