@@ -414,6 +414,242 @@ describe('SVGComposer', () => {
   });
 
   // ============================================================
+  // Group Operations Tests
+  // ============================================================
+
+  describe('createGroup', () => {
+    it('should create a group from multiple elements', () => {
+      const id1 = editor.addElement(
+        createTestElementData({ type: 'image' } as Partial<ImageElement>),
+      );
+      const id2 = editor.addElement(
+        createTestElementData({ type: 'text' } as Partial<TextElement>),
+      );
+
+      const groupId = editor.createGroup([id1, id2]);
+
+      expect(groupId).toBeDefined();
+      const group = editor.getElement(groupId) as GroupElement;
+      expect(group).toBeDefined();
+      expect(group.type).toBe('group');
+      expect(group.children).toEqual([id1, id2]);
+    });
+
+    it('should throw if less than 2 elements provided', () => {
+      const id1 = editor.addElement(createTestElementData());
+
+      expect(() => editor.createGroup([id1])).toThrow('At least 2 elements are required');
+      expect(() => editor.createGroup([])).toThrow('At least 2 elements are required');
+    });
+
+    it('should throw if any element does not exist', () => {
+      const id1 = editor.addElement(createTestElementData());
+
+      expect(() => editor.createGroup([id1, 'non-existent'])).toThrow('not found');
+    });
+
+    it('should throw if any element is locked', () => {
+      const id1 = editor.addElement(createTestElementData());
+      const id2 = editor.addElement(createTestElementData({ locked: true }));
+
+      expect(() => editor.createGroup([id1, id2])).toThrow('Cannot group locked element');
+    });
+
+    it('should throw if element is already in a group', () => {
+      const id1 = editor.addElement(createTestElementData());
+      const id2 = editor.addElement(createTestElementData());
+      const id3 = editor.addElement(createTestElementData());
+
+      editor.createGroup([id1, id2]);
+
+      expect(() => editor.createGroup([id1, id3])).toThrow('already in group');
+    });
+
+    it('should set group zIndex higher than grouped elements', () => {
+      const id1 = editor.addElement(createTestElementData({ zIndex: 5 }));
+      const id2 = editor.addElement(createTestElementData({ zIndex: 10 }));
+
+      const groupId = editor.createGroup([id1, id2]);
+      const group = editor.getElement(groupId);
+
+      expect(group?.zIndex).toBe(11);
+    });
+
+    it('should select the new group after creation', () => {
+      const id1 = editor.addElement(createTestElementData());
+      const id2 = editor.addElement(createTestElementData());
+
+      const groupId = editor.createGroup([id1, id2]);
+
+      expect(editor.getSelection()).toEqual([groupId]);
+    });
+
+    it('should emit element:added event', () => {
+      const id1 = editor.addElement(createTestElementData());
+      const id2 = editor.addElement(createTestElementData());
+
+      const handler = vi.fn();
+      editor.on('element:added', handler);
+
+      const groupId = editor.createGroup([id1, id2]);
+
+      expect(handler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          element: expect.objectContaining({ id: groupId, type: 'group' }),
+        }),
+      );
+    });
+
+    it('should emit selection:changed event', () => {
+      const id1 = editor.addElement(createTestElementData());
+      const id2 = editor.addElement(createTestElementData());
+
+      const handler = vi.fn();
+      editor.on('selection:changed', handler);
+
+      const groupId = editor.createGroup([id1, id2]);
+
+      expect(handler).toHaveBeenCalledWith({ selectedIds: [groupId] });
+    });
+
+    it('should push to history stack', () => {
+      const id1 = editor.addElement(createTestElementData());
+      const id2 = editor.addElement(createTestElementData());
+
+      const historyBefore = editor.getHistorySize();
+      editor.createGroup([id1, id2]);
+
+      expect(editor.getHistorySize()).toBe(historyBefore + 1);
+      expect(editor.canUndo()).toBe(true);
+    });
+
+    it('should allow grouping more than 2 elements', () => {
+      const id1 = editor.addElement(createTestElementData());
+      const id2 = editor.addElement(createTestElementData());
+      const id3 = editor.addElement(createTestElementData());
+
+      const groupId = editor.createGroup([id1, id2, id3]);
+      const group = editor.getElement(groupId) as GroupElement;
+
+      expect(group.children).toHaveLength(3);
+    });
+  });
+
+  describe('ungroup', () => {
+    it('should ungroup a group element', () => {
+      const id1 = editor.addElement(createTestElementData());
+      const id2 = editor.addElement(createTestElementData());
+      const groupId = editor.createGroup([id1, id2]);
+
+      const childIds = editor.ungroup(groupId);
+
+      expect(childIds).toEqual([id1, id2]);
+      expect(editor.getElement(groupId)).toBeUndefined();
+    });
+
+    it('should preserve child elements after ungrouping', () => {
+      const id1 = editor.addElement(createTestElementData());
+      const id2 = editor.addElement(createTestElementData());
+      const groupId = editor.createGroup([id1, id2]);
+
+      editor.ungroup(groupId);
+
+      expect(editor.getElement(id1)).toBeDefined();
+      expect(editor.getElement(id2)).toBeDefined();
+    });
+
+    it('should throw if element does not exist', () => {
+      expect(() => editor.ungroup('non-existent')).toThrow('not found');
+    });
+
+    it('should throw if element is not a group', () => {
+      const id = editor.addElement(
+        createTestElementData({ type: 'image' } as Partial<ImageElement>),
+      );
+
+      expect(() => editor.ungroup(id)).toThrow('is not a group');
+    });
+
+    it('should throw if group is locked', () => {
+      const id1 = editor.addElement(createTestElementData());
+      const id2 = editor.addElement(createTestElementData());
+      const groupId = editor.createGroup([id1, id2]);
+
+      editor.updateElement(groupId, { locked: true });
+
+      expect(() => editor.ungroup(groupId)).toThrow('Cannot ungroup locked group');
+    });
+
+    it('should select former children after ungrouping', () => {
+      const id1 = editor.addElement(createTestElementData());
+      const id2 = editor.addElement(createTestElementData());
+      const groupId = editor.createGroup([id1, id2]);
+
+      editor.ungroup(groupId);
+
+      const selection = editor.getSelection();
+      expect(selection).toContain(id1);
+      expect(selection).toContain(id2);
+    });
+
+    it('should emit element:removed event', () => {
+      const id1 = editor.addElement(createTestElementData());
+      const id2 = editor.addElement(createTestElementData());
+      const groupId = editor.createGroup([id1, id2]);
+
+      const handler = vi.fn();
+      editor.on('element:removed', handler);
+
+      editor.ungroup(groupId);
+
+      expect(handler).toHaveBeenCalledWith({ id: groupId });
+    });
+
+    it('should emit selection:changed event', () => {
+      const id1 = editor.addElement(createTestElementData());
+      const id2 = editor.addElement(createTestElementData());
+      const groupId = editor.createGroup([id1, id2]);
+
+      const handler = vi.fn();
+      editor.on('selection:changed', handler);
+
+      editor.ungroup(groupId);
+
+      expect(handler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          selectedIds: expect.arrayContaining([id1, id2]),
+        }),
+      );
+    });
+
+    it('should push to history stack', () => {
+      const id1 = editor.addElement(createTestElementData());
+      const id2 = editor.addElement(createTestElementData());
+      const groupId = editor.createGroup([id1, id2]);
+
+      const historyBefore = editor.getHistorySize();
+      editor.ungroup(groupId);
+
+      expect(editor.getHistorySize()).toBe(historyBefore + 1);
+      expect(editor.canUndo()).toBe(true);
+    });
+
+    it('should be undoable', () => {
+      const id1 = editor.addElement(createTestElementData());
+      const id2 = editor.addElement(createTestElementData());
+      const groupId = editor.createGroup([id1, id2]);
+
+      editor.ungroup(groupId);
+      expect(editor.getElement(groupId)).toBeUndefined();
+
+      editor.undo();
+      const restoredGroup = editor.getElement(groupId);
+      expect(restoredGroup).toBeDefined();
+      expect(restoredGroup?.type).toBe('group');
+    });
+  });
+
+  // ============================================================
   // Selection Tests
   // ============================================================
 

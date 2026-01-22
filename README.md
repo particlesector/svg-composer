@@ -16,6 +16,68 @@ A zero-dependency, TypeScript-based SVG canvas editor library for building visua
 - **Undo/Redo** — Built-in history with immutable state snapshots
 - **Event-Driven** — Extensible architecture through comprehensive event system
 
+---
+
+## Implementation Status
+
+This is a spec-driven project. The table below shows the current implementation status of all features.
+
+### Core Systems
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| State Management | Implemented | Immutable snapshots and restoration |
+| History System | Implemented | Full undo/redo with configurable limits |
+| Event System | Implemented | Comprehensive EventEmitter with typed events |
+| SVG Rendering | Implemented | DOM-based renderer (incremental updates planned) |
+| Coordinate Transformation | Implemented | Screen-to-viewBox conversion with viewport support |
+
+### Element Management
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Element CRUD | Implemented | Add, update, remove, get, query operations |
+| Image Elements | Implemented | Full support with clip paths |
+| Text Elements | Implemented | Font, alignment, and styling support |
+| Shape Elements | Implemented | Rect, circle, ellipse, path |
+| Group Elements | Implemented | Full support with `createGroup()` and `ungroup()` |
+| Clip Paths | Implemented | Rect, circle, ellipse clip paths |
+
+### Transform & Manipulation
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Transform Operations | Implemented | Move, rotate, scale, reset |
+| Z-Order Management | Implemented | All z-order operations |
+| Bounding Box Queries | Partial | Path elements skip bounds calculation |
+| Export/Import | Implemented | SVG generation and JSON serialization |
+
+### Interaction Layer
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Tool System | Implemented | Select, Pan, Add Image/Text/Shape tools |
+| Hit Testing | Implemented | Element and handle detection |
+| Selection Handles | Implemented | Visual feedback with resize/rotate handles |
+| Keyboard Support | Implemented | Shift for multi-select, space for pan |
+| Viewport Management | Implemented | Pan and zoom support |
+| Touch/Multi-Touch | Not Started | Only mouse events currently |
+
+### Roadmap
+
+The following features are planned for future development:
+
+| Priority | Feature | Description |
+|----------|---------|-------------|
+| High | Incremental DOM Updates | Differential rendering instead of full re-render |
+| Medium | Path Bounding Box | Parse path data to calculate accurate bounds |
+| Medium | Touch Support | Touch and multi-touch gesture support |
+| Low | Guides & Snapping | Snap to guides, grid, or other elements |
+| Low | Alignment Tools | Align and distribute selected elements |
+| Low | Filters & Effects | SVG filters, shadows, blur effects |
+
+---
+
 ## Installation
 
 ```bash
@@ -666,15 +728,18 @@ We welcome contributions! Please read this section before submitting a pull requ
 
 ### What to Contribute
 
-This is a spec-driven project. Each feature in this README represents functionality to be implemented. Pick an area that interests you:
+This is a spec-driven project. See the [Implementation Status](#implementation-status) section for current progress. Here are the highest priority areas:
 
-- **Core Classes** — `SVGComposer`, state management, history system
-- **Rendering** — `SVGRenderer`, DOM updates, transform application
-- **Interaction** — Mouse/touch handling, selection, drag operations
-- **Elements** — Image, text, shape, group implementations
-- **Clipping** — Clip path system
-- **Export/Import** — SVG generation, JSON serialization
-- **Testing** — Unit tests, integration tests, DOM tests
+#### High Priority
+- **Incremental DOM Updates** — Optimize `SVGRenderer` to only update changed elements instead of full re-render
+
+#### Medium Priority
+- **Path Bounding Box** — Parse SVG path data to calculate accurate bounding boxes
+- **Touch Support** — Implement touch and multi-touch gesture handling
+- **Test Coverage** — Add integration tests and edge case coverage
+
+#### Lower Priority
+- **Advanced Features** — Guides, snapping, alignment tools, filters/effects
 
 Open an issue to discuss your approach before starting large features.
 
