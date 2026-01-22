@@ -15,6 +15,7 @@ import { State, DEFAULT_OPTIONS } from './State.js';
 import { History } from './History.js';
 import { EditorEventEmitter } from './EventEmitter.js';
 import { generateId } from '../utils/IdGenerator.js';
+import { getPathBoundingBox } from '../utils/PathParser.js';
 import { SVGRenderer } from '../rendering/SVGRenderer.js';
 import { InteractionManager } from '../interaction/InteractionManager.js';
 import { SelectTool } from '../interaction/tools/SelectTool.js';
@@ -406,9 +407,23 @@ export class SVGComposer extends EditorEventEmitter {
         const ry = (el.ry ?? 0) * scaleY;
         return { x: t.x - rx, y: t.y - ry, width: rx * 2, height: ry * 2 };
       }
-      case 'path':
-        // Path bounds would require parsing the path data - skip for now
-        return null;
+      case 'path': {
+        // Parse path data to calculate accurate bounds
+        if (el.path === undefined || el.path === '') {
+          return null;
+        }
+        const pathBounds = getPathBoundingBox(el.path);
+        if (!pathBounds) {
+          return null;
+        }
+        // Apply transform position and scale to the path bounds
+        return {
+          x: t.x + pathBounds.x * scaleX,
+          y: t.y + pathBounds.y * scaleY,
+          width: pathBounds.width * scaleX,
+          height: pathBounds.height * scaleY,
+        };
+      }
       default:
         return null;
     }
