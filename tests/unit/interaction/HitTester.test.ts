@@ -497,7 +497,7 @@ describe('HitTester', () => {
       expect(bounds).toBeNull();
     });
 
-    it('should return default bounds for path shape', () => {
+    it('should return computed bounds for path shape', () => {
       const element: ShapeElement = {
         id: 'path1',
         type: 'shape',
@@ -516,10 +516,53 @@ describe('HitTester', () => {
       const bounds = hitTester.getElementBounds(element);
 
       expect(bounds).not.toBeNull();
+      // Path goes from 0,0 to 50,50, plus transform offset 100,100
       expect(bounds!.x).toBe(100);
       expect(bounds!.y).toBe(100);
-      expect(bounds!.width).toBe(100); // Default path bounds
-      expect(bounds!.height).toBe(100);
+      expect(bounds!.width).toBe(50); // Path width is 50 (0 to 50)
+      expect(bounds!.height).toBe(50); // Path height is 50 (0 to 50)
+    });
+
+    it('should return null for path shape with empty path data', () => {
+      const element: ShapeElement = {
+        id: 'path1',
+        type: 'shape',
+        shapeType: 'path',
+        transform: { x: 100, y: 100, scaleX: 1, scaleY: 1, rotation: 0 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+        fill: '#000',
+        stroke: '#000',
+        strokeWidth: 1,
+        path: '',
+      };
+
+      const bounds = hitTester.getElementBounds(element);
+
+      expect(bounds).toBeNull();
+    });
+
+    it('should return null for path shape with no path property', () => {
+      const element: ShapeElement = {
+        id: 'path1',
+        type: 'shape',
+        shapeType: 'path',
+        transform: { x: 100, y: 100, scaleX: 1, scaleY: 1, rotation: 0 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+        fill: '#000',
+        stroke: '#000',
+        strokeWidth: 1,
+        // no path property
+      };
+
+      const bounds = hitTester.getElementBounds(element);
+
+      expect(bounds).toBeNull();
     });
 
     it('should return null for circle missing r', () => {

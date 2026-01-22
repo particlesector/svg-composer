@@ -2437,11 +2437,31 @@ describe('SVGComposer', () => {
       expect(result).toHaveLength(2);
     });
 
-    it('skips path shapes (no bounds calculation)', () => {
+    it('finds path shapes with proper bounds calculation', () => {
       editor.addElement({
         type: 'shape',
         shapeType: 'path',
         path: 'M0 0 L100 100',
+        fill: '#000',
+        stroke: '#000',
+        strokeWidth: 1,
+        transform: { x: 10, y: 10, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      });
+
+      // Path bounds: x=10, y=10 to x=110, y=110 (path 0-100 plus transform 10,10)
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 200, height: 200 });
+      expect(result).toHaveLength(1);
+    });
+
+    it('skips path shapes with no path data', () => {
+      editor.addElement({
+        type: 'shape',
+        shapeType: 'path',
+        path: '',
         fill: '#000',
         stroke: '#000',
         strokeWidth: 1,
@@ -2513,11 +2533,43 @@ describe('SVGComposer', () => {
       expect(result).toHaveLength(0);
     });
 
-    it('handles groups with only path children (all null bounds)', () => {
+    it('handles groups with path children (path bounds calculated)', () => {
       const pathId = editor.addElement({
         type: 'shape',
         shapeType: 'path',
         path: 'M0 0 L50 50',
+        fill: '#000',
+        stroke: '#000',
+        strokeWidth: 1,
+        transform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ShapeElement, 'id'>);
+
+      const groupId = editor.addElement({
+        type: 'group',
+        children: [pathId],
+        transform: { x: 10, y: 10, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        zIndex: 1,
+        locked: false,
+        visible: true,
+      } as Omit<GroupElement, 'id'>);
+
+      // Path bounds: 0-50 for both x and y, plus group offset 10,10 = 10-60
+      const result = editor.getElementsInBounds({ x: 0, y: 0, width: 100, height: 100 });
+      expect(result).toHaveLength(2); // Both the path and the group
+      expect(result.some((el) => el.id === groupId)).toBe(true);
+      expect(result.some((el) => el.id === pathId)).toBe(true);
+    });
+
+    it('handles groups with only empty path children (null bounds)', () => {
+      const pathId = editor.addElement({
+        type: 'shape',
+        shapeType: 'path',
+        path: '', // Empty path has no bounds
         fill: '#000',
         stroke: '#000',
         strokeWidth: 1,

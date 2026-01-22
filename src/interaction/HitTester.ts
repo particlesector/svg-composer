@@ -6,6 +6,7 @@ import type { BoundingBox } from '../core/types.js';
 import type { BaseElement, ImageElement, TextElement, ShapeElement } from '../elements/types.js';
 import type { ViewBoxPoint, HitTestResult, HandleType, HandleConfig } from './types.js';
 import type { CoordinateTransformer } from './CoordinateTransformer.js';
+import { getPathBoundingBox } from '../utils/PathParser.js';
 
 /**
  * Configuration for the hit tester
@@ -289,15 +290,23 @@ export class HitTester {
         }
         return null;
 
-      case 'path':
-        // Path bounds would require parsing the path data
-        // Return a default small bounds at the transform position
+      case 'path': {
+        // Parse path data to calculate accurate bounds
+        if (shape.path === undefined || shape.path === '') {
+          return null;
+        }
+        const pathBounds = getPathBoundingBox(shape.path);
+        if (!pathBounds) {
+          return null;
+        }
+        // Apply transform position and scale to the path bounds
         return {
-          x,
-          y,
-          width: 100 * scaleX,
-          height: 100 * scaleY,
+          x: x + pathBounds.x * scaleX,
+          y: y + pathBounds.y * scaleY,
+          width: pathBounds.width * scaleX,
+          height: pathBounds.height * scaleY,
         };
+      }
 
       default:
         return null;

@@ -49,7 +49,7 @@ This is a spec-driven project. The table below shows the current implementation 
 |---------|--------|-------|
 | Transform Operations | Implemented | Move, rotate, scale, reset |
 | Z-Order Management | Implemented | All z-order operations |
-| Bounding Box Queries | Partial | Path elements skip bounds calculation |
+| Bounding Box Queries | Implemented | Full support including path elements |
 | Export/Import | Implemented | SVG generation and JSON serialization |
 
 ### Interaction Layer
@@ -70,7 +70,6 @@ The following features are planned for future development:
 | Priority | Feature | Description |
 |----------|---------|-------------|
 | High | Incremental DOM Updates | Differential rendering instead of full re-render |
-| Medium | Path Bounding Box | Parse path data to calculate accurate bounds |
 | Medium | Touch Support | Touch and multi-touch gesture support |
 | Low | Guides & Snapping | Snap to guides, grid, or other elements |
 | Low | Alignment Tools | Align and distribute selected elements |
@@ -734,7 +733,6 @@ This is a spec-driven project. See the [Implementation Status](#implementation-s
 - **Incremental DOM Updates** — Optimize `SVGRenderer` to only update changed elements instead of full re-render
 
 #### Medium Priority
-- **Path Bounding Box** — Parse SVG path data to calculate accurate bounding boxes
 - **Touch Support** — Implement touch and multi-touch gesture handling
 - **Test Coverage** — Add integration tests and edge case coverage
 
