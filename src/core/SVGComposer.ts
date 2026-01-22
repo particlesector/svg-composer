@@ -1102,30 +1102,49 @@ export class SVGComposer extends EditorEventEmitter {
    * Restores canvas state from JSON
    *
    * @param json - JSON string to restore from
+   * @throws Error if JSON is invalid or missing required fields
    */
   fromJSON(json: string): void {
-    const parsed = JSON.parse(json) as {
-      version: number;
-      width: number;
-      height: number;
-      backgroundColor: string;
-      elements: Record<string, BaseElement>;
-      selectedIds: string[];
-    };
+    // Parse as unknown first to allow validation
+    let parsed: unknown;
+
+    try {
+      parsed = JSON.parse(json) as unknown;
+    } catch (error) {
+      throw new Error(
+        `Invalid JSON: ${error instanceof Error ? error.message : 'Parse error'}`,
+      );
+    }
+
+    // Validate that parsed is an object
+    if (typeof parsed !== 'object' || parsed === null) {
+      throw new Error('Invalid state: expected an object');
+    }
+
+    const data = parsed as Record<string, unknown>;
+
+    // Validate required fields
+    if (typeof data.width !== 'number' || typeof data.height !== 'number') {
+      throw new Error('Invalid state: missing or invalid width/height');
+    }
+    if (typeof data.elements !== 'object' || data.elements === null) {
+      throw new Error('Invalid state: missing or invalid elements');
+    }
 
     // Convert Record back to Map
     const elements = new Map<string, BaseElement>();
-    for (const [id, element] of Object.entries(parsed.elements)) {
+    for (const [id, element] of Object.entries(data.elements as Record<string, BaseElement>)) {
       elements.set(id, element);
     }
 
-    // Convert array back to Set
-    const selectedIds = new Set<string>(parsed.selectedIds);
+    // Convert array back to Set (with fallback for missing field)
+    const selectedIdsArray = Array.isArray(data.selectedIds) ? data.selectedIds as string[] : [];
+    const selectedIds = new Set<string>(selectedIdsArray);
 
     const canvasState: CanvasState = {
-      width: parsed.width,
-      height: parsed.height,
-      backgroundColor: parsed.backgroundColor,
+      width: data.width,
+      height: data.height,
+      backgroundColor: typeof data.backgroundColor === 'string' ? data.backgroundColor : '#ffffff',
       elements,
       selectedIds,
     };
