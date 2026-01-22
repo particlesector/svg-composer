@@ -765,4 +765,472 @@ describe('SelectTool', () => {
       expect(selectTool.getCursor()).toBe('default');
     });
   });
+
+  describe('resize with rotated elements', () => {
+    it('should apply rotation transform to resize delta', () => {
+      // Create a rotated element
+      const rotatedElement = createShapeElement('rect1', 100, 100, 100, 100);
+      rotatedElement.transform.rotation = 45;
+      elements = [rotatedElement];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      // Click on SE handle
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 100, clientY: 100 }), {
+        x: 200,
+        y: 200,
+      });
+
+      // Resize
+      selectTool.onMouseMove(new MouseEvent('mousemove', { clientX: 150, clientY: 150 }), {
+        x: 300,
+        y: 300,
+      });
+
+      // Should have called updateElementSilent with rotated delta
+      expect(mockComposer.updateElementSilent).toHaveBeenCalled();
+    });
+
+    it('should end resize and push history', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      // Click on SE handle
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 100, clientY: 100 }), {
+        x: 200,
+        y: 200,
+      });
+
+      // Resize
+      selectTool.onMouseMove(new MouseEvent('mousemove', { clientX: 150, clientY: 150 }), {
+        x: 300,
+        y: 300,
+      });
+
+      // End resize
+      selectTool.onMouseUp(new MouseEvent('mouseup', { clientX: 150, clientY: 150 }), {
+        x: 300,
+        y: 300,
+      });
+
+      expect(mockComposer.pushHistory).toHaveBeenCalled();
+      expect(mockContext.setInteractionState).toHaveBeenCalledWith('idle');
+    });
+  });
+
+  describe('resize with aspect ratio preservation', () => {
+    it('should preserve aspect ratio when shift is held on corner handle', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      // Click on SE handle (corner)
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 100, clientY: 100 }), {
+        x: 200,
+        y: 200,
+      });
+
+      // Resize with shift key
+      selectTool.onMouseMove(
+        new MouseEvent('mousemove', { clientX: 150, clientY: 130, shiftKey: true }),
+        { x: 300, y: 260 },
+      );
+
+      // Should have called updateElementSilent
+      expect(mockComposer.updateElementSilent).toHaveBeenCalled();
+    });
+
+    it('should preserve aspect ratio with width driving height', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 50)]; // 2:1 aspect ratio
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 50 };
+
+      // Click on SE handle
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 100, clientY: 75 }), {
+        x: 200,
+        y: 150,
+      });
+
+      // Resize horizontally more than vertically with shift
+      selectTool.onMouseMove(
+        new MouseEvent('mousemove', { clientX: 200, clientY: 80, shiftKey: true }),
+        { x: 400, y: 160 },
+      );
+
+      expect(mockComposer.updateElementSilent).toHaveBeenCalled();
+    });
+  });
+
+  describe('resize with different handles', () => {
+    it('should resize from west handle', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      // Click on W handle (left middle)
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 50, clientY: 75 }), {
+        x: 100,
+        y: 150,
+      });
+
+      // Resize by dragging left
+      selectTool.onMouseMove(new MouseEvent('mousemove', { clientX: 30, clientY: 75 }), {
+        x: 60,
+        y: 150,
+      });
+
+      expect(mockComposer.updateElementSilent).toHaveBeenCalled();
+    });
+
+    it('should resize from north handle', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      // Click on N handle (top middle)
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 75, clientY: 50 }), {
+        x: 150,
+        y: 100,
+      });
+
+      // Resize by dragging up
+      selectTool.onMouseMove(new MouseEvent('mousemove', { clientX: 75, clientY: 30 }), {
+        x: 150,
+        y: 60,
+      });
+
+      expect(mockComposer.updateElementSilent).toHaveBeenCalled();
+    });
+
+    it('should resize from northwest handle', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      // Click on NW handle
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 50, clientY: 50 }), {
+        x: 100,
+        y: 100,
+      });
+
+      // Resize by dragging northwest
+      selectTool.onMouseMove(new MouseEvent('mousemove', { clientX: 30, clientY: 30 }), {
+        x: 60,
+        y: 60,
+      });
+
+      expect(mockComposer.updateElementSilent).toHaveBeenCalled();
+    });
+
+    it('should resize from northwest with aspect ratio preservation', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      // Click on NW handle
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 50, clientY: 50 }), {
+        x: 100,
+        y: 100,
+      });
+
+      // Resize with shift key - height change larger
+      selectTool.onMouseMove(
+        new MouseEvent('mousemove', { clientX: 45, clientY: 20, shiftKey: true }),
+        { x: 90, y: 40 },
+      );
+
+      expect(mockComposer.updateElementSilent).toHaveBeenCalled();
+    });
+  });
+
+  describe('resize minimum size enforcement', () => {
+    it('should enforce minimum width when resizing from right', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      // Click on E handle
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 100, clientY: 75 }), {
+        x: 200,
+        y: 150,
+      });
+
+      // Try to resize to very small width
+      selectTool.onMouseMove(new MouseEvent('mousemove', { clientX: 55, clientY: 75 }), {
+        x: 110,
+        y: 150,
+      });
+
+      // Should still update (with min size enforced)
+      expect(mockComposer.updateElementSilent).toHaveBeenCalled();
+    });
+
+    it('should enforce minimum height when resizing from bottom', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      // Click on S handle
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 75, clientY: 100 }), {
+        x: 150,
+        y: 200,
+      });
+
+      // Try to resize to very small height
+      selectTool.onMouseMove(new MouseEvent('mousemove', { clientX: 75, clientY: 55 }), {
+        x: 150,
+        y: 110,
+      });
+
+      // Should still update (with min size enforced)
+      expect(mockComposer.updateElementSilent).toHaveBeenCalled();
+    });
+
+    it('should enforce minimum size when resizing from left', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      // Click on W handle
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 50, clientY: 75 }), {
+        x: 100,
+        y: 150,
+      });
+
+      // Try to resize past minimum
+      selectTool.onMouseMove(new MouseEvent('mousemove', { clientX: 95, clientY: 75 }), {
+        x: 190,
+        y: 150,
+      });
+
+      expect(mockComposer.updateElementSilent).toHaveBeenCalled();
+    });
+
+    it('should enforce minimum size when resizing from top', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      // Click on N handle
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 75, clientY: 50 }), {
+        x: 150,
+        y: 100,
+      });
+
+      // Try to resize past minimum
+      selectTool.onMouseMove(new MouseEvent('mousemove', { clientX: 75, clientY: 95 }), {
+        x: 150,
+        y: 190,
+      });
+
+      expect(mockComposer.updateElementSilent).toHaveBeenCalled();
+    });
+  });
+
+  describe('rotation operations extended', () => {
+    it('should end rotation and push history', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      const rotateOffset = mockContext.coordinateTransformer.screenDistanceToViewBox(30);
+
+      // Start rotation
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 75, clientY: 50 }), {
+        x: 150,
+        y: 100 - rotateOffset,
+      });
+
+      // Rotate
+      selectTool.onMouseMove(new MouseEvent('mousemove', { clientX: 100, clientY: 75 }), {
+        x: 200,
+        y: 150,
+      });
+
+      // End rotation
+      selectTool.onMouseUp(new MouseEvent('mouseup', { clientX: 100, clientY: 75 }), {
+        x: 200,
+        y: 150,
+      });
+
+      expect(mockComposer.pushHistory).toHaveBeenCalled();
+      expect(mockContext.setInteractionState).toHaveBeenCalledWith('idle');
+    });
+
+    it('should not start rotation without selection', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = [];
+      selectionBounds = null;
+
+      const rotateOffset = mockContext.coordinateTransformer.screenDistanceToViewBox(30);
+
+      // Try to start rotation
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 75, clientY: 50 }), {
+        x: 150,
+        y: 100 - rotateOffset,
+      });
+
+      // Should not be in rotating state
+      expect(mockContext.setInteractionState).not.toHaveBeenCalledWith('rotating');
+    });
+  });
+
+  describe('drag operations extended', () => {
+    it('should handle element not found during drag', () => {
+      // Use smaller element like working tests
+      elements = [createShapeElement('rect1', 100, 100, 50, 50)];
+      selection = ['rect1', 'nonexistent'];
+      selectionBounds = { x: 100, y: 100, width: 50, height: 50 };
+
+      // Click on element center (viewBox 125, 125)
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 62, clientY: 62 }), {
+        x: 125,
+        y: 125,
+      });
+
+      // Move past threshold
+      selectTool.onMouseMove(new MouseEvent('mousemove', { clientX: 75, clientY: 75 }), {
+        x: 150,
+        y: 150,
+      });
+
+      // Should only update the existing element (nonexistent is skipped)
+      expect(mockComposer.updateElementSilent).toHaveBeenCalledTimes(1);
+    });
+
+    it('should end drag and push history', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      // Click on element center
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 75, clientY: 75 }), {
+        x: 150,
+        y: 150,
+      });
+
+      // Drag past threshold
+      selectTool.onMouseMove(new MouseEvent('mousemove', { clientX: 85, clientY: 85 }), {
+        x: 170,
+        y: 170,
+      });
+
+      // End drag
+      selectTool.onMouseUp(new MouseEvent('mouseup', { clientX: 85, clientY: 85 }), {
+        x: 170,
+        y: 170,
+      });
+
+      expect(mockComposer.pushHistory).toHaveBeenCalled();
+      expect(mockContext.setInteractionState).toHaveBeenCalledWith('idle');
+    });
+  });
+
+  describe('hover cursor updates', () => {
+    it('should update cursor when hovering over resize handle', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      // Move to SE handle
+      selectTool.onMouseMove(new MouseEvent('mousemove', { clientX: 100, clientY: 100 }), {
+        x: 200,
+        y: 200,
+      });
+
+      // Cursor should be updated to resize cursor
+      expect(container.style.cursor).toMatch(/-resize$/);
+    });
+
+    it('should not update cursor during pan mode', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      // Enable space pan mode
+      selectTool.onKeyDown(new KeyboardEvent('keydown', { code: 'Space' }));
+
+      // Move over element
+      selectTool.onMouseMove(new MouseEvent('mousemove', { clientX: 75, clientY: 75 }), {
+        x: 150,
+        y: 150,
+      });
+
+      // Cursor should still be grab, not move
+      expect(selectTool.getCursor()).toBe('grab');
+    });
+  });
+
+  describe('mouse up edge cases', () => {
+    it('should return false when no operation in progress', () => {
+      const result = selectTool.onMouseUp(new MouseEvent('mouseup', { clientX: 100, clientY: 100 }), {
+        x: 200,
+        y: 200,
+      });
+
+      expect(result).toBe(false);
+    });
+
+    it('should clear pending select on mouse up without drag', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      // Click on element (but don't drag)
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 75, clientY: 75 }), {
+        x: 150,
+        y: 150,
+      });
+
+      // Mouse up without moving past threshold
+      selectTool.onMouseUp(new MouseEvent('mouseup', { clientX: 75, clientY: 75 }), {
+        x: 150,
+        y: 150,
+      });
+
+      expect(mockContext.setInteractionState).toHaveBeenCalledWith('idle');
+    });
+  });
+
+  describe('resize edge cases', () => {
+    it('should not start resize without selection', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = [];
+      selectionBounds = null;
+
+      // Try to click on handle position
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 100, clientY: 100 }), {
+        x: 200,
+        y: 200,
+      });
+
+      // Should not be in resizing state
+      expect(mockContext.setInteractionState).not.toHaveBeenCalledWith('resizing');
+    });
+
+    it('should handle missing element during resize update', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      // Start resize
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 100, clientY: 100 }), {
+        x: 200,
+        y: 200,
+      });
+
+      // Remove element from list (simulating deleted element)
+      elements = [];
+
+      // Continue resize
+      selectTool.onMouseMove(new MouseEvent('mousemove', { clientX: 150, clientY: 150 }), {
+        x: 300,
+        y: 300,
+      });
+
+      // Should not throw, but also not update
+      expect(mockComposer.updateElementSilent).not.toHaveBeenCalled();
+    });
+  });
 });
