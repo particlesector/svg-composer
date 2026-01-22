@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SelectTool } from '../../../src/interaction/tools/SelectTool.js';
 import type { ToolContext, ToolComposerAccess } from '../../../src/interaction/tools/BaseTool.js';
