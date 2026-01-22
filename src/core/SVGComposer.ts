@@ -465,6 +465,148 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   // ============================================================
+  // Group Operations
+  // ============================================================
+
+  /**
+   * Creates a group from the specified elements
+   *
+   * @param elementIds - Array of element IDs to group
+   * @returns The generated group ID
+   * @throws Error if less than 2 elements provided or if any element doesn't exist
+   *
+   * @example
+   * ```typescript
+   * const groupId = editor.createGroup([imageId, textId, shapeId]);
+   * ```
+   */
+  createGroup(elementIds: string[]): string {
+    // Validate minimum elements
+    if (elementIds.length < 2) {
+      throw new Error('At least 2 elements are required to create a group');
+    }
+
+    // Validate all elements exist and are not locked
+    const elements: BaseElement[] = [];
+    for (const id of elementIds) {
+      const element = this._state.getElement(id);
+      if (!element) {
+        throw new Error(`Element with id "${id}" not found`);
+      }
+      if (element.locked) {
+        throw new Error(`Cannot group locked element: ${id}`);
+      }
+      elements.push(element);
+    }
+
+    // Check if any element is already in a group
+    const allElements = this._state.getAllElements();
+    for (const el of allElements) {
+      if (el.type === 'group') {
+        const group = el as GroupElement;
+        for (const childId of group.children) {
+          if (elementIds.includes(childId)) {
+            throw new Error(`Element "${childId}" is already in group "${group.id}"`);
+          }
+        }
+      }
+    }
+
+    // Calculate the highest zIndex among elements to group
+    const maxZIndex = Math.max(...elements.map((el) => el.zIndex));
+
+    // Generate group ID
+    const groupId = generateId();
+
+    // Create the group element
+    const groupElement: GroupElement = {
+      id: groupId,
+      type: 'group',
+      children: [...elementIds],
+      transform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
+      opacity: 1,
+      zIndex: maxZIndex + 1,
+      locked: false,
+      visible: true,
+    };
+
+    // Add the group to state
+    this._state.addElement(groupElement);
+
+    // Push to history
+    this._history.push(this._state.snapshot());
+
+    // Update selection to the new group
+    this._state.setSelection([groupId]);
+
+    // Emit events
+    this.emit('element:added', { element: groupElement });
+    this.emit('selection:changed', { selectedIds: [groupId] });
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
+
+    return groupId;
+  }
+
+  /**
+   * Ungroups a group element, promoting its children to top-level elements
+   *
+   * @param groupId - ID of the group to ungroup
+   * @returns Array of the ungrouped child element IDs
+   * @throws Error if element doesn't exist, is not a group, or is locked
+   *
+   * @example
+   * ```typescript
+   * const childIds = editor.ungroup(groupId);
+   * editor.select(childIds); // Select the former children
+   * ```
+   */
+  ungroup(groupId: string): string[] {
+    const element = this._state.getElement(groupId);
+
+    // Validate element exists
+    if (!element) {
+      throw new Error(`Element with id "${groupId}" not found`);
+    }
+
+    // Validate element is a group
+    if (element.type !== 'group') {
+      throw new Error(`Element "${groupId}" is not a group`);
+    }
+
+    // Validate element is not locked
+    if (element.locked) {
+      throw new Error(`Cannot ungroup locked group: ${groupId}`);
+    }
+
+    const group = element as GroupElement;
+    const childIds = [...group.children];
+
+    // Remove the group element (children remain as they are separate elements)
+    this._state.removeElement(groupId);
+
+    // Push to history
+    this._history.push(this._state.snapshot());
+
+    // Update selection to the former children
+    this._state.setSelection(childIds);
+
+    // Emit events
+    this.emit('element:removed', { id: groupId });
+    this.emit('selection:changed', { selectedIds: childIds });
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
+
+    return childIds;
+  }
+
+  // ============================================================
   // Selection
   // ============================================================
 
