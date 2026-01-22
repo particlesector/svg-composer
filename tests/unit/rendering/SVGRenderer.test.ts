@@ -817,6 +817,285 @@ describe('SVGRenderer', () => {
 
         expect(container.querySelector('image[data-element-id="img-1"]')).toBeNull();
       });
+
+      it('should handle removing non-existent element gracefully', () => {
+        const state = createTestState();
+        renderer.initialize(container, state);
+
+        // Should not throw
+        expect(() => renderer.removeElement('non-existent')).not.toThrow();
+      });
+    });
+
+    describe('z-index based insertion', () => {
+      it('should insert element at correct position based on z-index', () => {
+        const state = createTestState();
+        renderer.initialize(container, state);
+
+        // Add elements with different z-indexes
+        const el1 = createImageElement('img-1', { zIndex: 1 });
+        const el2 = createImageElement('img-2', { zIndex: 3 });
+        const el3 = createImageElement('img-3', { zIndex: 2 });
+
+        renderer.addElement(el1, createElementGetter([el1]));
+        renderer.addElement(el2, createElementGetter([el1, el2]));
+        renderer.addElement(el3, createElementGetter([el1, el2, el3]));
+
+        const content = container.querySelector('g[id$="content"]');
+        const children = Array.from(content?.children ?? []);
+        const ids = children.map((el) => el.getAttribute('data-element-id'));
+
+        // Elements should be ordered by z-index: img-1 (1), img-3 (2), img-2 (3)
+        expect(ids).toEqual(['img-1', 'img-3', 'img-2']);
+      });
+
+      it('should reposition element when z-index changes', () => {
+        const el1 = createImageElement('img-1', { zIndex: 1 });
+        const el2 = createImageElement('img-2', { zIndex: 2 });
+        const el3 = createImageElement('img-3', { zIndex: 3 });
+        const state = createTestState([el1, el2, el3]);
+        renderer.render(container, state, createElementGetter([el1, el2, el3]));
+
+        // Move img-1 to z-index 10 (should go to end)
+        const updated = createImageElement('img-1', { zIndex: 10 });
+        renderer.updateElement(updated, createElementGetter([updated, el2, el3]));
+
+        const content = container.querySelector('g[id$="content"]');
+        const children = Array.from(content?.children ?? []);
+        const ids = children.map((el) => el.getAttribute('data-element-id'));
+
+        expect(ids).toEqual(['img-2', 'img-3', 'img-1']);
+      });
+    });
+
+    describe('attribute diffing', () => {
+      it('should update transform attribute when changed', () => {
+        const element = createImageElement('img-1', {
+          transform: createTestTransform({ x: 10, y: 20 }),
+        });
+        const state = createTestState([element]);
+        renderer.render(container, state, createElementGetter([element]));
+
+        const img = container.querySelector('image[data-element-id="img-1"]');
+        expect(img?.getAttribute('transform')).toContain('translate(10, 20)');
+
+        const updated = createImageElement('img-1', {
+          transform: createTestTransform({ x: 50, y: 60 }),
+        });
+        renderer.updateElement(updated, createElementGetter([updated]));
+
+        expect(img?.getAttribute('transform')).toContain('translate(50, 60)');
+      });
+
+      it('should update opacity attribute when changed', () => {
+        const element = createImageElement('img-1', { opacity: 1 });
+        const state = createTestState([element]);
+        renderer.render(container, state, createElementGetter([element]));
+
+        const img = container.querySelector('image[data-element-id="img-1"]');
+        expect(img?.getAttribute('opacity')).toBeNull();
+
+        const updated = createImageElement('img-1', { opacity: 0.5 });
+        renderer.updateElement(updated, createElementGetter([updated]));
+
+        expect(img?.getAttribute('opacity')).toBe('0.5');
+      });
+
+      it('should remove opacity attribute when set back to 1', () => {
+        const element = createImageElement('img-1', { opacity: 0.5 });
+        const state = createTestState([element]);
+        renderer.render(container, state, createElementGetter([element]));
+
+        const img = container.querySelector('image[data-element-id="img-1"]');
+        expect(img?.getAttribute('opacity')).toBe('0.5');
+
+        const updated = createImageElement('img-1', { opacity: 1 });
+        renderer.updateElement(updated, createElementGetter([updated]));
+
+        expect(img?.getAttribute('opacity')).toBeNull();
+      });
+
+      it('should update text content when changed', () => {
+        const element = createTextElement('text-1', { content: 'Original' });
+        const state = createTestState([element]);
+        renderer.render(container, state, createElementGetter([element]));
+
+        const text = container.querySelector('text[data-element-id="text-1"]');
+        expect(text?.textContent).toBe('Original');
+
+        const updated = createTextElement('text-1', { content: 'Updated' });
+        renderer.updateElement(updated, createElementGetter([updated]));
+
+        expect(text?.textContent).toBe('Updated');
+      });
+
+      it('should update shape attributes when changed', () => {
+        const element = createShapeElement('shape-1', {
+          shapeType: 'rect',
+          width: 100,
+          height: 50,
+          fill: '#ff0000',
+        });
+        const state = createTestState([element]);
+        renderer.render(container, state, createElementGetter([element]));
+
+        const rect = container.querySelector('rect[data-element-id="shape-1"]');
+        expect(rect?.getAttribute('fill')).toBe('#ff0000');
+
+        const updated = createShapeElement('shape-1', {
+          shapeType: 'rect',
+          width: 100,
+          height: 50,
+          fill: '#00ff00',
+        });
+        renderer.updateElement(updated, createElementGetter([updated]));
+
+        expect(rect?.getAttribute('fill')).toBe('#00ff00');
+      });
+
+      it('should add element if updateElement called with non-existent id', () => {
+        const state = createTestState();
+        renderer.initialize(container, state);
+
+        expect(container.querySelector('image[data-element-id="new-img"]')).toBeNull();
+
+        const element = createImageElement('new-img');
+        renderer.updateElement(element, createElementGetter([element]));
+
+        expect(container.querySelector('image[data-element-id="new-img"]')).not.toBeNull();
+      });
+
+      it('should update clip path reference when changed', () => {
+        const clipPath1: ClipPath = {
+          id: 'clip-1',
+          type: 'circle',
+          cx: 50,
+          cy: 50,
+          r: 25,
+        };
+        const element = createImageElement('img-1', { clipPath: clipPath1 });
+        const state = createTestState([element]);
+        renderer.render(container, state, createElementGetter([element]));
+
+        const img = container.querySelector('image[data-element-id="img-1"]');
+        expect(img?.getAttribute('clip-path')).toBe('url(#clip-1)');
+
+        const clipPath2: ClipPath = {
+          id: 'clip-2',
+          type: 'rect',
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 100,
+        };
+        const updated = createImageElement('img-1', { clipPath: clipPath2 });
+        renderer.updateElement(updated, createElementGetter([updated]));
+
+        expect(img?.getAttribute('clip-path')).toBe('url(#clip-2)');
+        expect(container.querySelector('clipPath#clip-2')).not.toBeNull();
+      });
+
+      it('should remove clip path reference when removed from element', () => {
+        const clipPath: ClipPath = {
+          id: 'clip-1',
+          type: 'circle',
+          cx: 50,
+          cy: 50,
+          r: 25,
+        };
+        const element = createImageElement('img-1', { clipPath });
+        const state = createTestState([element]);
+        renderer.render(container, state, createElementGetter([element]));
+
+        const img = container.querySelector('image[data-element-id="img-1"]');
+        expect(img?.getAttribute('clip-path')).toBe('url(#clip-1)');
+
+        const updated = createImageElement('img-1'); // No clip path
+        renderer.updateElement(updated, createElementGetter([updated]));
+
+        expect(img?.getAttribute('clip-path')).toBeNull();
+      });
+    });
+  });
+
+  // ============================================================
+  // Viewport State
+  // ============================================================
+
+  describe('viewport state', () => {
+    let container: HTMLDivElement;
+
+    beforeEach(() => {
+      container = document.createElement('div');
+      document.body.appendChild(container);
+    });
+
+    afterEach(() => {
+      renderer.destroy();
+      container.remove();
+    });
+
+    it('should render with default viewBox when no viewport state provided', () => {
+      const state = createTestState([], { width: 800, height: 600 });
+      renderer.render(container, state, () => undefined);
+
+      const svg = container.querySelector('svg');
+      expect(svg?.getAttribute('viewBox')).toBe('0 0 800 600');
+    });
+
+    it('should render with default viewBox when viewport state has default values', () => {
+      const state = createTestState([], { width: 800, height: 600 });
+      renderer.render(container, state, () => undefined, { panX: 0, panY: 0, zoom: 1 });
+
+      const svg = container.querySelector('svg');
+      expect(svg?.getAttribute('viewBox')).toBe('0 0 800 600');
+    });
+
+    it('should apply pan offset to viewBox', () => {
+      const state = createTestState([], { width: 800, height: 600 });
+      renderer.render(container, state, () => undefined, { panX: 100, panY: 50, zoom: 1 });
+
+      const svg = container.querySelector('svg');
+      expect(svg?.getAttribute('viewBox')).toBe('100 50 800 600');
+    });
+
+    it('should apply zoom to viewBox dimensions', () => {
+      const state = createTestState([], { width: 800, height: 600 });
+      renderer.render(container, state, () => undefined, { panX: 0, panY: 0, zoom: 2 });
+
+      const svg = container.querySelector('svg');
+      // zoom 2 means we see half the canvas
+      expect(svg?.getAttribute('viewBox')).toBe('0 0 400 300');
+    });
+
+    it('should apply both pan and zoom to viewBox', () => {
+      const state = createTestState([], { width: 800, height: 600 });
+      renderer.render(container, state, () => undefined, { panX: 100, panY: 50, zoom: 2 });
+
+      const svg = container.querySelector('svg');
+      expect(svg?.getAttribute('viewBox')).toBe('100 50 400 300');
+    });
+
+    it('should handle zoom out (zoom < 1)', () => {
+      const state = createTestState([], { width: 800, height: 600 });
+      renderer.render(container, state, () => undefined, { panX: 0, panY: 0, zoom: 0.5 });
+
+      const svg = container.querySelector('svg');
+      // zoom 0.5 means we see twice the canvas
+      expect(svg?.getAttribute('viewBox')).toBe('0 0 1600 1200');
+    });
+
+    it('should update viewBox when viewport state changes', () => {
+      const state = createTestState([], { width: 800, height: 600 });
+      renderer.render(container, state, () => undefined);
+
+      const svg = container.querySelector('svg');
+      expect(svg?.getAttribute('viewBox')).toBe('0 0 800 600');
+
+      renderer.render(container, state, () => undefined, { panX: 50, panY: 25, zoom: 1.5 });
+
+      // 800/1.5 ≈ 533.33, 600/1.5 = 400
+      expect(svg?.getAttribute('viewBox')).toContain('50 25');
     });
   });
 });

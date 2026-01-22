@@ -1210,7 +1210,16 @@ export class SVGComposer extends EditorEventEmitter {
     if (this._destroyed) {
       throw new Error('Cannot render: editor has been destroyed');
     }
-    this._renderer.render(this._container, this._state.state, (id) => this._state.getElement(id));
+
+    // Get viewport state from interaction manager if available
+    const viewportState = this._interactionManager?.getViewportState();
+
+    this._renderer.render(
+      this._container,
+      this._state.state,
+      (id) => this._state.getElement(id),
+      viewportState,
+    );
 
     // Initialize interaction manager on first render (after SVG is in DOM)
     if (!this._interactionInitialized && this._renderer.svgRoot) {

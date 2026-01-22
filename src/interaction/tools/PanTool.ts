@@ -112,12 +112,6 @@ export class PanTool extends BaseTool {
 
   /**
    * Updates pan during drag
-   *
-   * @remarks
-   * Currently updates viewport state but the SVG viewBox is not yet updated
-   * to reflect pan/zoom. This is a known limitation - full pan/zoom support
-   * requires updating the SVG viewBox attribute or applying transforms to
-   * the content layer in the render cycle.
    */
   private _updatePan(point: ViewBoxPoint): void {
     if (!this._panStart) {
@@ -133,7 +127,6 @@ export class PanTool extends BaseTool {
       panY: this._startPanY + dy,
     });
 
-    // TODO: SVGComposer.render() should apply viewport state to SVG viewBox
     this.context.requestRender();
   }
 

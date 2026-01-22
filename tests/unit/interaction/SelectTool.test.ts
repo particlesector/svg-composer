@@ -552,4 +552,217 @@ describe('SelectTool', () => {
       expect(rotation % 15).toBe(0);
     });
   });
+
+  describe('keyboard interactions', () => {
+    it('should delete selected elements with Delete key', () => {
+      elements = [
+        createShapeElement('rect1', 100, 100, 100, 100),
+        createShapeElement('rect2', 200, 200, 100, 100),
+      ];
+      selection = ['rect1', 'rect2'];
+      selectionBounds = { x: 100, y: 100, width: 200, height: 200 };
+
+      const result = selectTool.onKeyDown(new KeyboardEvent('keydown', { code: 'Delete' }));
+
+      expect(result).toBe(true);
+      expect(mockComposer.removeElement).toHaveBeenCalledWith('rect1');
+      expect(mockComposer.removeElement).toHaveBeenCalledWith('rect2');
+      expect(mockComposer.clearSelection).toHaveBeenCalled();
+      expect(mockContext.requestRender).toHaveBeenCalled();
+    });
+
+    it('should delete selected elements with Backspace key', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      const result = selectTool.onKeyDown(new KeyboardEvent('keydown', { code: 'Backspace' }));
+
+      expect(result).toBe(true);
+      expect(mockComposer.removeElement).toHaveBeenCalledWith('rect1');
+      expect(mockComposer.clearSelection).toHaveBeenCalled();
+    });
+
+    it('should return true but not delete when no selection with Delete key', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = [];
+      selectionBounds = null;
+
+      const result = selectTool.onKeyDown(new KeyboardEvent('keydown', { code: 'Delete' }));
+
+      expect(result).toBe(true);
+      expect(mockComposer.removeElement).not.toHaveBeenCalled();
+    });
+
+    it('should clear selection with Escape key', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      const result = selectTool.onKeyDown(new KeyboardEvent('keydown', { code: 'Escape' }));
+
+      expect(result).toBe(true);
+      expect(mockComposer.clearSelection).toHaveBeenCalled();
+      expect(mockContext.requestRender).toHaveBeenCalled();
+    });
+
+    it('should return false for unhandled keys', () => {
+      const result = selectTool.onKeyDown(new KeyboardEvent('keydown', { code: 'KeyA' }));
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('space+drag panning', () => {
+    it('should enable pan mode when space is pressed', () => {
+      selectTool.onKeyDown(new KeyboardEvent('keydown', { code: 'Space' }));
+
+      expect(selectTool.getCursor()).toBe('grab');
+    });
+
+    it('should not trigger space mode multiple times', () => {
+      selectTool.onKeyDown(new KeyboardEvent('keydown', { code: 'Space' }));
+      // Second press should be ignored (already in space mode)
+      const result = selectTool.onKeyDown(new KeyboardEvent('keydown', { code: 'Space' }));
+
+      expect(result).toBe(false);
+    });
+
+    it('should start panning when mouse down with space held', () => {
+      selectTool.onKeyDown(new KeyboardEvent('keydown', { code: 'Space' }));
+
+      const result = selectTool.onMouseDown(
+        new MouseEvent('mousedown', { clientX: 100, clientY: 100 }),
+        { x: 200, y: 200 },
+      );
+
+      expect(result).toBe(true);
+      expect(selectTool.getCursor()).toBe('grabbing');
+    });
+
+    it('should update viewport during pan', () => {
+      selectTool.onKeyDown(new KeyboardEvent('keydown', { code: 'Space' }));
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 100, clientY: 100 }), {
+        x: 200,
+        y: 200,
+      });
+
+      selectTool.onMouseMove(new MouseEvent('mousemove', { clientX: 150, clientY: 150 }), {
+        x: 300,
+        y: 300,
+      });
+
+      expect(mockContext.setViewportState).toHaveBeenCalled();
+    });
+
+    it('should end panning on mouse up', () => {
+      selectTool.onKeyDown(new KeyboardEvent('keydown', { code: 'Space' }));
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 100, clientY: 100 }), {
+        x: 200,
+        y: 200,
+      });
+
+      expect(selectTool.getCursor()).toBe('grabbing');
+
+      const result = selectTool.onMouseUp(
+        new MouseEvent('mouseup', { clientX: 150, clientY: 150 }),
+        { x: 300, y: 300 },
+      );
+
+      expect(result).toBe(true);
+      // Should return to grab cursor since space is still held
+      expect(selectTool.getCursor()).toBe('grab');
+    });
+
+    it('should exit pan mode when space is released', () => {
+      selectTool.onKeyDown(new KeyboardEvent('keydown', { code: 'Space' }));
+      expect(selectTool.getCursor()).toBe('grab');
+
+      selectTool.onKeyUp(new KeyboardEvent('keyup', { code: 'Space' }));
+      expect(selectTool.getCursor()).toBe('default');
+    });
+
+    it('should return false for unhandled key up', () => {
+      const result = selectTool.onKeyUp(new KeyboardEvent('keyup', { code: 'KeyA' }));
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('getCursor', () => {
+    it('should return move cursor during drag', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      // Click on element to start selection
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 75, clientY: 75 }), {
+        x: 150,
+        y: 150,
+      });
+
+      // Move to start drag
+      selectTool.onMouseMove(new MouseEvent('mousemove', { clientX: 80, clientY: 80 }), {
+        x: 160,
+        y: 160,
+      });
+
+      expect(selectTool.getCursor()).toBe('move');
+    });
+
+    it('should return resize cursor during resize', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      // Click on SE handle
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 100, clientY: 100 }), {
+        x: 200,
+        y: 200,
+      });
+
+      // Cursor should be a resize cursor (depends on handle type)
+      expect(selectTool.getCursor()).toMatch(/-resize$/);
+    });
+
+    it('should return grabbing cursor during rotation', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      const rotateOffset = mockContext.coordinateTransformer.screenDistanceToViewBox(30);
+
+      // Click on rotate handle
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 75, clientY: 50 }), {
+        x: 150,
+        y: 100 - rotateOffset,
+      });
+
+      expect(selectTool.getCursor()).toBe('grabbing');
+    });
+  });
+
+  describe('deactivate', () => {
+    it('should reset all state when deactivated', () => {
+      elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+      selection = ['rect1'];
+      selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+      // Start a drag
+      selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 75, clientY: 75 }), {
+        x: 150,
+        y: 150,
+      });
+      selectTool.onMouseMove(new MouseEvent('mousemove', { clientX: 80, clientY: 80 }), {
+        x: 160,
+        y: 160,
+      });
+
+      expect(selectTool.getCursor()).toBe('move');
+
+      // Deactivate
+      selectTool.deactivate();
+
+      // Should be back to default state
+      expect(selectTool.getCursor()).toBe('default');
+    });
+  });
 });

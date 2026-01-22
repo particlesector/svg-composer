@@ -425,5 +425,163 @@ describe('HitTester', () => {
 
       expect(bounds).toBeNull();
     });
+
+    it('should return bounds for ellipse shape', () => {
+      const element: ShapeElement = {
+        id: 'ellipse1',
+        type: 'shape',
+        shapeType: 'ellipse',
+        transform: { x: 200, y: 200, scaleX: 1, scaleY: 1, rotation: 0 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+        fill: '#000',
+        stroke: '#000',
+        strokeWidth: 1,
+        rx: 60,
+        ry: 40,
+      };
+
+      const bounds = hitTester.getElementBounds(element);
+
+      expect(bounds).not.toBeNull();
+      expect(bounds!.x).toBe(140); // cx - rx
+      expect(bounds!.y).toBe(160); // cy - ry
+      expect(bounds!.width).toBe(120); // rx * 2
+      expect(bounds!.height).toBe(80); // ry * 2
+    });
+
+    it('should return bounds for ellipse shape with scale', () => {
+      const element: ShapeElement = {
+        id: 'ellipse1',
+        type: 'shape',
+        shapeType: 'ellipse',
+        transform: { x: 200, y: 200, scaleX: 2, scaleY: 0.5, rotation: 0 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+        fill: '#000',
+        stroke: '#000',
+        strokeWidth: 1,
+        rx: 60,
+        ry: 40,
+      };
+
+      const bounds = hitTester.getElementBounds(element);
+
+      expect(bounds).not.toBeNull();
+      expect(bounds!.width).toBe(240); // 60 * 2 * 2
+      expect(bounds!.height).toBe(40); // 40 * 0.5 * 2
+    });
+
+    it('should return null for ellipse missing rx or ry', () => {
+      const element: ShapeElement = {
+        id: 'ellipse1',
+        type: 'shape',
+        shapeType: 'ellipse',
+        transform: { x: 200, y: 200, scaleX: 1, scaleY: 1, rotation: 0 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+        fill: '#000',
+        stroke: '#000',
+        strokeWidth: 1,
+        // Missing rx and ry
+      };
+
+      const bounds = hitTester.getElementBounds(element);
+
+      expect(bounds).toBeNull();
+    });
+
+    it('should return default bounds for path shape', () => {
+      const element: ShapeElement = {
+        id: 'path1',
+        type: 'shape',
+        shapeType: 'path',
+        transform: { x: 100, y: 100, scaleX: 1, scaleY: 1, rotation: 0 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+        fill: '#000',
+        stroke: '#000',
+        strokeWidth: 1,
+        path: 'M 0 0 L 50 50',
+      };
+
+      const bounds = hitTester.getElementBounds(element);
+
+      expect(bounds).not.toBeNull();
+      expect(bounds!.x).toBe(100);
+      expect(bounds!.y).toBe(100);
+      expect(bounds!.width).toBe(100); // Default path bounds
+      expect(bounds!.height).toBe(100);
+    });
+
+    it('should return null for circle missing r', () => {
+      const element: ShapeElement = {
+        id: 'circle1',
+        type: 'shape',
+        shapeType: 'circle',
+        transform: { x: 200, y: 200, scaleX: 1, scaleY: 1, rotation: 0 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+        fill: '#000',
+        stroke: '#000',
+        strokeWidth: 1,
+        // Missing r
+      };
+
+      const bounds = hitTester.getElementBounds(element);
+
+      expect(bounds).toBeNull();
+    });
+
+    it('should return null for rect missing dimensions', () => {
+      const element: ShapeElement = {
+        id: 'rect1',
+        type: 'shape',
+        shapeType: 'rect',
+        transform: { x: 100, y: 100, scaleX: 1, scaleY: 1, rotation: 0 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+        fill: '#000',
+        stroke: '#000',
+        strokeWidth: 1,
+        // Missing width and height
+      };
+
+      const bounds = hitTester.getElementBounds(element);
+
+      expect(bounds).toBeNull();
+    });
+
+    it('should return null for unknown shape type', () => {
+      const element: ShapeElement = {
+        id: 'unknown1',
+        type: 'shape',
+        shapeType: 'unknown' as ShapeElement['shapeType'],
+        transform: { x: 100, y: 100, scaleX: 1, scaleY: 1, rotation: 0 },
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+        fill: '#000',
+        stroke: '#000',
+        strokeWidth: 1,
+      };
+
+      const bounds = hitTester.getElementBounds(element);
+
+      expect(bounds).toBeNull();
+    });
   });
 });

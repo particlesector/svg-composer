@@ -5,6 +5,18 @@
 import type { BaseElement, ClipPath } from '../elements/types.js';
 
 /**
+ * Viewport state for pan and zoom
+ */
+export interface ViewportState {
+  /** Horizontal pan offset in viewBox units */
+  panX: number;
+  /** Vertical pan offset in viewBox units */
+  panY: number;
+  /** Zoom level (1.0 = 100%) */
+  zoom: number;
+}
+
+/**
  * Configuration options for the SVG renderer
  */
 export interface SVGRendererConfig {
