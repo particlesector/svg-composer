@@ -1124,27 +1124,36 @@ export class SVGComposer extends EditorEventEmitter {
     const data = parsed as Record<string, unknown>;
 
     // Validate required fields
-    if (typeof data.width !== 'number' || typeof data.height !== 'number') {
+    const width = data['width'];
+    const height = data['height'];
+    const elementsData = data['elements'];
+
+    if (typeof width !== 'number' || typeof height !== 'number') {
       throw new Error('Invalid state: missing or invalid width/height');
     }
-    if (typeof data.elements !== 'object' || data.elements === null) {
+    if (typeof elementsData !== 'object' || elementsData === null) {
       throw new Error('Invalid state: missing or invalid elements');
     }
 
     // Convert Record back to Map
     const elements = new Map<string, BaseElement>();
-    for (const [id, element] of Object.entries(data.elements as Record<string, BaseElement>)) {
+    for (const [id, element] of Object.entries(elementsData as Record<string, BaseElement>)) {
       elements.set(id, element);
     }
 
     // Convert array back to Set (with fallback for missing field)
-    const selectedIdsArray = Array.isArray(data.selectedIds) ? data.selectedIds as string[] : [];
+    const selectedIdsData = data['selectedIds'];
+    const selectedIdsArray = Array.isArray(selectedIdsData) ? selectedIdsData as string[] : [];
     const selectedIds = new Set<string>(selectedIdsArray);
 
+    // Get optional backgroundColor with fallback
+    const bgColor = data['backgroundColor'];
+    const backgroundColor = typeof bgColor === 'string' ? bgColor : '#ffffff';
+
     const canvasState: CanvasState = {
-      width: data.width,
-      height: data.height,
-      backgroundColor: typeof data.backgroundColor === 'string' ? data.backgroundColor : '#ffffff',
+      width,
+      height,
+      backgroundColor,
       elements,
       selectedIds,
     };
