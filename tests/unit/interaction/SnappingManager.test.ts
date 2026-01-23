@@ -176,15 +176,17 @@ describe('SnappingManager', () => {
         expect(result.x).toBe(97);
       });
 
-      it('should not snap to locked guides', () => {
+      it('should snap to locked guides (locked prevents moving, not snapping)', () => {
         const guides = [createGuide('g1', 'vertical', 100, { locked: true })];
         const state = createCanvasState([], guides);
         const bounds: BoundingBox = { x: 97, y: 200, width: 50, height: 50 };
 
         const result = snappingManager.calculateSnap(97, 200, bounds, state, new Set(), getBounds);
 
-        expect(result.snappedX).toBe(false);
-        expect(result.x).toBe(97);
+        // Locked guides should still be snap targets
+        expect(result.snappedX).toBe(true);
+        expect(result.x).toBe(100);
+        expect(result.snapTargetX?.referenceId).toBe('g1');
       });
 
       it('should snap to nearest guide when multiple are available', () => {
@@ -532,6 +534,78 @@ describe('SnappingManager', () => {
 
       expect(result.snappedX).toBe(true);
       expect(result.x).toBe(100);
+    });
+
+    it('should snap resize top edge to horizontal guide', () => {
+      const guides = [createGuide('g1', 'horizontal', 100)];
+      const state = createCanvasState([], guides);
+      const newBounds: BoundingBox = { x: 50, y: 97, width: 100, height: 100 };
+
+      const result = snappingManager.calculateResizeSnap(
+        newBounds,
+        'n', // top handle
+        state,
+        new Set(),
+        getBounds,
+      );
+
+      expect(result.snappedY).toBe(true);
+      expect(result.y).toBe(100);
+    });
+
+    it('should snap resize bottom edge to horizontal guide', () => {
+      const guides = [createGuide('g1', 'horizontal', 200)];
+      const state = createCanvasState([], guides);
+      const newBounds: BoundingBox = { x: 50, y: 100, width: 100, height: 97 };
+
+      const result = snappingManager.calculateResizeSnap(
+        newBounds,
+        's', // bottom handle
+        state,
+        new Set(),
+        getBounds,
+      );
+
+      expect(result.snappedY).toBe(true);
+      // Bottom edge was at 100 + 97 = 197, should snap to 200
+    });
+
+    it('should snap corner resize (ne) to both guides', () => {
+      const guides = [createGuide('g1', 'vertical', 200), createGuide('g2', 'horizontal', 100)];
+      const state = createCanvasState([], guides);
+      const newBounds: BoundingBox = { x: 50, y: 103, width: 147, height: 97 };
+
+      const result = snappingManager.calculateResizeSnap(
+        newBounds,
+        'ne', // northeast handle
+        state,
+        new Set(),
+        getBounds,
+      );
+
+      expect(result.snappedX).toBe(true);
+      expect(result.snappedY).toBe(true);
+      expect(result.y).toBe(100);
+    });
+
+    it('should return unsnapped position when disabled', () => {
+      snappingManager.updateConfig({ enabled: false });
+      const guides = [createGuide('g1', 'vertical', 200)];
+      const state = createCanvasState([], guides);
+      const newBounds: BoundingBox = { x: 100, y: 100, width: 97, height: 100 };
+
+      const result = snappingManager.calculateResizeSnap(
+        newBounds,
+        'e',
+        state,
+        new Set(),
+        getBounds,
+      );
+
+      expect(result.snappedX).toBe(false);
+      expect(result.snappedY).toBe(false);
+      expect(result.x).toBe(100);
+      expect(result.y).toBe(100);
     });
   });
 });

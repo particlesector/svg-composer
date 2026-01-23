@@ -587,6 +587,22 @@ describe('State', () => {
         }).toThrow('Guide with id "guide-1" already exists');
       });
 
+      it('should throw error for empty guide ID', () => {
+        const guide = { ...createTestGuide('valid'), id: '' };
+
+        expect(() => {
+          state.addGuide(guide);
+        }).toThrow('Guide ID must be a non-empty string');
+      });
+
+      it('should throw error for whitespace-only guide ID', () => {
+        const guide = { ...createTestGuide('valid'), id: '   ' };
+
+        expect(() => {
+          state.addGuide(guide);
+        }).toThrow('Guide ID must be a non-empty string');
+      });
+
       it('should add multiple guides', () => {
         state.addGuide(createTestGuide('guide-1', 'horizontal', 100));
         state.addGuide(createTestGuide('guide-2', 'vertical', 200));

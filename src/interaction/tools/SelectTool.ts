@@ -878,5 +878,8 @@ export class SelectTool extends BaseTool {
     this._isPanning = false;
     this._panStart = null;
     this._gestureInitialPan = null;
+
+    // Clear any snap indicators that may be visible (e.g., if user cancels mid-drag)
+    this.context.clearSnapIndicators();
   }
 }

@@ -10,6 +10,7 @@ import type {
   CanvasState,
 } from '../core/types.js';
 import type { BaseElement } from '../elements/types.js';
+import type { SnapLines } from '../rendering/types.js';
 
 /**
  * Points of interest on an element or selection bounds that can snap
@@ -30,14 +31,10 @@ interface SnapPoints {
 }
 
 /**
- * Active snap lines to display during interaction
+ * Active snap lines to display during interaction.
+ * This is an alias for SnapLines - prefer using SnapLines from rendering/types.
  */
-export interface ActiveSnapLines {
-  /** Vertical snap lines (X positions) */
-  vertical: { x: number; target: SnapTarget }[];
-  /** Horizontal snap lines (Y positions) */
-  horizontal: { y: number; target: SnapTarget }[];
-}
+export type ActiveSnapLines = SnapLines;
 
 /**
  * Type for a function that retrieves element bounds
@@ -55,7 +52,7 @@ export type BoundsGetter = (element: BaseElement) => BoundingBox | null;
  */
 export class SnappingManager {
   private _config: SnappingConfig;
-  private _activeSnapLines: ActiveSnapLines = { vertical: [], horizontal: [] };
+  private _activeSnapLines: SnapLines = { vertical: [], horizontal: [] };
 
   /**
    * Creates a new SnappingManager instance
@@ -85,7 +82,7 @@ export class SnappingManager {
   /**
    * Gets the active snap lines (for rendering snap indicators)
    */
-  get activeSnapLines(): ActiveSnapLines {
+  get activeSnapLines(): SnapLines {
     return this._activeSnapLines;
   }
 
@@ -122,8 +119,8 @@ export class SnappingManager {
     // Calculate snap points for the dragged element(s)
     const snapPoints = this._getSnapPoints(bounds);
 
-    // Collect all snap targets
-    const targets = this._collectSnapTargets(state, excludeIds, getBounds);
+    // Collect all snap targets (pass bounds for grid optimization)
+    const targets = this._collectSnapTargets(state, excludeIds, getBounds, bounds);
 
     // Find best snaps for X and Y axes
     const snapX = this._findBestSnapX(snapPoints, targets.vertical);
@@ -176,8 +173,8 @@ export class SnappingManager {
       };
     }
 
-    // Collect all snap targets
-    const targets = this._collectSnapTargets(state, excludeIds, getBounds);
+    // Collect all snap targets (pass bounds for grid optimization)
+    const targets = this._collectSnapTargets(state, excludeIds, getBounds, newBounds);
 
     // For resize, we only snap the edges being moved
     const affectsLeft = handleType.includes('w');
@@ -228,19 +225,27 @@ export class SnappingManager {
 
   /**
    * Collects all available snap targets based on configuration
+   *
+   * @param state - Current canvas state
+   * @param excludeIds - Element IDs to exclude from snap targets
+   * @param getBounds - Function to get element bounds
+   * @param dragBounds - Bounds of the element being dragged (for grid optimization)
    */
   private _collectSnapTargets(
     state: CanvasState,
     excludeIds: Set<string>,
     getBounds: BoundsGetter,
+    dragBounds: BoundingBox,
   ): { vertical: SnapTarget[]; horizontal: SnapTarget[] } {
     const vertical: SnapTarget[] = [];
     const horizontal: SnapTarget[] = [];
 
     // Add guide targets
+    // Note: Locked guides are still snap targets - locking prevents moving the guide,
+    // not snapping to it. Users often lock guides to use as stable snap references.
     if (this._config.snapToGuides) {
       for (const guide of state.guides) {
-        if (!guide.visible || guide.locked) {
+        if (!guide.visible) {
           continue;
         }
         const target: SnapTarget = {
@@ -257,23 +262,66 @@ export class SnappingManager {
       }
     }
 
-    // Add grid targets
+    // Add grid targets (optimized to only include targets within snap distance)
     if (this._config.snapToGrid && this._config.gridSize > 0) {
       const gridSize = this._config.gridSize;
-      // Generate grid lines within canvas bounds
-      for (let x = 0; x <= state.width; x += gridSize) {
-        vertical.push({
-          type: 'grid',
-          orientation: 'vertical',
-          position: x,
-        });
+      const snapDistance = this._config.snapDistance;
+
+      // Calculate the range of positions we need to check based on drag bounds
+      // Include edges and center of the dragged element
+      const relevantXPositions = [
+        dragBounds.x,
+        dragBounds.x + dragBounds.width,
+        dragBounds.x + dragBounds.width / 2,
+      ];
+      const relevantYPositions = [
+        dragBounds.y,
+        dragBounds.y + dragBounds.height,
+        dragBounds.y + dragBounds.height / 2,
+      ];
+
+      // Find grid lines near the relevant X positions
+      const addedXPositions = new Set<number>();
+      for (const xPos of relevantXPositions) {
+        const nearestGridX = Math.round(xPos / gridSize) * gridSize;
+        // Check grid lines within snap distance range
+        for (let x = nearestGridX - gridSize; x <= nearestGridX + gridSize; x += gridSize) {
+          if (
+            x >= 0 &&
+            x <= state.width &&
+            Math.abs(x - xPos) <= snapDistance &&
+            !addedXPositions.has(x)
+          ) {
+            addedXPositions.add(x);
+            vertical.push({
+              type: 'grid',
+              orientation: 'vertical',
+              position: x,
+            });
+          }
+        }
       }
-      for (let y = 0; y <= state.height; y += gridSize) {
-        horizontal.push({
-          type: 'grid',
-          orientation: 'horizontal',
-          position: y,
-        });
+
+      // Find grid lines near the relevant Y positions
+      const addedYPositions = new Set<number>();
+      for (const yPos of relevantYPositions) {
+        const nearestGridY = Math.round(yPos / gridSize) * gridSize;
+        // Check grid lines within snap distance range
+        for (let y = nearestGridY - gridSize; y <= nearestGridY + gridSize; y += gridSize) {
+          if (
+            y >= 0 &&
+            y <= state.height &&
+            Math.abs(y - yPos) <= snapDistance &&
+            !addedYPositions.has(y)
+          ) {
+            addedYPositions.add(y);
+            horizontal.push({
+              type: 'grid',
+              orientation: 'horizontal',
+              position: y,
+            });
+          }
+        }
       }
     }
 

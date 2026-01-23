@@ -167,9 +167,13 @@ export class State {
    * Adds a guide to the state
    *
    * @param guide - Guide to add
-   * @throws Error if guide with same ID already exists
+   * @throws Error if guide ID is invalid or guide with same ID already exists
    */
   addGuide(guide: Guide): void {
+    // Validate guide ID
+    if (!guide.id || typeof guide.id !== 'string' || guide.id.trim() === '') {
+      throw new Error('Guide ID must be a non-empty string');
+    }
     if (this._state.guides.some((g) => g.id === guide.id)) {
       throw new Error(`Guide with id "${guide.id}" already exists`);
     }

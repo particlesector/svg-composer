@@ -20,7 +20,7 @@ import {
   type SelectionHandleRendererConfig,
 } from './SelectionHandleRenderer.js';
 import type { BaseTool, ToolComposerAccess, ToolContext } from './tools/BaseTool.js';
-import type { ActiveSnapLines } from './SnappingManager.js';
+import type { SnapLines } from '../rendering/types.js';
 
 /**
  * Configuration for the InteractionManager
@@ -52,7 +52,7 @@ export interface InteractionManagerConfig {
     excludeIds: Set<string>,
   ) => SnapResult;
   /** Callback to render snap indicators */
-  renderSnapIndicators?: (snapLines: ActiveSnapLines) => void;
+  renderSnapIndicators?: (snapLines: SnapLines) => void;
   /** Callback to clear snap indicators */
   clearSnapIndicators?: () => void;
   /** Callback to get snapping configuration */
@@ -377,7 +377,7 @@ export class InteractionManager {
         }
         return { ...defaultSnapResult, x, y };
       },
-      renderSnapIndicators: (snapLines: ActiveSnapLines): void => {
+      renderSnapIndicators: (snapLines: SnapLines): void => {
         this._config.renderSnapIndicators?.(snapLines);
       },
       clearSnapIndicators: (): void => {

@@ -8,7 +8,7 @@ import type { InteractionState, ViewBoxPoint, ViewportState, PointerInfo } from 
 import type { HitTester } from '../HitTester.js';
 import type { SelectionHandleRenderer } from '../SelectionHandleRenderer.js';
 import type { CoordinateTransformer } from '../CoordinateTransformer.js';
-import type { ActiveSnapLines } from '../SnappingManager.js';
+import type { SnapLines } from '../../rendering/types.js';
 
 /**
  * Interface for accessing the composer through the tool
@@ -65,7 +65,7 @@ export interface ToolContext {
   /** Calculate snap adjustment for drag operations */
   calculateSnap: (x: number, y: number, bounds: BoundingBox, excludeIds: Set<string>) => SnapResult;
   /** Render snap indicators during interaction */
-  renderSnapIndicators: (snapLines: ActiveSnapLines) => void;
+  renderSnapIndicators: (snapLines: SnapLines) => void;
   /** Clear snap indicators after interaction */
   clearSnapIndicators: () => void;
   /** Get current snapping configuration */

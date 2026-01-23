@@ -17,6 +17,7 @@ export type {
   SVGComposerOptions,
   CanvasState,
   Guide,
+  GuideInput,
   GuideOrientation,
   SnapTarget,
   SnapTargetType,

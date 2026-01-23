@@ -116,6 +116,13 @@ export interface Guide {
 }
 
 /**
+ * Input type for creating a new guide.
+ * Requires orientation and position, all other fields are optional.
+ */
+export type GuideInput = Pick<Guide, 'orientation' | 'position'> &
+  Partial<Omit<Guide, 'orientation' | 'position'>>;
+
+/**
  * Types of snap targets
  */
 export type SnapTargetType =

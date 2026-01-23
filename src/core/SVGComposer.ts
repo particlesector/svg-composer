@@ -9,6 +9,7 @@ import type {
   CanvasState,
   Transform,
   Guide,
+  GuideInput,
   GuideOrientation,
   SnappingConfig,
   SnapResult,
@@ -1398,10 +1399,7 @@ export class SVGComposer extends EditorEventEmitter {
    * });
    * ```
    */
-  addGuide(
-    guide: Partial<Omit<Guide, 'id' | 'orientation' | 'position'>> &
-      Pick<Guide, 'orientation' | 'position'> & { id?: string },
-  ): string {
+  addGuide(guide: GuideInput): string {
     const id = guide.id ?? generateId();
     const fullGuide: Guide = {
       id,
@@ -1749,6 +1747,8 @@ export class SVGComposer extends EditorEventEmitter {
         this._renderer.renderSnapIndicators(snapLines, canvasSize.width, canvasSize.height);
       },
       clearSnapIndicators: (): void => {
+        // Direct renderer manipulation for performance - clearing indicators
+        // doesn't require a full render cycle since it's just removing overlay elements
         this._snappingManager.clearActiveSnapLines();
         this._renderer.clearSnapIndicators();
       },
