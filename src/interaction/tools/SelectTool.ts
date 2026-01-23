@@ -237,13 +237,13 @@ export class SelectTool extends BaseTool {
   }
 
   override onPointerDown(
-    _event: PointerEvent,
+    event: PointerEvent,
     point: ViewBoxPoint,
     activePointers: Map<number, PointerInfo>,
   ): boolean {
     // For single pointer, delegate to mouse handler
     if (activePointers.size === 1) {
-      return this.onMouseDown(_event as unknown as MouseEvent, point);
+      return this.onMouseDown(event as unknown as MouseEvent, point);
     }
 
     return false;
