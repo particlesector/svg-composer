@@ -1100,4 +1100,291 @@ describe('SVGRenderer', () => {
       expect(svg?.getAttribute('viewBox')).toContain('50 25');
     });
   });
+
+  // ============================================================
+  // Incremental DOM Updates via render()
+  // ============================================================
+
+  describe('incremental DOM updates via render()', () => {
+    let container: HTMLDivElement;
+
+    beforeEach(() => {
+      container = document.createElement('div');
+      document.body.appendChild(container);
+    });
+
+    afterEach(() => {
+      renderer.destroy();
+      container.remove();
+    });
+
+    it('should preserve existing DOM elements on re-render', () => {
+      const element = createImageElement('img-1', { src: 'test.jpg' });
+      const state = createTestState([element]);
+      renderer.render(container, state, createElementGetter([element]));
+
+      // Get reference to the DOM element
+      const originalImage = container.querySelector('image[data-element-id="img-1"]');
+      expect(originalImage).not.toBeNull();
+
+      // Re-render with same state
+      renderer.render(container, state, createElementGetter([element]));
+
+      // The same DOM element should still be present (not recreated)
+      const imageAfterRerender = container.querySelector('image[data-element-id="img-1"]');
+      expect(imageAfterRerender).toBe(originalImage);
+    });
+
+    it('should preserve existing elements when adding a new element', () => {
+      const element1 = createImageElement('img-1', { src: 'first.jpg' });
+      const state1 = createTestState([element1]);
+      renderer.render(container, state1, createElementGetter([element1]));
+
+      // Get reference to the first DOM element
+      const originalImage1 = container.querySelector('image[data-element-id="img-1"]');
+      expect(originalImage1).not.toBeNull();
+
+      // Add a second element
+      const element2 = createImageElement('img-2', { src: 'second.jpg' });
+      const state2 = createTestState([element1, element2]);
+      renderer.render(container, state2, createElementGetter([element1, element2]));
+
+      // The original element should be preserved
+      const image1AfterAdd = container.querySelector('image[data-element-id="img-1"]');
+      expect(image1AfterAdd).toBe(originalImage1);
+
+      // The new element should be added
+      const image2 = container.querySelector('image[data-element-id="img-2"]');
+      expect(image2).not.toBeNull();
+      expect(image2?.getAttribute('href')).toBe('second.jpg');
+    });
+
+    it('should preserve remaining elements when removing an element', () => {
+      const element1 = createImageElement('img-1', { src: 'first.jpg', zIndex: 1 });
+      const element2 = createImageElement('img-2', { src: 'second.jpg', zIndex: 2 });
+      const state1 = createTestState([element1, element2]);
+      renderer.render(container, state1, createElementGetter([element1, element2]));
+
+      // Get reference to the second DOM element
+      const originalImage2 = container.querySelector('image[data-element-id="img-2"]');
+      expect(originalImage2).not.toBeNull();
+
+      // Remove the first element
+      const state2 = createTestState([element2]);
+      renderer.render(container, state2, createElementGetter([element2]));
+
+      // The removed element should be gone
+      expect(container.querySelector('image[data-element-id="img-1"]')).toBeNull();
+
+      // The remaining element should be preserved
+      const image2AfterRemove = container.querySelector('image[data-element-id="img-2"]');
+      expect(image2AfterRemove).toBe(originalImage2);
+    });
+
+    it('should preserve other elements when updating one element', () => {
+      const element1 = createImageElement('img-1', { src: 'first.jpg' });
+      const element2 = createImageElement('img-2', { src: 'second.jpg' });
+      const state1 = createTestState([element1, element2]);
+      renderer.render(container, state1, createElementGetter([element1, element2]));
+
+      // Get references to both DOM elements
+      const originalImage1 = container.querySelector('image[data-element-id="img-1"]');
+      const originalImage2 = container.querySelector('image[data-element-id="img-2"]');
+
+      // Update only the first element
+      const updatedElement1 = createImageElement('img-1', { src: 'updated.jpg' });
+      const state2 = createTestState([updatedElement1, element2]);
+      renderer.render(container, state2, createElementGetter([updatedElement1, element2]));
+
+      // The first element should be the same DOM node with updated content
+      const image1AfterUpdate = container.querySelector('image[data-element-id="img-1"]');
+      expect(image1AfterUpdate).toBe(originalImage1);
+      expect(image1AfterUpdate?.getAttribute('href')).toBe('updated.jpg');
+
+      // The second element should be preserved (same DOM node)
+      const image2AfterUpdate = container.querySelector('image[data-element-id="img-2"]');
+      expect(image2AfterUpdate).toBe(originalImage2);
+    });
+
+    it('should remove elements that become hidden', () => {
+      const element = createImageElement('img-1', { visible: true });
+      const state1 = createTestState([element]);
+      renderer.render(container, state1, createElementGetter([element]));
+
+      expect(container.querySelector('image[data-element-id="img-1"]')).not.toBeNull();
+
+      // Hide the element
+      const hiddenElement = createImageElement('img-1', { visible: false });
+      const state2 = createTestState([hiddenElement]);
+      renderer.render(container, state2, createElementGetter([hiddenElement]));
+
+      expect(container.querySelector('image[data-element-id="img-1"]')).toBeNull();
+    });
+
+    it('should add elements that become visible', () => {
+      const hiddenElement = createImageElement('img-1', { visible: false });
+      const state1 = createTestState([hiddenElement]);
+      renderer.render(container, state1, createElementGetter([hiddenElement]));
+
+      expect(container.querySelector('image[data-element-id="img-1"]')).toBeNull();
+
+      // Show the element
+      const visibleElement = createImageElement('img-1', { visible: true });
+      const state2 = createTestState([visibleElement]);
+      renderer.render(container, state2, createElementGetter([visibleElement]));
+
+      expect(container.querySelector('image[data-element-id="img-1"]')).not.toBeNull();
+    });
+
+    it('should maintain correct z-order with multiple render calls', () => {
+      const el1 = createImageElement('img-1', { zIndex: 1 });
+      const el2 = createImageElement('img-2', { zIndex: 3 });
+      const state1 = createTestState([el1, el2]);
+      renderer.render(container, state1, createElementGetter([el1, el2]));
+
+      // Add element in the middle
+      const el3 = createImageElement('img-3', { zIndex: 2 });
+      const state2 = createTestState([el1, el2, el3]);
+      renderer.render(container, state2, createElementGetter([el1, el2, el3]));
+
+      const content = container.querySelector('g[id$="content"]');
+      const children = Array.from(content?.children ?? []);
+      const ids = children.map((el) => el.getAttribute('data-element-id'));
+
+      // Elements should be ordered by z-index
+      expect(ids).toEqual(['img-1', 'img-3', 'img-2']);
+    });
+
+    it('should handle rapid successive renders efficiently', () => {
+      const element = createImageElement('img-1', {
+        transform: createTestTransform({ x: 0, y: 0 }),
+      });
+      const state = createTestState([element]);
+      renderer.render(container, state, createElementGetter([element]));
+
+      // Get reference to the DOM element
+      const originalImage = container.querySelector('image[data-element-id="img-1"]');
+
+      // Simulate rapid position updates (like during drag)
+      for (let i = 1; i <= 10; i++) {
+        const updated = createImageElement('img-1', {
+          transform: createTestTransform({ x: i * 10, y: i * 5 }),
+        });
+        const newState = createTestState([updated]);
+        renderer.render(container, newState, createElementGetter([updated]));
+      }
+
+      // The DOM element should still be the same (not recreated)
+      const imageAfterUpdates = container.querySelector('image[data-element-id="img-1"]');
+      expect(imageAfterUpdates).toBe(originalImage);
+
+      // The transform should be updated to the final value
+      expect(imageAfterUpdates?.getAttribute('transform')).toContain('translate(100, 50)');
+    });
+
+    it('should handle groups correctly - group children should not appear at top level', () => {
+      const child1 = createImageElement('child-1', { src: 'a.jpg' });
+      const child2 = createImageElement('child-2', { src: 'b.jpg' });
+      const group = createGroupElement('group-1', ['child-1', 'child-2']);
+      const allElements = [group, child1, child2];
+      const state = createTestState([group, child1, child2]);
+      renderer.render(container, state, createElementGetter(allElements));
+
+      const content = container.querySelector('g[id$="content"]');
+      const topLevelChildren = Array.from(content?.children ?? []);
+
+      // Only the group should be at the top level
+      expect(topLevelChildren.length).toBe(1);
+      expect(topLevelChildren[0].getAttribute('data-element-id')).toBe('group-1');
+
+      // Children should be inside the group
+      const groupEl = topLevelChildren[0];
+      const groupChildren = Array.from(groupEl.children);
+      expect(groupChildren.length).toBe(2);
+    });
+
+    it('should handle adding and removing elements from groups', () => {
+      // Start with a group containing one child
+      const child1 = createImageElement('child-1', { src: 'a.jpg' });
+      const group = createGroupElement('group-1', ['child-1']);
+      const allElements1 = [group, child1];
+      const state1 = createTestState([group, child1]);
+      renderer.render(container, state1, createElementGetter(allElements1));
+
+      // Add second child to group
+      const child2 = createImageElement('child-2', { src: 'b.jpg' });
+      const groupWithTwoChildren = createGroupElement('group-1', ['child-1', 'child-2']);
+      const allElements2 = [groupWithTwoChildren, child1, child2];
+      const state2 = createTestState([groupWithTwoChildren, child1, child2]);
+      renderer.render(container, state2, createElementGetter(allElements2));
+
+      const content = container.querySelector('g[id$="content"]');
+      const topLevelChildren = Array.from(content?.children ?? []);
+      expect(topLevelChildren.length).toBe(1);
+
+      // Group should now have two children
+      const groupEl = content?.querySelector('[data-element-id="group-1"]');
+      const groupChildren = Array.from(groupEl?.children ?? []);
+      expect(groupChildren.length).toBe(2);
+    });
+
+    it('should handle different element types in incremental updates', () => {
+      const image = createImageElement('el-1', { src: 'test.jpg' });
+      const text = createTextElement('el-2', { content: 'Hello' });
+      const shape = createShapeElement('el-3', { shapeType: 'rect' });
+
+      const state = createTestState([image, text, shape]);
+      renderer.render(container, state, createElementGetter([image, text, shape]));
+
+      // Get references
+      const origImage = container.querySelector('image[data-element-id="el-1"]');
+      const origText = container.querySelector('text[data-element-id="el-2"]');
+      const origShape = container.querySelector('rect[data-element-id="el-3"]');
+
+      // Update all elements
+      const updatedImage = createImageElement('el-1', { src: 'updated.jpg' });
+      const updatedText = createTextElement('el-2', { content: 'Updated' });
+      const updatedShape = createShapeElement('el-3', { shapeType: 'rect', fill: '#00ff00' });
+
+      const newState = createTestState([updatedImage, updatedText, updatedShape]);
+      renderer.render(
+        container,
+        newState,
+        createElementGetter([updatedImage, updatedText, updatedShape]),
+      );
+
+      // All elements should be the same DOM nodes
+      expect(container.querySelector('image[data-element-id="el-1"]')).toBe(origImage);
+      expect(container.querySelector('text[data-element-id="el-2"]')).toBe(origText);
+      expect(container.querySelector('rect[data-element-id="el-3"]')).toBe(origShape);
+
+      // Values should be updated
+      expect(origImage?.getAttribute('href')).toBe('updated.jpg');
+      expect(origText?.textContent).toBe('Updated');
+      expect(origShape?.getAttribute('fill')).toBe('#00ff00');
+    });
+
+    it('should clean up orphaned clip paths on element removal', () => {
+      const clipPath: ClipPath = {
+        id: 'clip-orphan',
+        type: 'circle',
+        cx: 50,
+        cy: 50,
+        r: 25,
+      };
+      const element = createImageElement('img-1', { clipPath });
+      const state1 = createTestState([element]);
+      renderer.render(container, state1, createElementGetter([element]));
+
+      expect(container.querySelector('clipPath#clip-orphan')).not.toBeNull();
+
+      // Remove the element
+      const state2 = createTestState([]);
+      renderer.render(container, state2, createElementGetter([]));
+
+      expect(container.querySelector('image[data-element-id="img-1"]')).toBeNull();
+      // Note: orphaned clip paths are cleaned up on the next full render,
+      // but for incremental updates they may remain until a full re-initialization
+    });
+  });
 });

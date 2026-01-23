@@ -182,37 +182,45 @@ export class SVGRenderer {
     // Update background color
     backgroundRect.setAttribute('fill', state.backgroundColor);
 
-    // Clear and re-render all elements (for now - incremental updates in next phase)
-    contentGroup.innerHTML = '';
-    this._elementMap.clear();
-    this._renderedClipPaths.clear();
-    defsElement.innerHTML = '';
+    // Incremental DOM updates: compare current state with rendered elements
+    const currentElementIds = new Set<string>();
+    const visibleElements = Array.from(state.elements.values()).filter((el) => el.visible);
 
-    // Get visible elements sorted by zIndex
-    const elements = Array.from(state.elements.values())
-      .filter((el) => el.visible)
-      .sort((a, b) => a.zIndex - b.zIndex);
+    // Collect all visible element IDs (including group children)
+    for (const element of visibleElements) {
+      currentElementIds.add(element.id);
+    }
 
-    // Create render context
-    const context: RenderContext = {
-      clipPaths: new Map(),
-      getElement,
-    };
-
-    // Render each element
-    for (const element of elements) {
-      const svgElement = this._createDOMElement(element, context);
-      if (svgElement) {
-        contentGroup.appendChild(svgElement);
-        this._elementMap.set(element.id, { element: svgElement, zIndex: element.zIndex });
+    // Find elements to remove (rendered but no longer in state or now hidden)
+    const elementsToRemove: string[] = [];
+    for (const id of this._elementMap.keys()) {
+      const element = state.elements.get(id);
+      // Remove if element doesn't exist in state, is hidden, or is a child of a group
+      // (group children are rendered inside their parent group, not at top level)
+      if (!element || !element.visible || this._isGroupChild(element.id, state)) {
+        elementsToRemove.push(id);
       }
     }
 
-    // Add clip paths to defs
-    for (const [id, clipPath] of context.clipPaths) {
-      const clipPathEl = this._createClipPathDOMElement(clipPath);
-      defsElement.appendChild(clipPathEl);
-      this._renderedClipPaths.add(id);
+    // Remove elements that are no longer needed
+    for (const id of elementsToRemove) {
+      this.removeElement(id);
+    }
+
+    // Get top-level visible elements (not children of groups) sorted by zIndex
+    const topLevelElements = visibleElements
+      .filter((el) => !this._isGroupChild(el.id, state))
+      .sort((a, b) => a.zIndex - b.zIndex);
+
+    // Add or update elements
+    for (const element of topLevelElements) {
+      if (this._elementMap.has(element.id)) {
+        // Element exists, update it
+        this.updateElement(element, getElement);
+      } else {
+        // Element is new, add it
+        this.addElement(element, getElement);
+      }
     }
   }
 
@@ -278,6 +286,18 @@ export class SVGRenderer {
       return;
     }
 
+    // For groups, check if children have changed - if so, recreate the group
+    if (element.type === 'group') {
+      const group = element as GroupElement;
+      const needsRecreate = this._groupChildrenChanged(existingEl, group, getElement);
+      if (needsRecreate) {
+        // Remove old group and add new one
+        this.removeElement(element.id);
+        this.addElement(element, getElement);
+        return;
+      }
+    }
+
     const context: RenderContext = {
       clipPaths: new Map(),
       getElement,
@@ -301,6 +321,41 @@ export class SVGRenderer {
 
     // Add any new clip paths
     this._addClipPathsToDefs(context.clipPaths);
+  }
+
+  /**
+   * Checks if a group's children have changed by comparing the DOM children
+   * with the expected children from the element definition.
+   */
+  private _groupChildrenChanged(
+    existingEl: SVGElement,
+    group: GroupElement,
+    getElement: ElementGetter,
+  ): boolean {
+    const domChildren = Array.from(existingEl.children);
+    const expectedChildren = group.children
+      .map((id) => getElement(id))
+      .filter((el): el is BaseElement => el?.visible === true);
+
+    // Check if the number of visible children changed
+    if (domChildren.length !== expectedChildren.length) {
+      return true;
+    }
+
+    // Check if the children IDs match in order
+    for (let i = 0; i < domChildren.length; i++) {
+      const domChild = domChildren[i];
+      const expectedChild = expectedChildren[i];
+      if (!domChild || !expectedChild) {
+        return true;
+      }
+      const domChildId = domChild.getAttribute('data-element-id');
+      if (domChildId !== expectedChild.id) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**
@@ -991,6 +1046,22 @@ export class SVGRenderer {
         this._renderedClipPaths.add(id);
       }
     }
+  }
+
+  /**
+   * Checks if an element is a child of any group in the state.
+   * Group children are rendered inside their parent group, not at the top level.
+   */
+  private _isGroupChild(elementId: string, state: CanvasState): boolean {
+    for (const element of state.elements.values()) {
+      if (element.type === 'group') {
+        const group = element as GroupElement;
+        if (group.children.includes(elementId)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   /**
