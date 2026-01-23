@@ -182,38 +182,46 @@ export class SVGRenderer {
     // Update background color
     backgroundRect.setAttribute('fill', state.backgroundColor);
 
-    // Clear and re-render all elements (for now - incremental updates in next phase)
-    contentGroup.innerHTML = '';
-    this._elementMap.clear();
-    this._renderedClipPaths.clear();
-    defsElement.innerHTML = '';
+    // Incremental DOM updates: compare current state with rendered elements
+    const visibleElements = Array.from(state.elements.values()).filter((el) => el.visible);
 
-    // Get visible elements sorted by zIndex
-    const elements = Array.from(state.elements.values())
-      .filter((el) => el.visible)
-      .sort((a, b) => a.zIndex - b.zIndex);
+    // Build group children set once for O(n) lookup instead of O(n*m)
+    const groupChildrenSet = this._buildGroupChildrenSet(state);
 
-    // Create render context
-    const context: RenderContext = {
-      clipPaths: new Map(),
-      getElement,
-    };
-
-    // Render each element
-    for (const element of elements) {
-      const svgElement = this._createDOMElement(element, context);
-      if (svgElement) {
-        contentGroup.appendChild(svgElement);
-        this._elementMap.set(element.id, { element: svgElement, zIndex: element.zIndex });
+    // Find elements to remove (rendered but no longer in state or now hidden)
+    const elementsToRemove: string[] = [];
+    for (const id of this._elementMap.keys()) {
+      const element = state.elements.get(id);
+      // Remove if element doesn't exist in state, is hidden, or is a child of a group
+      // (group children are rendered inside their parent group, not at top level)
+      if (!element || !element.visible || groupChildrenSet.has(element.id)) {
+        elementsToRemove.push(id);
       }
     }
 
-    // Add clip paths to defs
-    for (const [id, clipPath] of context.clipPaths) {
-      const clipPathEl = this._createClipPathDOMElement(clipPath);
-      defsElement.appendChild(clipPathEl);
-      this._renderedClipPaths.add(id);
+    // Remove elements that are no longer needed
+    for (const id of elementsToRemove) {
+      this.removeElement(id);
     }
+
+    // Get top-level visible elements (not children of groups) sorted by zIndex
+    const topLevelElements = visibleElements
+      .filter((el) => !groupChildrenSet.has(el.id))
+      .sort((a, b) => a.zIndex - b.zIndex);
+
+    // Add or update elements
+    for (const element of topLevelElements) {
+      if (this._elementMap.has(element.id)) {
+        // Element exists, update it
+        this.updateElement(element, getElement);
+      } else {
+        // Element is new, add it
+        this.addElement(element, getElement);
+      }
+    }
+
+    // Clean up orphaned clip paths
+    this._cleanupOrphanedClipPaths();
   }
 
   /**
@@ -278,6 +286,18 @@ export class SVGRenderer {
       return;
     }
 
+    // For groups, check if children have changed - if so, recreate the group
+    if (element.type === 'group') {
+      const group = element as GroupElement;
+      const needsRecreate = this._groupChildrenChanged(existingEl, group, getElement);
+      if (needsRecreate) {
+        // Remove old group and add new one
+        this.removeElement(element.id);
+        this.addElement(element, getElement);
+        return;
+      }
+    }
+
     const context: RenderContext = {
       clipPaths: new Map(),
       getElement,
@@ -301,6 +321,41 @@ export class SVGRenderer {
 
     // Add any new clip paths
     this._addClipPathsToDefs(context.clipPaths);
+  }
+
+  /**
+   * Checks if a group's children have changed by comparing the DOM children
+   * with the expected children from the element definition.
+   */
+  private _groupChildrenChanged(
+    existingEl: SVGElement,
+    group: GroupElement,
+    getElement: ElementGetter,
+  ): boolean {
+    const domChildren = Array.from(existingEl.children);
+    const expectedChildren = group.children
+      .map((id) => getElement(id))
+      .filter((el): el is BaseElement => el?.visible === true);
+
+    // Check if the number of visible children changed
+    if (domChildren.length !== expectedChildren.length) {
+      return true;
+    }
+
+    // Check if the children IDs match in order
+    for (let i = 0; i < domChildren.length; i++) {
+      const domChild = domChildren[i];
+      const expectedChild = expectedChildren[i];
+      if (!domChild || !expectedChild) {
+        return true;
+      }
+      const domChildId = domChild.getAttribute('data-element-id');
+      if (domChildId !== expectedChild.id) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**
@@ -990,6 +1045,63 @@ export class SVGRenderer {
         this._defsElement.appendChild(clipPathEl);
         this._renderedClipPaths.add(id);
       }
+    }
+  }
+
+  /**
+   * Builds a set of all element IDs that are children of groups.
+   * This is more efficient than calling _isGroupChild repeatedly (O(n) vs O(n*m)).
+   */
+  private _buildGroupChildrenSet(state: CanvasState): Set<string> {
+    const groupChildrenSet = new Set<string>();
+    for (const element of state.elements.values()) {
+      if (element.type === 'group') {
+        const group = element as GroupElement;
+        for (const childId of group.children) {
+          groupChildrenSet.add(childId);
+        }
+      }
+    }
+    return groupChildrenSet;
+  }
+
+  /**
+   * Removes clip paths from defs that are no longer referenced by any rendered element.
+   */
+  private _cleanupOrphanedClipPaths(): void {
+    if (!this._defsElement) {
+      return;
+    }
+
+    // Collect all clip path IDs currently in use by rendered elements
+    const usedClipPathIds = new Set<string>();
+    const clipPathRegex = /url\(#([^)]+)\)/;
+    for (const entry of this._elementMap.values()) {
+      const clipPathAttr = entry.element.getAttribute('clip-path');
+      if (clipPathAttr !== null && clipPathAttr.length > 0) {
+        // Extract ID from "url(#clip-id)" format
+        const match = clipPathRegex.exec(clipPathAttr);
+        const clipId = match?.[1];
+        if (clipId !== undefined && clipId.length > 0) {
+          usedClipPathIds.add(clipId);
+        }
+      }
+    }
+
+    // Remove orphaned clip paths
+    const orphanedIds: string[] = [];
+    for (const id of this._renderedClipPaths) {
+      if (!usedClipPathIds.has(id)) {
+        orphanedIds.push(id);
+      }
+    }
+
+    for (const id of orphanedIds) {
+      const clipPathEl = this._defsElement.querySelector(`#${id}`);
+      if (clipPathEl) {
+        clipPathEl.remove();
+      }
+      this._renderedClipPaths.delete(id);
     }
   }
 
