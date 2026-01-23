@@ -2,7 +2,7 @@
  * Main interaction orchestrator for SVG Composer
  */
 
-import type { BoundingBox, ToolType } from '../core/types.js';
+import type { BoundingBox, ToolType, SnapResult, SnappingConfig } from '../core/types.js';
 import type { BaseElement } from '../elements/types.js';
 import type {
   InteractionState,
@@ -20,6 +20,7 @@ import {
   type SelectionHandleRendererConfig,
 } from './SelectionHandleRenderer.js';
 import type { BaseTool, ToolComposerAccess, ToolContext } from './tools/BaseTool.js';
+import type { ActiveSnapLines } from './SnappingManager.js';
 
 /**
  * Configuration for the InteractionManager
@@ -43,6 +44,19 @@ export interface InteractionManagerConfig {
   idPrefix?: string;
   /** Callback to request a full SVG re-render */
   onRequestRender?: () => void;
+  /** Callback to calculate snap for a position */
+  calculateSnap?: (
+    x: number,
+    y: number,
+    bounds: BoundingBox,
+    excludeIds: Set<string>,
+  ) => SnapResult;
+  /** Callback to render snap indicators */
+  renderSnapIndicators?: (snapLines: ActiveSnapLines) => void;
+  /** Callback to clear snap indicators */
+  clearSnapIndicators?: () => void;
+  /** Callback to get snapping configuration */
+  getSnappingConfig?: () => SnappingConfig;
 }
 
 /**
@@ -311,6 +325,28 @@ export class InteractionManager {
    * Creates the tool context for tools to use
    */
   createToolContext(): ToolContext {
+    // Default no-snap result
+    const defaultSnapResult: SnapResult = {
+      snappedX: false,
+      snappedY: false,
+      x: 0,
+      y: 0,
+    };
+
+    // Default snapping config
+    const defaultSnappingConfig: SnappingConfig = {
+      enabled: false,
+      snapDistance: 8,
+      snapToGuides: false,
+      snapToGrid: false,
+      gridSize: 10,
+      snapToElements: false,
+      snapToElementCenters: false,
+      snapToCanvasEdges: false,
+      snapToCanvasCenter: false,
+      showSnapIndicators: false,
+    };
+
     return {
       composer: this._config.composer,
       hitTester: this._hitTester,
@@ -330,6 +366,26 @@ export class InteractionManager {
         this.updateHandles();
       },
       getContainer: (): HTMLElement => this._config.container,
+      calculateSnap: (
+        x: number,
+        y: number,
+        bounds: BoundingBox,
+        excludeIds: Set<string>,
+      ): SnapResult => {
+        if (this._config.calculateSnap) {
+          return this._config.calculateSnap(x, y, bounds, excludeIds);
+        }
+        return { ...defaultSnapResult, x, y };
+      },
+      renderSnapIndicators: (snapLines: ActiveSnapLines): void => {
+        this._config.renderSnapIndicators?.(snapLines);
+      },
+      clearSnapIndicators: (): void => {
+        this._config.clearSnapIndicators?.();
+      },
+      getSnappingConfig: (): SnappingConfig => {
+        return this._config.getSnappingConfig?.() ?? defaultSnappingConfig;
+      },
     };
   }
 

@@ -16,7 +16,15 @@ export type {
   EditorEvents,
   SVGComposerOptions,
   CanvasState,
+  Guide,
+  GuideOrientation,
+  SnapTarget,
+  SnapTargetType,
+  SnapResult,
+  SnappingConfig,
 } from './core/types.js';
+
+export { DEFAULT_SNAPPING_CONFIG } from './core/types.js';
 
 // Element types
 export type {
@@ -66,4 +74,14 @@ export type {
   ClipPathDef,
   RenderContext,
   ElementGetter,
+  GuideRenderConfig,
+  SnapLines,
 } from './rendering/types.js';
+export { DEFAULT_GUIDE_RENDER_CONFIG } from './rendering/types.js';
+
+// Snapping
+export {
+  SnappingManager,
+  type ActiveSnapLines,
+  type BoundsGetter,
+} from './interaction/SnappingManager.js';

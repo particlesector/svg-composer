@@ -2,7 +2,7 @@
  * Canvas state management
  */
 
-import type { CanvasState, SVGComposerOptions } from './types.js';
+import type { CanvasState, SVGComposerOptions, Guide } from './types.js';
 import type { BaseElement } from '../elements/types.js';
 
 /**
@@ -34,6 +34,7 @@ export class State {
       backgroundColor: opts.backgroundColor,
       elements: new Map(),
       selectedIds: new Set(),
+      guides: [],
     };
   }
 
@@ -139,6 +140,81 @@ export class State {
     return Array.from(this._state.selectedIds);
   }
 
+  // ============================================================
+  // Guide Management
+  // ============================================================
+
+  /**
+   * Gets all guides
+   *
+   * @returns Array of all guides
+   */
+  getGuides(): Guide[] {
+    return [...this._state.guides];
+  }
+
+  /**
+   * Gets a guide by ID
+   *
+   * @param id - Guide ID to find
+   * @returns The guide or undefined if not found
+   */
+  getGuide(id: string): Guide | undefined {
+    return this._state.guides.find((g) => g.id === id);
+  }
+
+  /**
+   * Adds a guide to the state
+   *
+   * @param guide - Guide to add
+   * @throws Error if guide with same ID already exists
+   */
+  addGuide(guide: Guide): void {
+    if (this._state.guides.some((g) => g.id === guide.id)) {
+      throw new Error(`Guide with id "${guide.id}" already exists`);
+    }
+    this._state.guides.push({ ...guide });
+  }
+
+  /**
+   * Updates a guide in the state
+   *
+   * @param id - Guide ID to update
+   * @param updates - Partial guide properties to update
+   * @throws Error if guide does not exist
+   */
+  updateGuide(id: string, updates: Partial<Guide>): void {
+    const index = this._state.guides.findIndex((g) => g.id === id);
+    if (index === -1) {
+      throw new Error(`Guide with id "${id}" not found`);
+    }
+    if (updates.id !== undefined && updates.id !== id) {
+      throw new Error('Cannot change guide id');
+    }
+    this._state.guides[index] = { ...this._state.guides[index], ...updates };
+  }
+
+  /**
+   * Removes a guide from the state
+   *
+   * @param id - Guide ID to remove
+   * @throws Error if guide does not exist
+   */
+  removeGuide(id: string): void {
+    const index = this._state.guides.findIndex((g) => g.id === id);
+    if (index === -1) {
+      throw new Error(`Guide with id "${id}" not found`);
+    }
+    this._state.guides.splice(index, 1);
+  }
+
+  /**
+   * Removes all guides
+   */
+  clearGuides(): void {
+    this._state.guides = [];
+  }
+
   /**
    * Creates a deep clone of the current state for history
    *
@@ -150,12 +226,16 @@ export class State {
       clonedElements.set(id, this._cloneElement(element));
     }
 
+    // Deep clone guides array
+    const clonedGuides = this._state.guides.map((guide) => ({ ...guide }));
+
     return {
       width: this._state.width,
       height: this._state.height,
       backgroundColor: this._state.backgroundColor,
       elements: clonedElements,
       selectedIds: new Set(this._state.selectedIds),
+      guides: clonedGuides,
     };
   }
 
@@ -193,6 +273,7 @@ export class State {
       backgroundColor: snapshot.backgroundColor,
       elements: new Map(snapshot.elements),
       selectedIds: new Set(snapshot.selectedIds),
+      guides: [...snapshot.guides.map((g) => ({ ...g }))],
     };
   }
 }

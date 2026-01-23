@@ -62,6 +62,7 @@ This is a spec-driven project. The table below shows the current implementation 
 | Keyboard Support | Implemented | Shift for multi-select, space for pan |
 | Viewport Management | Implemented | Pan and zoom support |
 | Touch/Multi-Touch | Implemented | Pointer events, pinch-zoom, two-finger pan |
+| Guides & Snapping | Implemented | Snap to guides, grid, elements, and canvas edges |
 
 ### Roadmap
 
@@ -69,7 +70,6 @@ The following features are planned for future development:
 
 | Priority | Feature | Description |
 |----------|---------|-------------|
-| Low | Guides & Snapping | Snap to guides, grid, or other elements |
 | Low | Alignment Tools | Align and distribute selected elements |
 | Low | Filters & Effects | SVG filters, shadows, blur effects |
 
@@ -223,6 +223,37 @@ interface CanvasState {
   backgroundColor: string;                // CSS color
   elements: Map<string, BaseElement>;     // all elements
   selectedIds: Set<string>;               // current selection
+  guides: Guide[];                        // guide lines
+}
+```
+
+### Guides
+
+```typescript
+interface Guide {
+  id: string;                             // unique identifier
+  orientation: 'horizontal' | 'vertical'; // guide direction
+  position: number;                       // position in viewBox units
+  locked: boolean;                        // prevent movement
+  visible: boolean;                       // show/hide
+  color?: string;                         // custom color (CSS)
+}
+```
+
+### Snapping Configuration
+
+```typescript
+interface SnappingConfig {
+  enabled: boolean;              // master toggle
+  snapDistance: number;          // threshold in viewBox units (default: 8)
+  snapToGuides: boolean;         // snap to guide lines
+  snapToGrid: boolean;           // snap to grid
+  gridSize: number;              // grid spacing (default: 10)
+  snapToElements: boolean;       // snap to element edges
+  snapToElementCenters: boolean; // snap to element centers
+  snapToCanvasEdges: boolean;    // snap to canvas boundaries
+  snapToCanvasCenter: boolean;   // snap to canvas center
+  showSnapIndicators: boolean;   // show visual snap lines
 }
 ```
 
@@ -356,6 +387,31 @@ getHistorySize(): number;
 addClipPath(elementId: string, clipPath: Omit<ClipPath, 'id'>): string;
 removeClipPath(elementId: string): void;
 updateClipPath(elementId: string, updates: Partial<ClipPath>): void;
+```
+
+### Guides
+
+```typescript
+// Guide Management
+addGuide(guide: Omit<Guide, 'id'>): string;           // returns generated ID
+addHorizontalGuide(y: number, options?): string;      // convenience method
+addVerticalGuide(x: number, options?): string;        // convenience method
+removeGuide(id: string): void;
+updateGuide(id: string, updates: Partial<Guide>): void;
+getGuide(id: string): Guide | undefined;
+getGuides(): Guide[];
+clearGuides(): void;
+```
+
+### Snapping
+
+```typescript
+// Snapping Configuration
+getSnappingConfig(): SnappingConfig;
+setSnappingConfig(updates: Partial<SnappingConfig>): void;
+enableSnapping(): void;
+disableSnapping(): void;
+toggleSnapping(): boolean;                            // returns new state
 ```
 
 ### Export/Import
@@ -515,6 +571,59 @@ editor.addClipPath(imageId, {
 
 // Remove clip
 editor.removeClipPath(imageId);
+```
+
+### Working with Guides
+
+```typescript
+// Add horizontal guide at y=100
+const guideH = editor.addHorizontalGuide(100);
+
+// Add vertical guide at x=200 with custom color
+const guideV = editor.addVerticalGuide(200, { color: '#ff0000' });
+
+// Update guide position
+editor.updateGuide(guideH, { position: 150 });
+
+// Lock a guide (prevents editing, dashed rendering)
+editor.updateGuide(guideV, { locked: true });
+
+// Get all guides
+const guides = editor.getGuides();
+console.log(`${guides.length} guides on canvas`);
+
+// Remove a guide
+editor.removeGuide(guideH);
+
+// Clear all guides
+editor.clearGuides();
+```
+
+### Configuring Snapping
+
+```typescript
+// Enable snapping (enabled by default)
+editor.enableSnapping();
+
+// Configure snap behavior
+editor.setSnappingConfig({
+  snapDistance: 10,           // increase snap range
+  snapToGuides: true,         // snap to guide lines
+  snapToGrid: true,           // enable grid snapping
+  gridSize: 25,               // 25-unit grid
+  snapToElements: true,       // snap to element edges
+  snapToElementCenters: true, // snap to element centers
+  snapToCanvasEdges: true,    // snap to canvas boundaries
+  snapToCanvasCenter: true,   // snap to canvas center
+  showSnapIndicators: true    // show visual snap lines
+});
+
+// Toggle snapping on/off
+const isEnabled = editor.toggleSnapping();
+console.log(`Snapping ${isEnabled ? 'enabled' : 'disabled'}`);
+
+// Disable snapping temporarily
+editor.disableSnapping();
 ```
 
 ### Undo/Redo

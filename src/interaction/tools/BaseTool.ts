@@ -2,12 +2,13 @@
  * Abstract base class for interaction tools
  */
 
-import type { ToolType } from '../../core/types.js';
+import type { ToolType, BoundingBox, SnapResult, SnappingConfig } from '../../core/types.js';
 import type { BaseElement } from '../../elements/types.js';
 import type { InteractionState, ViewBoxPoint, ViewportState, PointerInfo } from '../types.js';
 import type { HitTester } from '../HitTester.js';
 import type { SelectionHandleRenderer } from '../SelectionHandleRenderer.js';
 import type { CoordinateTransformer } from '../CoordinateTransformer.js';
+import type { ActiveSnapLines } from '../SnappingManager.js';
 
 /**
  * Interface for accessing the composer through the tool
@@ -61,6 +62,14 @@ export interface ToolContext {
   requestRender: () => void;
   /** Get the container element */
   getContainer: () => HTMLElement;
+  /** Calculate snap adjustment for drag operations */
+  calculateSnap: (x: number, y: number, bounds: BoundingBox, excludeIds: Set<string>) => SnapResult;
+  /** Render snap indicators during interaction */
+  renderSnapIndicators: (snapLines: ActiveSnapLines) => void;
+  /** Clear snap indicators after interaction */
+  clearSnapIndicators: () => void;
+  /** Get current snapping configuration */
+  getSnappingConfig: () => SnappingConfig;
 }
 
 /**

@@ -128,6 +128,26 @@ describe('SelectTool', () => {
       setInteractionState: vi.fn(),
       requestRender: vi.fn(),
       getContainer: (): HTMLElement => container,
+      calculateSnap: vi.fn((x, y) => ({
+        snappedX: false,
+        snappedY: false,
+        x,
+        y,
+      })),
+      renderSnapIndicators: vi.fn(),
+      clearSnapIndicators: vi.fn(),
+      getSnappingConfig: vi.fn(() => ({
+        enabled: false,
+        snapDistance: 8,
+        snapToGuides: true,
+        snapToGrid: false,
+        gridSize: 10,
+        snapToElements: true,
+        snapToElementCenters: true,
+        snapToCanvasEdges: true,
+        snapToCanvasCenter: true,
+        showSnapIndicators: true,
+      })),
     };
 
     selectTool = new SelectTool(mockContext);

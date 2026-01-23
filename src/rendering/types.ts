@@ -3,6 +3,7 @@
  */
 
 import type { BaseElement, ClipPath } from '../elements/types.js';
+import type { SnapTarget } from '../core/types.js';
 
 /**
  * Viewport state for pan and zoom
@@ -48,3 +49,40 @@ export interface RenderContext {
  * Function signature for element lookup
  */
 export type ElementGetter = (id: string) => BaseElement | undefined;
+
+/**
+ * Configuration for guide rendering
+ */
+export interface GuideRenderConfig {
+  /** Default guide color (CSS color string) */
+  guideColor: string;
+  /** Guide line stroke width in screen pixels */
+  guideStrokeWidth: number;
+  /** Whether guides are visible */
+  guidesVisible: boolean;
+  /** Snap indicator color */
+  snapIndicatorColor: string;
+  /** Snap indicator stroke width */
+  snapIndicatorStrokeWidth: number;
+}
+
+/**
+ * Default guide render configuration
+ */
+export const DEFAULT_GUIDE_RENDER_CONFIG: GuideRenderConfig = {
+  guideColor: '#00bfff',
+  guideStrokeWidth: 1,
+  guidesVisible: true,
+  snapIndicatorColor: '#ff4081',
+  snapIndicatorStrokeWidth: 1,
+};
+
+/**
+ * Active snap lines to render during interaction
+ */
+export interface SnapLines {
+  /** Vertical snap lines (X positions) */
+  vertical: { x: number; target: SnapTarget }[];
+  /** Horizontal snap lines (Y positions) */
+  horizontal: { y: number; target: SnapTarget }[];
+}
