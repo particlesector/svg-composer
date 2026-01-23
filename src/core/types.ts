@@ -206,3 +206,20 @@ export const DEFAULT_SNAPPING_CONFIG: SnappingConfig = {
   snapToCanvasCenter: true,
   showSnapIndicators: true,
 };
+
+// ============================================================
+// Alignment Types
+// ============================================================
+
+/**
+ * Alignment reference point options
+ */
+export type AlignmentReference = 'selection' | 'canvas' | 'first';
+
+/**
+ * Configuration options for alignment operations
+ */
+export interface AlignmentOptions {
+  /** What to align relative to (default: 'selection') */
+  relativeTo?: AlignmentReference;
+}
