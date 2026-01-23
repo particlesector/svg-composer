@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculatePinchZoom } from '../../../src/interaction/utils/zoomUtils.js';
+import { calculatePinchZoom } from '../../../src/interaction/utils/index.js';
 import { ZOOM_LIMITS } from '../../../src/interaction/types.js';
 
 describe('calculatePinchZoom', () => {

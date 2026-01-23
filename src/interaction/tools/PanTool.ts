@@ -89,7 +89,7 @@ export class PanTool extends BaseTool {
   }
 
   override onPointerDown(
-    event: PointerEvent,
+    _event: PointerEvent,
     point: ViewBoxPoint,
     activePointers: Map<number, PointerInfo>,
   ): boolean {
@@ -102,7 +102,7 @@ export class PanTool extends BaseTool {
   }
 
   override onPointerMove(
-    event: PointerEvent,
+    _event: PointerEvent,
     point: ViewBoxPoint,
     activePointers: Map<number, PointerInfo>,
   ): boolean {
@@ -115,8 +115,8 @@ export class PanTool extends BaseTool {
   }
 
   override onPointerUp(
-    event: PointerEvent,
-    point: ViewBoxPoint,
+    _event: PointerEvent,
+    _point: ViewBoxPoint,
     activePointers: Map<number, PointerInfo>,
   ): boolean {
     if (this._isPanning && activePointers.size === 0) {
@@ -151,7 +151,7 @@ export class PanTool extends BaseTool {
     return true;
   }
 
-  override onTwoFingerPan(centerPoint: ViewBoxPoint, deltaX: number, deltaY: number): boolean {
+  override onTwoFingerPan(_centerPoint: ViewBoxPoint, deltaX: number, deltaY: number): boolean {
     // Store initial pan if not set
     if (!this._gestureInitialPan) {
       const viewport = this.context.getViewportState();

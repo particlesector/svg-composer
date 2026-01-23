@@ -303,7 +303,7 @@ export class SelectTool extends BaseTool {
     return true;
   }
 
-  override onTwoFingerPan(centerPoint: ViewBoxPoint, deltaX: number, deltaY: number): boolean {
+  override onTwoFingerPan(_centerPoint: ViewBoxPoint, deltaX: number, deltaY: number): boolean {
     // Store initial pan if not set
     if (!this._gestureInitialPan) {
       const viewport = this.context.getViewportState();
