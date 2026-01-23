@@ -1383,8 +1383,8 @@ describe('SVGRenderer', () => {
       renderer.render(container, state2, createElementGetter([]));
 
       expect(container.querySelector('image[data-element-id="img-1"]')).toBeNull();
-      // Note: orphaned clip paths are cleaned up on the next full render,
-      // but for incremental updates they may remain until a full re-initialization
+      // Orphaned clip paths should be cleaned up during incremental render
+      expect(container.querySelector('clipPath#clip-orphan')).toBeNull();
     });
   });
 });
