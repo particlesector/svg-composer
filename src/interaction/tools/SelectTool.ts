@@ -3,7 +3,14 @@
  */
 
 import type { ToolType } from '../../core/types.js';
-import type { ViewBoxPoint, HandleType, DragState, ResizeState, RotateState } from '../types.js';
+import type {
+  ViewBoxPoint,
+  HandleType,
+  DragState,
+  ResizeState,
+  RotateState,
+  PointerInfo,
+} from '../types.js';
 import { BaseTool } from './BaseTool.js';
 import { getRotatedCursor } from '../SelectionHandleRenderer.js';
 
@@ -37,6 +44,8 @@ export class SelectTool extends BaseTool {
   private _spacePressed = false;
   private _isPanning = false;
   private _panStart: ViewBoxPoint | null = null;
+  private _isTouchInteraction = false;
+  private _gestureInitialPan: { x: number; y: number } | null = null;
 
   override activate(): void {
     this.updateCursor('default');
@@ -225,6 +234,109 @@ export class SelectTool extends BaseTool {
       return true;
     }
     return false;
+  }
+
+  override onPointerDown(
+    event: PointerEvent,
+    point: ViewBoxPoint,
+    activePointers: Map<number, PointerInfo>,
+  ): boolean {
+    // Mark this as a touch interaction for gesture handling
+    if (event.pointerType === 'touch') {
+      this._isTouchInteraction = true;
+    }
+
+    // For single pointer, delegate to mouse handler
+    if (activePointers.size === 1) {
+      return this.onMouseDown(event as unknown as MouseEvent, point);
+    }
+
+    return false;
+  }
+
+  override onPointerMove(
+    event: PointerEvent,
+    point: ViewBoxPoint,
+    activePointers: Map<number, PointerInfo>,
+  ): boolean {
+    // For single pointer, delegate to mouse handler
+    if (activePointers.size === 1 && !this._isPanning) {
+      return this.onMouseMove(event as unknown as MouseEvent, point);
+    }
+
+    return false;
+  }
+
+  override onPointerUp(
+    event: PointerEvent,
+    point: ViewBoxPoint,
+    activePointers: Map<number, PointerInfo>,
+  ): boolean {
+    // Reset touch interaction flag when all pointers are up
+    if (activePointers.size === 0) {
+      this._isTouchInteraction = false;
+      this._gestureInitialPan = null;
+    }
+
+    // For single pointer release, delegate to mouse handler
+    return this.onMouseUp(event as unknown as MouseEvent, point);
+  }
+
+  override onPointerCancel(
+    _event: PointerEvent,
+    _activePointers: Map<number, PointerInfo>,
+  ): boolean {
+    // Reset all state on cancel
+    this._resetState();
+    this._isTouchInteraction = false;
+    this._gestureInitialPan = null;
+    this.context.setInteractionState('idle');
+    return true;
+  }
+
+  override onPinchGesture(centerPoint: ViewBoxPoint, scale: number, initialZoom: number): boolean {
+    // Handle pinch-to-zoom
+    const MIN_ZOOM = 0.1;
+    const MAX_ZOOM = 10;
+
+    let newZoom = initialZoom * scale;
+    newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
+
+    const viewport = this.context.getViewportState();
+
+    if (newZoom !== viewport.zoom) {
+      // Zoom toward center point of pinch
+      const zoomRatio = newZoom / viewport.zoom;
+      const newPanX = centerPoint.x - (centerPoint.x - viewport.panX) * zoomRatio;
+      const newPanY = centerPoint.y - (centerPoint.y - viewport.panY) * zoomRatio;
+
+      this.context.setViewportState({
+        zoom: newZoom,
+        panX: newPanX,
+        panY: newPanY,
+      });
+
+      this.context.requestRender();
+    }
+
+    return true;
+  }
+
+  override onTwoFingerPan(centerPoint: ViewBoxPoint, deltaX: number, deltaY: number): boolean {
+    // Store initial pan if not set
+    if (!this._gestureInitialPan) {
+      const viewport = this.context.getViewportState();
+      this._gestureInitialPan = { x: viewport.panX, y: viewport.panY };
+    }
+
+    // Pan the canvas
+    this.context.setViewportState({
+      panX: this._gestureInitialPan.x - deltaX,
+      panY: this._gestureInitialPan.y - deltaY,
+    });
+
+    this.context.requestRender();
+    return true;
   }
 
   override getCursor(): string {
@@ -704,5 +816,7 @@ export class SelectTool extends BaseTool {
     this._spacePressed = false;
     this._isPanning = false;
     this._panStart = null;
+    this._isTouchInteraction = false;
+    this._gestureInitialPan = null;
   }
 }

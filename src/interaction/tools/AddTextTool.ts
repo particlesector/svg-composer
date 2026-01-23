@@ -4,7 +4,7 @@
 
 import type { ToolType } from '../../core/types.js';
 import type { TextElement } from '../../elements/types.js';
-import type { ViewBoxPoint } from '../types.js';
+import type { ViewBoxPoint, PointerInfo } from '../types.js';
 import { BaseTool, type ToolContext } from './BaseTool.js';
 
 /**
@@ -98,6 +98,18 @@ export class AddTextTool extends BaseTool {
 
   override getCursor(): string {
     return 'text';
+  }
+
+  override onPointerDown(
+    event: PointerEvent,
+    point: ViewBoxPoint,
+    activePointers: Map<number, PointerInfo>,
+  ): boolean {
+    // Only handle single pointer tap
+    if (activePointers.size === 1) {
+      return this.onMouseDown(event as unknown as MouseEvent, point);
+    }
+    return false;
   }
 
   /**

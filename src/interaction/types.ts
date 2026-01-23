@@ -140,3 +140,61 @@ export const DEFAULT_VIEWPORT_STATE: ViewportState = {
   panY: 0,
   zoom: 1,
 };
+
+/**
+ * Tracked pointer information for multi-touch gestures
+ */
+export interface PointerInfo {
+  /** Unique pointer identifier */
+  pointerId: number;
+  /** Pointer type (mouse, touch, pen) */
+  pointerType: string;
+  /** Current X position in screen coordinates */
+  clientX: number;
+  /** Current Y position in screen coordinates */
+  clientY: number;
+  /** Current position in viewBox coordinates */
+  viewBoxPoint: ViewBoxPoint;
+  /** Whether this is the primary pointer */
+  isPrimary: boolean;
+}
+
+/**
+ * State for tracking multi-touch gestures
+ */
+export interface GestureState {
+  /** Type of gesture being performed */
+  type: 'pinch' | 'rotate' | 'pan';
+  /** Initial distance between two touch points (for pinch) */
+  initialDistance: number;
+  /** Current distance between two touch points (for pinch) */
+  currentDistance: number;
+  /** Initial angle between two touch points (for rotation) */
+  initialAngle: number;
+  /** Current angle between two touch points (for rotation) */
+  currentAngle: number;
+  /** Initial zoom level when gesture started */
+  initialZoom: number;
+  /** Center point of the gesture in viewBox coordinates */
+  centerPoint: ViewBoxPoint;
+  /** Initial pan offset when gesture started */
+  initialPan: { x: number; y: number };
+}
+
+/**
+ * Configuration for gesture recognition
+ */
+export interface GestureConfig {
+  /** Minimum distance change in pixels to trigger pinch zoom */
+  pinchThreshold: number;
+  /** Minimum angle change in degrees to trigger rotation */
+  rotationThreshold: number;
+}
+
+/**
+ * Default gesture configuration
+ */
+export const DEFAULT_GESTURE_CONFIG: GestureConfig = {
+  pinchThreshold: 10,
+  rotationThreshold: 5,
+};

@@ -324,4 +324,69 @@ describe('InteractionManager', () => {
       expect(typeof handleRenderer.render).toBe('function');
     });
   });
+
+  describe('pointer events', () => {
+    it('should attach pointer event listeners on initialize', () => {
+      const addEventSpy = vi.spyOn(container, 'addEventListener');
+      const docAddEventSpy = vi.spyOn(document, 'addEventListener');
+
+      interactionManager.initialize();
+
+      expect(addEventSpy).toHaveBeenCalledWith('pointerdown', expect.any(Function));
+      expect(docAddEventSpy).toHaveBeenCalledWith('pointermove', expect.any(Function));
+      expect(docAddEventSpy).toHaveBeenCalledWith('pointerup', expect.any(Function));
+      expect(docAddEventSpy).toHaveBeenCalledWith('pointercancel', expect.any(Function));
+    });
+
+    it('should remove pointer event listeners on destroy', () => {
+      interactionManager.initialize();
+      const removeEventSpy = vi.spyOn(container, 'removeEventListener');
+      const docRemoveEventSpy = vi.spyOn(document, 'removeEventListener');
+
+      interactionManager.destroy();
+
+      expect(removeEventSpy).toHaveBeenCalledWith('pointerdown', expect.any(Function));
+      expect(docRemoveEventSpy).toHaveBeenCalledWith('pointermove', expect.any(Function));
+      expect(docRemoveEventSpy).toHaveBeenCalledWith('pointerup', expect.any(Function));
+      expect(docRemoveEventSpy).toHaveBeenCalledWith('pointercancel', expect.any(Function));
+    });
+
+    it('should set touch-action to none on container', () => {
+      interactionManager.initialize();
+
+      expect(container.style.touchAction).toBe('none');
+    });
+
+    it('should reset touch-action on destroy', () => {
+      interactionManager.initialize();
+      interactionManager.destroy();
+
+      expect(container.style.touchAction).toBe('');
+    });
+
+    it('should attach touchstart listener to prevent default', () => {
+      const addEventSpy = vi.spyOn(container, 'addEventListener');
+
+      interactionManager.initialize();
+
+      expect(addEventSpy).toHaveBeenCalledWith('touchstart', expect.any(Function), {
+        passive: false,
+      });
+    });
+  });
+
+  describe('touch gesture tracking', () => {
+    beforeEach(() => {
+      interactionManager.initialize();
+    });
+
+    it('should track active pointers', () => {
+      // Initially empty
+      expect(interactionManager.getActivePointers().size).toBe(0);
+    });
+
+    it('should return null gesture state when no gesture active', () => {
+      expect(interactionManager.getGestureState()).toBeNull();
+    });
+  });
 });
