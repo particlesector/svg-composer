@@ -4,7 +4,7 @@
 
 import type { ToolType } from '../../core/types.js';
 import type { ShapeElement } from '../../elements/types.js';
-import type { ViewBoxPoint } from '../types.js';
+import type { ViewBoxPoint, PointerInfo } from '../types.js';
 import { BaseTool, type ToolContext } from './BaseTool.js';
 
 /**
@@ -136,6 +136,57 @@ export class AddShapeTool extends BaseTool {
 
   override getCursor(): string {
     return 'crosshair';
+  }
+
+  override onPointerDown(
+    event: PointerEvent,
+    point: ViewBoxPoint,
+    activePointers: Map<number, PointerInfo>,
+  ): boolean {
+    // Only handle single pointer
+    if (activePointers.size === 1) {
+      return this.onMouseDown(event as unknown as MouseEvent, point);
+    }
+    return false;
+  }
+
+  override onPointerMove(
+    event: PointerEvent,
+    point: ViewBoxPoint,
+    activePointers: Map<number, PointerInfo>,
+  ): boolean {
+    // Only handle single pointer
+    if (activePointers.size === 1 && this._isDrawing) {
+      return this.onMouseMove(event as unknown as MouseEvent, point);
+    }
+    return false;
+  }
+
+  override onPointerUp(
+    event: PointerEvent,
+    point: ViewBoxPoint,
+    activePointers: Map<number, PointerInfo>,
+  ): boolean {
+    // Handle when all pointers are released
+    if (activePointers.size === 0 && this._isDrawing) {
+      return this.onMouseUp(event as unknown as MouseEvent, point);
+    }
+    return false;
+  }
+
+  override onPointerCancel(
+    _event: PointerEvent,
+    _activePointers: Map<number, PointerInfo>,
+  ): boolean {
+    // Cancel drawing on pointer cancel
+    if (this._isDrawing && this._currentElementId !== null) {
+      this.context.composer.removeElement(this._currentElementId);
+      this.context.requestRender();
+      this.context.setInteractionState('idle');
+      this._resetState();
+      return true;
+    }
+    return false;
   }
 
   /**

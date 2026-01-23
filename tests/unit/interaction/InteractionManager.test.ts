@@ -324,4 +324,302 @@ describe('InteractionManager', () => {
       expect(typeof handleRenderer.render).toBe('function');
     });
   });
+
+  describe('pointer events', () => {
+    it('should attach pointer event listeners on initialize', () => {
+      const addEventSpy = vi.spyOn(container, 'addEventListener');
+      const docAddEventSpy = vi.spyOn(document, 'addEventListener');
+
+      interactionManager.initialize();
+
+      expect(addEventSpy).toHaveBeenCalledWith('pointerdown', expect.any(Function));
+      expect(docAddEventSpy).toHaveBeenCalledWith('pointermove', expect.any(Function));
+      expect(docAddEventSpy).toHaveBeenCalledWith('pointerup', expect.any(Function));
+      expect(docAddEventSpy).toHaveBeenCalledWith('pointercancel', expect.any(Function));
+    });
+
+    it('should remove pointer event listeners on destroy', () => {
+      interactionManager.initialize();
+      const removeEventSpy = vi.spyOn(container, 'removeEventListener');
+      const docRemoveEventSpy = vi.spyOn(document, 'removeEventListener');
+
+      interactionManager.destroy();
+
+      expect(removeEventSpy).toHaveBeenCalledWith('pointerdown', expect.any(Function));
+      expect(docRemoveEventSpy).toHaveBeenCalledWith('pointermove', expect.any(Function));
+      expect(docRemoveEventSpy).toHaveBeenCalledWith('pointerup', expect.any(Function));
+      expect(docRemoveEventSpy).toHaveBeenCalledWith('pointercancel', expect.any(Function));
+    });
+
+    it('should set touch-action to none on container', () => {
+      interactionManager.initialize();
+
+      expect(container.style.touchAction).toBe('none');
+    });
+
+    it('should reset touch-action on destroy', () => {
+      interactionManager.initialize();
+      interactionManager.destroy();
+
+      expect(container.style.touchAction).toBe('');
+    });
+
+    it('should attach touchstart listener to prevent default', () => {
+      const addEventSpy = vi.spyOn(container, 'addEventListener');
+
+      interactionManager.initialize();
+
+      expect(addEventSpy).toHaveBeenCalledWith('touchstart', expect.any(Function), {
+        passive: false,
+      });
+    });
+  });
+
+  describe('touch gesture tracking', () => {
+    beforeEach(() => {
+      interactionManager.initialize();
+    });
+
+    it('should track active pointers', () => {
+      // Initially empty
+      expect(interactionManager.getActivePointers().size).toBe(0);
+    });
+
+    it('should return null gesture state when no gesture active', () => {
+      expect(interactionManager.getGestureState()).toBeNull();
+    });
+  });
+
+  describe('pointer event handling', () => {
+    beforeEach(() => {
+      // Mock setPointerCapture and releasePointerCapture
+      container.setPointerCapture = vi.fn();
+      container.releasePointerCapture = vi.fn();
+      interactionManager.initialize();
+    });
+
+    const createTouchPointerEvent = (
+      type: string,
+      pointerId: number,
+      clientX: number,
+      clientY: number,
+      isPrimary = true,
+    ): PointerEvent => {
+      return new PointerEvent(type, {
+        pointerId,
+        pointerType: 'touch',
+        clientX,
+        clientY,
+        isPrimary,
+        bubbles: true,
+        cancelable: true,
+      });
+    };
+
+    describe('single touch interaction', () => {
+      it('should track pointer on pointerdown', () => {
+        const event = createTouchPointerEvent('pointerdown', 1, 100, 100);
+        container.dispatchEvent(event);
+
+        expect(interactionManager.getActivePointers().size).toBe(1);
+        expect(container.setPointerCapture).toHaveBeenCalledWith(1);
+      });
+
+      it('should update pointer position on pointermove', () => {
+        const downEvent = createTouchPointerEvent('pointerdown', 1, 100, 100);
+        container.dispatchEvent(downEvent);
+
+        const moveEvent = createTouchPointerEvent('pointermove', 1, 150, 150);
+        document.dispatchEvent(moveEvent);
+
+        const pointers = interactionManager.getActivePointers();
+        expect(pointers.get(1)?.clientX).toBe(150);
+        expect(pointers.get(1)?.clientY).toBe(150);
+      });
+
+      it('should remove pointer on pointerup', () => {
+        const downEvent = createTouchPointerEvent('pointerdown', 1, 100, 100);
+        container.dispatchEvent(downEvent);
+
+        expect(interactionManager.getActivePointers().size).toBe(1);
+
+        const upEvent = createTouchPointerEvent('pointerup', 1, 100, 100);
+        document.dispatchEvent(upEvent);
+
+        expect(interactionManager.getActivePointers().size).toBe(0);
+        expect(container.releasePointerCapture).toHaveBeenCalledWith(1);
+      });
+
+      it('should remove pointer on pointercancel', () => {
+        const downEvent = createTouchPointerEvent('pointerdown', 1, 100, 100);
+        container.dispatchEvent(downEvent);
+
+        expect(interactionManager.getActivePointers().size).toBe(1);
+
+        const cancelEvent = createTouchPointerEvent('pointercancel', 1, 100, 100);
+        document.dispatchEvent(cancelEvent);
+
+        expect(interactionManager.getActivePointers().size).toBe(0);
+        expect(container.releasePointerCapture).toHaveBeenCalledWith(1);
+      });
+
+      it('should ignore mouse pointer events', () => {
+        const mouseEvent = new PointerEvent('pointerdown', {
+          pointerId: 1,
+          pointerType: 'mouse',
+          clientX: 100,
+          clientY: 100,
+          bubbles: true,
+        });
+        container.dispatchEvent(mouseEvent);
+
+        expect(interactionManager.getActivePointers().size).toBe(0);
+      });
+    });
+
+    describe('two-finger gesture', () => {
+      it('should start gesture when second pointer is added', () => {
+        const event1 = createTouchPointerEvent('pointerdown', 1, 100, 100, true);
+        container.dispatchEvent(event1);
+
+        expect(interactionManager.getGestureState()).toBeNull();
+
+        const event2 = createTouchPointerEvent('pointerdown', 2, 200, 200, false);
+        container.dispatchEvent(event2);
+
+        expect(interactionManager.getActivePointers().size).toBe(2);
+        expect(interactionManager.getGestureState()).not.toBeNull();
+        expect(interactionManager.getInteractionState()).toBe('panning');
+      });
+
+      it('should calculate initial gesture distance correctly', () => {
+        const event1 = createTouchPointerEvent('pointerdown', 1, 100, 100, true);
+        container.dispatchEvent(event1);
+
+        const event2 = createTouchPointerEvent('pointerdown', 2, 200, 100, false);
+        container.dispatchEvent(event2);
+
+        const gestureState = interactionManager.getGestureState();
+        expect(gestureState?.initialDistance).toBe(100); // horizontal distance
+        expect(gestureState?.type).toBe('pinch');
+      });
+
+      it('should update gesture on pointermove', () => {
+        // Start with two fingers
+        const down1 = createTouchPointerEvent('pointerdown', 1, 100, 100, true);
+        container.dispatchEvent(down1);
+        const down2 = createTouchPointerEvent('pointerdown', 2, 200, 100, false);
+        container.dispatchEvent(down2);
+
+        const initialState = interactionManager.getGestureState();
+        expect(initialState?.initialDistance).toBe(100);
+
+        // Move fingers apart
+        const move1 = createTouchPointerEvent('pointermove', 1, 50, 100, true);
+        document.dispatchEvent(move1);
+        const move2 = createTouchPointerEvent('pointermove', 2, 250, 100, false);
+        document.dispatchEvent(move2);
+
+        const updatedState = interactionManager.getGestureState();
+        expect(updatedState?.currentDistance).toBe(200);
+      });
+
+      it('should end gesture when pointer is released', () => {
+        const down1 = createTouchPointerEvent('pointerdown', 1, 100, 100, true);
+        container.dispatchEvent(down1);
+        const down2 = createTouchPointerEvent('pointerdown', 2, 200, 100, false);
+        container.dispatchEvent(down2);
+
+        expect(interactionManager.getGestureState()).not.toBeNull();
+
+        const up1 = createTouchPointerEvent('pointerup', 1, 100, 100, true);
+        document.dispatchEvent(up1);
+
+        expect(interactionManager.getGestureState()).toBeNull();
+        expect(interactionManager.getInteractionState()).toBe('idle');
+      });
+
+      it('should end gesture on pointercancel', () => {
+        const down1 = createTouchPointerEvent('pointerdown', 1, 100, 100, true);
+        container.dispatchEvent(down1);
+        const down2 = createTouchPointerEvent('pointerdown', 2, 200, 100, false);
+        container.dispatchEvent(down2);
+
+        expect(interactionManager.getGestureState()).not.toBeNull();
+
+        const cancel = createTouchPointerEvent('pointercancel', 1, 100, 100, true);
+        document.dispatchEvent(cancel);
+
+        expect(interactionManager.getGestureState()).toBeNull();
+      });
+
+      it('should store initial zoom and pan in gesture state', () => {
+        interactionManager.setViewportState({ zoom: 2, panX: 50, panY: 100 });
+
+        const down1 = createTouchPointerEvent('pointerdown', 1, 100, 100, true);
+        container.dispatchEvent(down1);
+        const down2 = createTouchPointerEvent('pointerdown', 2, 200, 100, false);
+        container.dispatchEvent(down2);
+
+        const gestureState = interactionManager.getGestureState();
+        expect(gestureState?.initialZoom).toBe(2);
+        expect(gestureState?.initialPan.x).toBe(50);
+        expect(gestureState?.initialPan.y).toBe(100);
+      });
+    });
+
+    describe('touch start prevention', () => {
+      it('should prevent default on touchstart', () => {
+        const touchEvent = new TouchEvent('touchstart', {
+          touches: [{ clientX: 100, clientY: 100, identifier: 1 } as Touch],
+          cancelable: true,
+        });
+        const preventDefaultSpy = vi.spyOn(touchEvent, 'preventDefault');
+
+        container.dispatchEvent(touchEvent);
+
+        expect(preventDefaultSpy).toHaveBeenCalled();
+      });
+    });
+
+    describe('pointer capture error handling', () => {
+      it('should handle releasePointerCapture errors gracefully', () => {
+        container.releasePointerCapture = vi.fn().mockImplementation(() => {
+          throw new Error('Pointer not captured');
+        });
+
+        const down = createTouchPointerEvent('pointerdown', 1, 100, 100);
+        container.dispatchEvent(down);
+
+        // Should not throw
+        expect(() => {
+          const up = createTouchPointerEvent('pointerup', 1, 100, 100);
+          document.dispatchEvent(up);
+        }).not.toThrow();
+      });
+    });
+  });
+
+  describe('callback handling', () => {
+    it('should call onRequestRender when requestRender is called', () => {
+      const onRequestRender = vi.fn();
+      const manager = new InteractionManager({
+        container,
+        svgRoot,
+        composer: mockComposer,
+        getElements: (): BaseElement[] => elements,
+        getSelectionBounds: (): BoundingBox | null => selectionBounds,
+        getSelectionRotation: (): number => 0,
+        onRequestRender,
+      });
+      manager.initialize();
+
+      const context = manager.createToolContext();
+      context.requestRender();
+
+      expect(onRequestRender).toHaveBeenCalled();
+
+      manager.destroy();
+    });
+  });
 });

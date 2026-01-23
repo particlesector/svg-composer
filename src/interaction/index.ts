@@ -14,9 +14,17 @@ export type {
   RotateState,
   ViewportState,
   HandleConfig,
+  PointerInfo,
+  GestureState,
+  GestureConfig,
 } from './types.js';
 
-export { DEFAULT_HANDLE_CONFIG, DEFAULT_VIEWPORT_STATE } from './types.js';
+export {
+  DEFAULT_HANDLE_CONFIG,
+  DEFAULT_VIEWPORT_STATE,
+  DEFAULT_GESTURE_CONFIG,
+  ZOOM_LIMITS,
+} from './types.js';
 
 // Core classes
 export {

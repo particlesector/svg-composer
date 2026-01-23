@@ -29,7 +29,7 @@ This is a spec-driven project. The table below shows the current implementation 
 | State Management | Implemented | Immutable snapshots and restoration |
 | History System | Implemented | Full undo/redo with configurable limits |
 | Event System | Implemented | Comprehensive EventEmitter with typed events |
-| SVG Rendering | Implemented | DOM-based renderer (incremental updates planned) |
+| SVG Rendering | Implemented | DOM-based renderer with incremental updates |
 | Coordinate Transformation | Implemented | Screen-to-viewBox conversion with viewport support |
 
 ### Element Management
@@ -61,7 +61,7 @@ This is a spec-driven project. The table below shows the current implementation 
 | Selection Handles | Implemented | Visual feedback with resize/rotate handles |
 | Keyboard Support | Implemented | Shift for multi-select, space for pan |
 | Viewport Management | Implemented | Pan and zoom support |
-| Touch/Multi-Touch | Not Started | Only mouse events currently |
+| Touch/Multi-Touch | Implemented | Pointer events, pinch-zoom, two-finger pan |
 
 ### Roadmap
 
@@ -69,8 +69,6 @@ The following features are planned for future development:
 
 | Priority | Feature | Description |
 |----------|---------|-------------|
-| High | Incremental DOM Updates | Differential rendering instead of full re-render |
-| Medium | Touch Support | Touch and multi-touch gesture support |
 | Low | Guides & Snapping | Snap to guides, grid, or other elements |
 | Low | Alignment Tools | Align and distribute selected elements |
 | Low | Filters & Effects | SVG filters, shadows, blur effects |
@@ -730,13 +728,9 @@ We welcome contributions! Please read this section before submitting a pull requ
 This is a spec-driven project. See the [Implementation Status](#implementation-status) section for current progress. Here are the highest priority areas:
 
 #### High Priority
-- **Incremental DOM Updates** — Optimize `SVGRenderer` to only update changed elements instead of full re-render
-
-#### Medium Priority
-- **Touch Support** — Implement touch and multi-touch gesture handling
 - **Test Coverage** — Add integration tests and edge case coverage
 
-#### Lower Priority
+#### Medium Priority
 - **Advanced Features** — Guides, snapping, alignment tools, filters/effects
 
 Open an issue to discuss your approach before starting large features.

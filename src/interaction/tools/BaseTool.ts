@@ -4,7 +4,7 @@
 
 import type { ToolType } from '../../core/types.js';
 import type { BaseElement } from '../../elements/types.js';
-import type { InteractionState, ViewBoxPoint, ViewportState } from '../types.js';
+import type { InteractionState, ViewBoxPoint, ViewportState, PointerInfo } from '../types.js';
 import type { HitTester } from '../HitTester.js';
 import type { SelectionHandleRenderer } from '../SelectionHandleRenderer.js';
 import type { CoordinateTransformer } from '../CoordinateTransformer.js';
@@ -147,6 +147,95 @@ export abstract class BaseTool {
    * @returns true if the event was handled, false to allow bubbling
    */
   onWheel(_event: WheelEvent, _point: ViewBoxPoint): boolean {
+    return false;
+  }
+
+  /**
+   * Handles pointer down events (touch, mouse, pen)
+   * Default implementation delegates to onMouseDown for single-pointer interaction.
+   *
+   * @param event - The pointer event
+   * @param point - The point in viewBox coordinates
+   * @param activePointers - Map of all currently active pointers
+   * @returns true if the event was handled, false to allow bubbling
+   */
+  onPointerDown(
+    event: PointerEvent,
+    point: ViewBoxPoint,
+    _activePointers: Map<number, PointerInfo>,
+  ): boolean {
+    // Default: delegate to mouse handler for single-pointer compatibility
+    return this.onMouseDown(event as unknown as MouseEvent, point);
+  }
+
+  /**
+   * Handles pointer move events (touch, mouse, pen)
+   * Default implementation delegates to onMouseMove for single-pointer interaction.
+   *
+   * @param event - The pointer event
+   * @param point - The point in viewBox coordinates
+   * @param activePointers - Map of all currently active pointers
+   * @returns true if the event was handled, false to allow bubbling
+   */
+  onPointerMove(
+    event: PointerEvent,
+    point: ViewBoxPoint,
+    _activePointers: Map<number, PointerInfo>,
+  ): boolean {
+    // Default: delegate to mouse handler for single-pointer compatibility
+    return this.onMouseMove(event as unknown as MouseEvent, point);
+  }
+
+  /**
+   * Handles pointer up events (touch, mouse, pen)
+   * Default implementation delegates to onMouseUp for single-pointer interaction.
+   *
+   * @param event - The pointer event
+   * @param point - The point in viewBox coordinates
+   * @param activePointers - Map of all currently active pointers
+   * @returns true if the event was handled, false to allow bubbling
+   */
+  onPointerUp(
+    event: PointerEvent,
+    point: ViewBoxPoint,
+    _activePointers: Map<number, PointerInfo>,
+  ): boolean {
+    // Default: delegate to mouse handler for single-pointer compatibility
+    return this.onMouseUp(event as unknown as MouseEvent, point);
+  }
+
+  /**
+   * Handles pointer cancel events (touch cancelled, etc.)
+   *
+   * @param event - The pointer event
+   * @param activePointers - Map of all currently active pointers
+   * @returns true if the event was handled, false to allow bubbling
+   */
+  onPointerCancel(_event: PointerEvent, _activePointers: Map<number, PointerInfo>): boolean {
+    return false;
+  }
+
+  /**
+   * Handles pinch gesture for zoom
+   *
+   * @param centerPoint - Center point of the pinch in viewBox coordinates
+   * @param scale - Scale factor (> 1 for zoom in, < 1 for zoom out)
+   * @param initialZoom - The zoom level when the gesture started
+   * @returns true if the event was handled, false to allow bubbling
+   */
+  onPinchGesture(_centerPoint: ViewBoxPoint, _scale: number, _initialZoom: number): boolean {
+    return false;
+  }
+
+  /**
+   * Handles two-finger pan gesture
+   *
+   * @param centerPoint - Current center point in viewBox coordinates
+   * @param deltaX - Change in X from gesture start
+   * @param deltaY - Change in Y from gesture start
+   * @returns true if the event was handled, false to allow bubbling
+   */
+  onTwoFingerPan(_centerPoint: ViewBoxPoint, _deltaX: number, _deltaY: number): boolean {
     return false;
   }
 

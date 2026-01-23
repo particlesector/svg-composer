@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { SelectTool } from '../../../src/interaction/tools/SelectTool.js';
 import type { ToolContext, ToolComposerAccess } from '../../../src/interaction/tools/BaseTool.js';
-import type { ViewportState, HandleConfig } from '../../../src/interaction/types.js';
+import type { ViewportState, HandleConfig, PointerInfo } from '../../../src/interaction/types.js';
 import type { BaseElement, ShapeElement } from '../../../src/elements/types.js';
 import { HitTester } from '../../../src/interaction/HitTester.js';
 import { CoordinateTransformer } from '../../../src/interaction/CoordinateTransformer.js';
@@ -1233,6 +1233,205 @@ describe('SelectTool', () => {
 
       // Should not throw, but also not update
       expect(mockComposer.updateElementSilent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('touch/pointer support', () => {
+    const createPointerEvent = (
+      type: string,
+      options: {
+        clientX: number;
+        clientY: number;
+        pointerId?: number;
+        pointerType?: string;
+        isPrimary?: boolean;
+      },
+    ): PointerEvent => {
+      return new PointerEvent(type, {
+        clientX: options.clientX,
+        clientY: options.clientY,
+        pointerId: options.pointerId ?? 1,
+        pointerType: options.pointerType ?? 'touch',
+        isPrimary: options.isPrimary ?? true,
+        bubbles: true,
+      });
+    };
+
+    const createPointerInfo = (
+      pointerId: number,
+      clientX: number,
+      clientY: number,
+      viewBoxPoint: { x: number; y: number },
+    ): PointerInfo => ({
+      pointerId,
+      pointerType: 'touch',
+      clientX,
+      clientY,
+      viewBoxPoint,
+      isPrimary: pointerId === 1,
+    });
+
+    describe('onPointerDown', () => {
+      it('should delegate single pointer to mouse handler', () => {
+        elements = [createShapeElement('rect1', 100, 100, 50, 50)];
+        const activePointers = new Map<number, PointerInfo>();
+        activePointers.set(1, createPointerInfo(1, 62, 62, { x: 125, y: 125 }));
+
+        const event = createPointerEvent('pointerdown', { clientX: 62, clientY: 62 });
+        const result = selectTool.onPointerDown(event, { x: 125, y: 125 }, activePointers);
+
+        expect(result).toBe(true);
+        expect(mockComposer.select).toHaveBeenCalledWith('rect1');
+      });
+
+      it('should return false for multi-pointer', () => {
+        const activePointers = new Map<number, PointerInfo>();
+        activePointers.set(1, createPointerInfo(1, 100, 100, { x: 200, y: 200 }));
+        activePointers.set(2, createPointerInfo(2, 200, 200, { x: 400, y: 400 }));
+
+        const event = createPointerEvent('pointerdown', {
+          clientX: 200,
+          clientY: 200,
+          pointerId: 2,
+        });
+        const result = selectTool.onPointerDown(event, { x: 400, y: 400 }, activePointers);
+
+        expect(result).toBe(false);
+      });
+    });
+
+    describe('onPointerMove', () => {
+      it('should delegate single pointer to mouse handler', () => {
+        elements = [createShapeElement('rect1', 100, 100, 50, 50)];
+        const activePointers = new Map<number, PointerInfo>();
+        activePointers.set(1, createPointerInfo(1, 62, 62, { x: 125, y: 125 }));
+
+        const event = createPointerEvent('pointermove', { clientX: 62, clientY: 62 });
+        selectTool.onPointerMove(event, { x: 125, y: 125 }, activePointers);
+
+        // Should update cursor on hover
+        expect(container.style.cursor).toBe('move');
+      });
+
+      it('should return false for multi-pointer (gesture handled externally)', () => {
+        const activePointers = new Map<number, PointerInfo>();
+        activePointers.set(1, createPointerInfo(1, 100, 100, { x: 200, y: 200 }));
+        activePointers.set(2, createPointerInfo(2, 200, 200, { x: 400, y: 400 }));
+
+        const event = createPointerEvent('pointermove', { clientX: 150, clientY: 150 });
+        const result = selectTool.onPointerMove(event, { x: 300, y: 300 }, activePointers);
+
+        expect(result).toBe(false);
+      });
+    });
+
+    describe('onPointerUp', () => {
+      it('should delegate to mouse handler when all pointers released', () => {
+        const activePointers = new Map<number, PointerInfo>();
+
+        const event = createPointerEvent('pointerup', { clientX: 100, clientY: 100 });
+        selectTool.onPointerUp(event, { x: 200, y: 200 }, activePointers);
+
+        expect(mockContext.setInteractionState).toHaveBeenCalledWith('idle');
+      });
+    });
+
+    describe('onPointerCancel', () => {
+      it('should reset all state on cancel', () => {
+        elements = [createShapeElement('rect1', 100, 100, 100, 100)];
+        selection = ['rect1'];
+        selectionBounds = { x: 100, y: 100, width: 100, height: 100 };
+
+        // Start a drag
+        selectTool.onMouseDown(new MouseEvent('mousedown', { clientX: 75, clientY: 75 }), {
+          x: 150,
+          y: 150,
+        });
+        selectTool.onMouseMove(new MouseEvent('mousemove', { clientX: 80, clientY: 80 }), {
+          x: 160,
+          y: 160,
+        });
+
+        const activePointers = new Map<number, PointerInfo>();
+        const event = createPointerEvent('pointercancel', { clientX: 80, clientY: 80 });
+        const result = selectTool.onPointerCancel(event, activePointers);
+
+        expect(result).toBe(true);
+        expect(mockContext.setInteractionState).toHaveBeenCalledWith('idle');
+        expect(selectTool.getCursor()).toBe('default');
+      });
+    });
+
+    describe('onPinchGesture', () => {
+      it('should zoom in on pinch expand', () => {
+        const centerPoint = { x: 600, y: 600 };
+        const scale = 1.5; // Pinch expand
+        const initialZoom = 1;
+
+        const result = selectTool.onPinchGesture(centerPoint, scale, initialZoom);
+
+        expect(result).toBe(true);
+        expect(mockContext.setViewportState).toHaveBeenCalled();
+        expect(viewportState.zoom).toBeGreaterThan(1);
+      });
+
+      it('should zoom out on pinch contract', () => {
+        viewportState.zoom = 2;
+        const centerPoint = { x: 600, y: 600 };
+        const scale = 0.5; // Pinch contract
+        const initialZoom = 2;
+
+        const result = selectTool.onPinchGesture(centerPoint, scale, initialZoom);
+
+        expect(result).toBe(true);
+        expect(mockContext.setViewportState).toHaveBeenCalled();
+      });
+
+      it('should clamp zoom to minimum', () => {
+        const centerPoint = { x: 600, y: 600 };
+        const scale = 0.01; // Very small scale
+        const initialZoom = 0.5;
+
+        selectTool.onPinchGesture(centerPoint, scale, initialZoom);
+
+        expect(viewportState.zoom).toBeGreaterThanOrEqual(0.1);
+      });
+
+      it('should clamp zoom to maximum', () => {
+        const centerPoint = { x: 600, y: 600 };
+        const scale = 100; // Very large scale
+        const initialZoom = 5;
+
+        selectTool.onPinchGesture(centerPoint, scale, initialZoom);
+
+        expect(viewportState.zoom).toBeLessThanOrEqual(10);
+      });
+    });
+
+    describe('onTwoFingerPan', () => {
+      it('should pan the canvas', () => {
+        const centerPoint = { x: 700, y: 700 };
+        const deltaX = 100;
+        const deltaY = 50;
+
+        const result = selectTool.onTwoFingerPan(centerPoint, deltaX, deltaY);
+
+        expect(result).toBe(true);
+        expect(mockContext.setViewportState).toHaveBeenCalled();
+        expect(mockContext.requestRender).toHaveBeenCalled();
+      });
+
+      it('should accumulate pan from initial position', () => {
+        // First pan gesture
+        selectTool.onTwoFingerPan({ x: 700, y: 700 }, 50, 50);
+        const firstPanX = viewportState.panX;
+
+        // Second pan gesture should use same initial position
+        selectTool.onTwoFingerPan({ x: 750, y: 750 }, 100, 100);
+
+        // Pan should be from initial, not accumulated
+        expect(viewportState.panX).not.toBe(firstPanX);
+      });
     });
   });
 });

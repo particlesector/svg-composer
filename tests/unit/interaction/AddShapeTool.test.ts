@@ -352,6 +352,275 @@ describe('AddShapeTool', () => {
     });
   });
 
+  describe('pointer events', () => {
+    interface TestPointerInfo {
+      pointerId: number;
+      pointerType: string;
+      clientX: number;
+      clientY: number;
+      viewBoxPoint: { x: number; y: number };
+      isPrimary: boolean;
+    }
+
+    const createPointerEvent = (type: string, pointerId: number): PointerEvent => {
+      return new PointerEvent(type, {
+        pointerId,
+        pointerType: 'touch',
+        clientX: 100,
+        clientY: 100,
+        isPrimary: pointerId === 1,
+      });
+    };
+
+    describe('onPointerDown', () => {
+      it('should delegate to onMouseDown for single pointer', () => {
+        addShapeTool.activate();
+        const activePointers = new Map([
+          [
+            1,
+            {
+              pointerId: 1,
+              pointerType: 'touch',
+              clientX: 100,
+              clientY: 100,
+              viewBoxPoint: { x: 200, y: 200 },
+              isPrimary: true,
+            },
+          ],
+        ]);
+
+        const result = addShapeTool.onPointerDown(
+          createPointerEvent('pointerdown', 1),
+          { x: 200, y: 200 },
+          activePointers,
+        );
+
+        expect(result).toBe(true);
+        expect(mockComposer.addElement).toHaveBeenCalled();
+        expect(mockContext.setInteractionState).toHaveBeenCalledWith('drawing');
+      });
+
+      it('should return false for multiple pointers', () => {
+        addShapeTool.activate();
+        const activePointers = new Map([
+          [
+            1,
+            {
+              pointerId: 1,
+              pointerType: 'touch',
+              clientX: 100,
+              clientY: 100,
+              viewBoxPoint: { x: 200, y: 200 },
+              isPrimary: true,
+            },
+          ],
+          [
+            2,
+            {
+              pointerId: 2,
+              pointerType: 'touch',
+              clientX: 200,
+              clientY: 200,
+              viewBoxPoint: { x: 400, y: 400 },
+              isPrimary: false,
+            },
+          ],
+        ]);
+
+        const result = addShapeTool.onPointerDown(
+          createPointerEvent('pointerdown', 2),
+          { x: 400, y: 400 },
+          activePointers,
+        );
+
+        expect(result).toBe(false);
+      });
+    });
+
+    describe('onPointerMove', () => {
+      it('should delegate to onMouseMove for single pointer when drawing', () => {
+        addShapeTool.activate();
+        addShapeTool.onMouseDown(new MouseEvent('mousedown'), { x: 100, y: 100 });
+
+        const activePointers = new Map([
+          [
+            1,
+            {
+              pointerId: 1,
+              pointerType: 'touch',
+              clientX: 200,
+              clientY: 200,
+              viewBoxPoint: { x: 400, y: 400 },
+              isPrimary: true,
+            },
+          ],
+        ]);
+
+        const result = addShapeTool.onPointerMove(
+          createPointerEvent('pointermove', 1),
+          { x: 400, y: 400 },
+          activePointers,
+        );
+
+        expect(result).toBe(true);
+        expect(mockComposer.updateElementSilent).toHaveBeenCalled();
+      });
+
+      it('should return false for multiple pointers', () => {
+        addShapeTool.activate();
+        addShapeTool.onMouseDown(new MouseEvent('mousedown'), { x: 100, y: 100 });
+
+        const activePointers = new Map([
+          [
+            1,
+            {
+              pointerId: 1,
+              pointerType: 'touch',
+              clientX: 100,
+              clientY: 100,
+              viewBoxPoint: { x: 200, y: 200 },
+              isPrimary: true,
+            },
+          ],
+          [
+            2,
+            {
+              pointerId: 2,
+              pointerType: 'touch',
+              clientX: 200,
+              clientY: 200,
+              viewBoxPoint: { x: 400, y: 400 },
+              isPrimary: false,
+            },
+          ],
+        ]);
+
+        const result = addShapeTool.onPointerMove(
+          createPointerEvent('pointermove', 1),
+          { x: 200, y: 200 },
+          activePointers,
+        );
+
+        expect(result).toBe(false);
+      });
+
+      it('should return false when not drawing', () => {
+        addShapeTool.activate();
+        const activePointers = new Map([
+          [
+            1,
+            {
+              pointerId: 1,
+              pointerType: 'touch',
+              clientX: 200,
+              clientY: 200,
+              viewBoxPoint: { x: 400, y: 400 },
+              isPrimary: true,
+            },
+          ],
+        ]);
+
+        const result = addShapeTool.onPointerMove(
+          createPointerEvent('pointermove', 1),
+          { x: 400, y: 400 },
+          activePointers,
+        );
+
+        expect(result).toBe(false);
+      });
+    });
+
+    describe('onPointerUp', () => {
+      it('should delegate to onMouseUp when all pointers released', () => {
+        addShapeTool.activate();
+        addShapeTool.onMouseDown(new MouseEvent('mousedown'), { x: 100, y: 100 });
+
+        const activePointers = new Map<number, TestPointerInfo>();
+
+        const result = addShapeTool.onPointerUp(
+          createPointerEvent('pointerup', 1),
+          { x: 200, y: 200 },
+          activePointers,
+        );
+
+        expect(result).toBe(true);
+        expect(mockComposer.select).toHaveBeenCalledWith('test-id-123');
+        expect(mockComposer.pushHistory).toHaveBeenCalled();
+      });
+
+      it('should return false when pointers still active', () => {
+        addShapeTool.activate();
+        addShapeTool.onMouseDown(new MouseEvent('mousedown'), { x: 100, y: 100 });
+
+        const activePointers = new Map([
+          [
+            2,
+            {
+              pointerId: 2,
+              pointerType: 'touch',
+              clientX: 200,
+              clientY: 200,
+              viewBoxPoint: { x: 400, y: 400 },
+              isPrimary: false,
+            },
+          ],
+        ]);
+
+        const result = addShapeTool.onPointerUp(
+          createPointerEvent('pointerup', 1),
+          { x: 200, y: 200 },
+          activePointers,
+        );
+
+        expect(result).toBe(false);
+      });
+
+      it('should return false when not drawing', () => {
+        addShapeTool.activate();
+        const activePointers = new Map<number, TestPointerInfo>();
+
+        const result = addShapeTool.onPointerUp(
+          createPointerEvent('pointerup', 1),
+          { x: 200, y: 200 },
+          activePointers,
+        );
+
+        expect(result).toBe(false);
+      });
+    });
+
+    describe('onPointerCancel', () => {
+      it('should cancel drawing and remove element', () => {
+        addShapeTool.activate();
+        addShapeTool.onMouseDown(new MouseEvent('mousedown'), { x: 100, y: 100 });
+
+        const activePointers = new Map<number, TestPointerInfo>();
+
+        const result = addShapeTool.onPointerCancel(
+          createPointerEvent('pointercancel', 1),
+          activePointers,
+        );
+
+        expect(result).toBe(true);
+        expect(mockComposer.removeElement).toHaveBeenCalledWith('test-id-123');
+        expect(mockContext.setInteractionState).toHaveBeenCalledWith('idle');
+        expect(mockContext.requestRender).toHaveBeenCalled();
+      });
+
+      it('should return false when not drawing', () => {
+        addShapeTool.activate();
+        const activePointers = new Map<number, TestPointerInfo>();
+
+        const result = addShapeTool.onPointerCancel(
+          createPointerEvent('pointercancel', 1),
+          activePointers,
+        );
+
+        expect(result).toBe(false);
+      });
+    });
+  });
+
   describe('shape types', () => {
     it('should create rect with transform at top-left corner', () => {
       addShapeTool.setConfig({ shapeType: 'rect' });

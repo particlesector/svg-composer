@@ -3,23 +3,15 @@
  */
 
 import type { ToolType } from '../../core/types.js';
-import type { ViewBoxPoint } from '../types.js';
+import type { ViewBoxPoint, PointerInfo } from '../types.js';
+import { ZOOM_LIMITS } from '../types.js';
 import { BaseTool } from './BaseTool.js';
+import { calculatePinchZoom } from '../utils/zoomUtils.js';
 
 /**
  * Zoom increment per wheel tick
  */
 const ZOOM_FACTOR = 0.1;
-
-/**
- * Minimum zoom level
- */
-const MIN_ZOOM = 0.1;
-
-/**
- * Maximum zoom level
- */
-const MAX_ZOOM = 10;
 
 /**
  * PanTool allows panning the canvas by dragging.
@@ -31,6 +23,7 @@ export class PanTool extends BaseTool {
   private _panStart: ViewBoxPoint | null = null;
   private _startPanX = 0;
   private _startPanY = 0;
+  private _gestureInitialPan: { x: number; y: number } | null = null;
 
   override activate(): void {
     this.updateCursor('grab');
@@ -69,7 +62,7 @@ export class PanTool extends BaseTool {
     let newZoom = viewport.zoom + direction * ZOOM_FACTOR;
 
     // Clamp zoom
-    newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
+    newZoom = Math.max(ZOOM_LIMITS.MIN, Math.min(ZOOM_LIMITS.MAX, newZoom));
 
     if (newZoom !== viewport.zoom) {
       // Zoom toward mouse position
@@ -93,6 +86,86 @@ export class PanTool extends BaseTool {
 
   override getCursor(): string {
     return this._isPanning ? 'grabbing' : 'grab';
+  }
+
+  override onPointerDown(
+    _event: PointerEvent,
+    point: ViewBoxPoint,
+    activePointers: Map<number, PointerInfo>,
+  ): boolean {
+    // For single pointer, start panning
+    if (activePointers.size === 1) {
+      this._startPan(point);
+      return true;
+    }
+    return false;
+  }
+
+  override onPointerMove(
+    _event: PointerEvent,
+    point: ViewBoxPoint,
+    activePointers: Map<number, PointerInfo>,
+  ): boolean {
+    // Single pointer pan
+    if (this._isPanning && activePointers.size === 1) {
+      this._updatePan(point);
+      return true;
+    }
+    return false;
+  }
+
+  override onPointerUp(
+    _event: PointerEvent,
+    _point: ViewBoxPoint,
+    activePointers: Map<number, PointerInfo>,
+  ): boolean {
+    if (this._isPanning && activePointers.size === 0) {
+      this._endPan();
+      this._gestureInitialPan = null;
+      return true;
+    }
+    return false;
+  }
+
+  override onPointerCancel(
+    _event: PointerEvent,
+    _activePointers: Map<number, PointerInfo>,
+  ): boolean {
+    this._resetState();
+    return true;
+  }
+
+  override onPinchGesture(centerPoint: ViewBoxPoint, scale: number, initialZoom: number): boolean {
+    const viewport = this.context.getViewportState();
+    const result = calculatePinchZoom(centerPoint, scale, initialZoom, viewport);
+
+    if (result.changed) {
+      this.context.setViewportState({
+        zoom: result.zoom,
+        panX: result.panX,
+        panY: result.panY,
+      });
+      this.context.requestRender();
+    }
+
+    return true;
+  }
+
+  override onTwoFingerPan(_centerPoint: ViewBoxPoint, deltaX: number, deltaY: number): boolean {
+    // Store initial pan if not set
+    if (!this._gestureInitialPan) {
+      const viewport = this.context.getViewportState();
+      this._gestureInitialPan = { x: viewport.panX, y: viewport.panY };
+    }
+
+    // Pan the canvas
+    this.context.setViewportState({
+      panX: this._gestureInitialPan.x - deltaX,
+      panY: this._gestureInitialPan.y - deltaY,
+    });
+
+    this.context.requestRender();
+    return true;
   }
 
   /**
@@ -148,5 +221,6 @@ export class PanTool extends BaseTool {
     this._panStart = null;
     this._startPanX = 0;
     this._startPanY = 0;
+    this._gestureInitialPan = null;
   }
 }
