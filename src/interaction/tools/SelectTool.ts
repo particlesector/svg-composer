@@ -379,6 +379,40 @@ export class SelectTool extends BaseTool {
     const dx = point.x - this._dragState.startPoint.x;
     const dy = point.y - this._dragState.startPoint.y;
 
+    // Calculate combined bounds of all dragged elements for snapping
+    const selectionBounds = this._getSelectionBounds();
+
+    // Calculate snapped position if snapping is enabled
+    let finalDx = dx;
+    let finalDy = dy;
+
+    if (selectionBounds) {
+      // Calculate where the selection bounds would be after this drag
+      const newBounds = {
+        x: selectionBounds.x + dx,
+        y: selectionBounds.y + dy,
+        width: selectionBounds.width,
+        height: selectionBounds.height,
+      };
+
+      // Get IDs of elements being dragged to exclude from snap targets
+      const excludeIds = new Set(this._dragState.elementStartPositions.keys());
+
+      // Calculate snap
+      const snapResult = this.context.calculateSnap(
+        newBounds.x,
+        newBounds.y,
+        newBounds,
+        excludeIds,
+      );
+
+      // Apply snap adjustment
+      if (snapResult.snappedX || snapResult.snappedY) {
+        finalDx = dx + (snapResult.x - newBounds.x);
+        finalDy = dy + (snapResult.y - newBounds.y);
+      }
+    }
+
     for (const [id, startPos] of this._dragState.elementStartPositions) {
       const element = this.context.composer.getElement(id);
       if (!element) {
@@ -389,8 +423,8 @@ export class SelectTool extends BaseTool {
       this.context.composer.updateElementSilent(id, {
         transform: {
           ...element.transform,
-          x: startPos.x + dx,
-          y: startPos.y + dy,
+          x: startPos.x + finalDx,
+          y: startPos.y + finalDy,
         },
       });
     }
@@ -400,11 +434,57 @@ export class SelectTool extends BaseTool {
   }
 
   /**
+   * Gets the combined bounding box of all selected elements
+   */
+  private _getSelectionBounds(): { x: number; y: number; width: number; height: number } | null {
+    const selection = this.context.composer.getSelection();
+    if (selection.length === 0) {
+      return null;
+    }
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (const id of selection) {
+      const element = this.context.composer.getElement(id);
+      if (!element) {
+        continue;
+      }
+
+      const bounds = this.context.hitTester.getElementBounds(element);
+      if (!bounds) {
+        continue;
+      }
+
+      minX = Math.min(minX, bounds.x);
+      minY = Math.min(minY, bounds.y);
+      maxX = Math.max(maxX, bounds.x + bounds.width);
+      maxY = Math.max(maxY, bounds.y + bounds.height);
+    }
+
+    if (minX === Infinity) {
+      return null;
+    }
+
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+    };
+  }
+
+  /**
    * Ends the drag operation
    */
   private _endDrag(): void {
     // Push history for the entire drag operation (single undo step)
     this.context.composer.pushHistory();
+
+    // Clear snap indicators
+    this.context.clearSnapIndicators();
 
     this._dragState = null;
     this._pendingSelect = null;
@@ -798,5 +878,8 @@ export class SelectTool extends BaseTool {
     this._isPanning = false;
     this._panStart = null;
     this._gestureInitialPan = null;
+
+    // Clear any snap indicators that may be visible (e.g., if user cancels mid-drag)
+    this.context.clearSnapIndicators();
   }
 }

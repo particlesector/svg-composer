@@ -1,7 +1,24 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { State, DEFAULT_OPTIONS } from '../../src/core/State.js';
 import type { BaseElement, GroupElement } from '../../src/elements/types.js';
-import type { Transform } from '../../src/core/types.js';
+import type { Transform, Guide } from '../../src/core/types.js';
+
+// Helper to create test guides
+function createTestGuide(
+  id: string,
+  orientation: 'horizontal' | 'vertical' = 'horizontal',
+  position = 100,
+  overrides?: Partial<Guide>,
+): Guide {
+  return {
+    id,
+    orientation,
+    position,
+    locked: false,
+    visible: true,
+    ...overrides,
+  };
+}
 
 // Helper to create test transforms
 function createTestTransform(overrides?: Partial<Transform>): Transform {
@@ -538,6 +555,268 @@ describe('State', () => {
         'child-2',
       ]);
       expect(state.getElement('image-1')?.transform.rotation).toBe(45);
+    });
+  });
+
+  // ============================================================
+  // Guide Management Tests
+  // ============================================================
+
+  describe('Guide Management', () => {
+    describe('initial state', () => {
+      it('should have empty guides array initially', () => {
+        expect(state.getGuides()).toEqual([]);
+      });
+    });
+
+    describe('addGuide', () => {
+      it('should add a guide to state', () => {
+        const guide = createTestGuide('guide-1', 'horizontal', 100);
+        state.addGuide(guide);
+
+        expect(state.getGuides()).toHaveLength(1);
+        expect(state.getGuide('guide-1')).toBeDefined();
+      });
+
+      it('should throw error for duplicate guide ID', () => {
+        const guide = createTestGuide('guide-1');
+        state.addGuide(guide);
+
+        expect(() => {
+          state.addGuide(createTestGuide('guide-1'));
+        }).toThrow('Guide with id "guide-1" already exists');
+      });
+
+      it('should throw error for empty guide ID', () => {
+        const guide = { ...createTestGuide('valid'), id: '' };
+
+        expect(() => {
+          state.addGuide(guide);
+        }).toThrow('Guide ID must be a non-empty string');
+      });
+
+      it('should throw error for whitespace-only guide ID', () => {
+        const guide = { ...createTestGuide('valid'), id: '   ' };
+
+        expect(() => {
+          state.addGuide(guide);
+        }).toThrow('Guide ID must be a non-empty string');
+      });
+
+      it('should add multiple guides', () => {
+        state.addGuide(createTestGuide('guide-1', 'horizontal', 100));
+        state.addGuide(createTestGuide('guide-2', 'vertical', 200));
+
+        expect(state.getGuides()).toHaveLength(2);
+      });
+
+      it('should preserve guide properties', () => {
+        const guide = createTestGuide('guide-1', 'vertical', 150, {
+          locked: true,
+          visible: false,
+          color: '#ff0000',
+        });
+        state.addGuide(guide);
+
+        const retrieved = state.getGuide('guide-1');
+        expect(retrieved?.orientation).toBe('vertical');
+        expect(retrieved?.position).toBe(150);
+        expect(retrieved?.locked).toBe(true);
+        expect(retrieved?.visible).toBe(false);
+        expect(retrieved?.color).toBe('#ff0000');
+      });
+    });
+
+    describe('getGuide', () => {
+      it('should return undefined for non-existent guide', () => {
+        expect(state.getGuide('non-existent')).toBeUndefined();
+      });
+
+      it('should return guide by ID', () => {
+        state.addGuide(createTestGuide('guide-1', 'horizontal', 100));
+
+        const guide = state.getGuide('guide-1');
+        expect(guide?.id).toBe('guide-1');
+        expect(guide?.orientation).toBe('horizontal');
+        expect(guide?.position).toBe(100);
+      });
+    });
+
+    describe('getGuides', () => {
+      it('should return all guides', () => {
+        state.addGuide(createTestGuide('guide-1', 'horizontal', 100));
+        state.addGuide(createTestGuide('guide-2', 'vertical', 200));
+
+        const guides = state.getGuides();
+        expect(guides).toHaveLength(2);
+        expect(guides.map((g) => g.id)).toContain('guide-1');
+        expect(guides.map((g) => g.id)).toContain('guide-2');
+      });
+
+      it('should return a copy of guides array', () => {
+        state.addGuide(createTestGuide('guide-1'));
+
+        const guides1 = state.getGuides();
+        const guides2 = state.getGuides();
+
+        expect(guides1).not.toBe(guides2);
+      });
+    });
+
+    describe('updateGuide', () => {
+      it('should throw error for non-existent guide', () => {
+        expect(() => {
+          state.updateGuide('non-existent', { position: 200 });
+        }).toThrow('Guide with id "non-existent" not found');
+      });
+
+      it('should update guide position', () => {
+        state.addGuide(createTestGuide('guide-1', 'horizontal', 100));
+        state.updateGuide('guide-1', { position: 200 });
+
+        expect(state.getGuide('guide-1')?.position).toBe(200);
+      });
+
+      it('should update guide locked status', () => {
+        state.addGuide(createTestGuide('guide-1', 'horizontal', 100));
+        state.updateGuide('guide-1', { locked: true });
+
+        expect(state.getGuide('guide-1')?.locked).toBe(true);
+      });
+
+      it('should update guide visibility', () => {
+        state.addGuide(createTestGuide('guide-1', 'horizontal', 100));
+        state.updateGuide('guide-1', { visible: false });
+
+        expect(state.getGuide('guide-1')?.visible).toBe(false);
+      });
+
+      it('should throw error when trying to change guide ID', () => {
+        state.addGuide(createTestGuide('guide-1', 'horizontal', 100));
+
+        expect(() => {
+          state.updateGuide('guide-1', { id: 'guide-2' });
+        }).toThrow('Cannot change guide id');
+      });
+
+      it('should preserve other properties when updating', () => {
+        state.addGuide(createTestGuide('guide-1', 'vertical', 100, { color: '#ff0000' }));
+        state.updateGuide('guide-1', { position: 200 });
+
+        const guide = state.getGuide('guide-1');
+        expect(guide?.orientation).toBe('vertical');
+        expect(guide?.position).toBe(200);
+        expect(guide?.color).toBe('#ff0000');
+      });
+    });
+
+    describe('removeGuide', () => {
+      it('should throw error for non-existent guide', () => {
+        expect(() => {
+          state.removeGuide('non-existent');
+        }).toThrow('Guide with id "non-existent" not found');
+      });
+
+      it('should remove guide from state', () => {
+        state.addGuide(createTestGuide('guide-1'));
+        state.removeGuide('guide-1');
+
+        expect(state.getGuide('guide-1')).toBeUndefined();
+        expect(state.getGuides()).toHaveLength(0);
+      });
+
+      it('should only remove specified guide', () => {
+        state.addGuide(createTestGuide('guide-1'));
+        state.addGuide(createTestGuide('guide-2'));
+        state.removeGuide('guide-1');
+
+        expect(state.getGuide('guide-1')).toBeUndefined();
+        expect(state.getGuide('guide-2')).toBeDefined();
+        expect(state.getGuides()).toHaveLength(1);
+      });
+    });
+
+    describe('clearGuides', () => {
+      it('should remove all guides', () => {
+        state.addGuide(createTestGuide('guide-1'));
+        state.addGuide(createTestGuide('guide-2'));
+        state.addGuide(createTestGuide('guide-3'));
+
+        state.clearGuides();
+
+        expect(state.getGuides()).toHaveLength(0);
+      });
+
+      it('should work when no guides exist', () => {
+        expect(() => {
+          state.clearGuides();
+        }).not.toThrow();
+        expect(state.getGuides()).toHaveLength(0);
+      });
+    });
+
+    describe('snapshot with guides', () => {
+      it('should include guides in snapshot', () => {
+        state.addGuide(createTestGuide('guide-1', 'horizontal', 100));
+        state.addGuide(createTestGuide('guide-2', 'vertical', 200));
+
+        const snap = state.snapshot();
+
+        expect(snap.guides).toHaveLength(2);
+        expect(snap.guides.find((g) => g.id === 'guide-1')?.position).toBe(100);
+        expect(snap.guides.find((g) => g.id === 'guide-2')?.position).toBe(200);
+      });
+
+      it('should deep clone guides in snapshot', () => {
+        state.addGuide(createTestGuide('guide-1', 'horizontal', 100));
+
+        const snap = state.snapshot();
+
+        // Modify original guide
+        state.updateGuide('guide-1', { position: 999 });
+
+        // Snapshot should be unchanged
+        expect(snap.guides[0].position).toBe(100);
+      });
+    });
+
+    describe('restore with guides', () => {
+      it('should restore guides from snapshot', () => {
+        state.addGuide(createTestGuide('guide-1', 'horizontal', 100));
+        state.addGuide(createTestGuide('guide-2', 'vertical', 200));
+
+        const snap = state.snapshot();
+
+        // Clear guides
+        state.clearGuides();
+        expect(state.getGuides()).toHaveLength(0);
+
+        // Restore
+        state.restore(snap);
+
+        expect(state.getGuides()).toHaveLength(2);
+        expect(state.getGuide('guide-1')).toBeDefined();
+        expect(state.getGuide('guide-2')).toBeDefined();
+      });
+
+      it('should handle restoring from snapshot with empty guides', () => {
+        state.addGuide(createTestGuide('guide-1'));
+
+        // Create a snapshot-like object with empty guides
+        const snapWithEmptyGuides = {
+          width: 1200,
+          height: 1200,
+          backgroundColor: '#ffffff',
+          elements: new Map(),
+          selectedIds: new Set<string>(),
+          guides: [],
+        };
+
+        state.restore(snapWithEmptyGuides);
+
+        // Should have empty guides after restore
+        expect(state.getGuides()).toHaveLength(0);
+      });
     });
   });
 });

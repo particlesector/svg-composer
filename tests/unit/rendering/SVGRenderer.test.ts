@@ -12,7 +12,8 @@ import type {
   GroupElement,
   ClipPath,
 } from '../../../src/elements/types.js';
-import type { CanvasState, Transform } from '../../../src/core/types.js';
+import type { CanvasState, Transform, Guide, SnapTarget } from '../../../src/core/types.js';
+import type { SnapLines } from '../../../src/rendering/types.js';
 
 // Helper to create test transforms
 function createTestTransform(overrides?: Partial<Transform>): Transform {
@@ -41,7 +42,25 @@ function createTestState(
     backgroundColor: '#ffffff',
     elements: elementsMap,
     selectedIds: new Set(),
+    guides: [],
     ...overrides,
+  };
+}
+
+// Helper to create test guides
+function createTestGuide(
+  id: string,
+  orientation: 'horizontal' | 'vertical' = 'horizontal',
+  position = 100,
+  options: { locked?: boolean; visible?: boolean; color?: string } = {},
+): Guide {
+  return {
+    id,
+    orientation,
+    position,
+    locked: options.locked ?? false,
+    visible: options.visible ?? true,
+    color: options.color,
   };
 }
 
@@ -1385,6 +1404,335 @@ describe('SVGRenderer', () => {
       expect(container.querySelector('image[data-element-id="img-1"]')).toBeNull();
       // Orphaned clip paths should be cleaned up during incremental render
       expect(container.querySelector('clipPath#clip-orphan')).toBeNull();
+    });
+  });
+
+  // ============================================================
+  // Guide Rendering
+  // ============================================================
+
+  describe('guide rendering', () => {
+    let container: HTMLDivElement;
+
+    beforeEach(() => {
+      container = document.createElement('div');
+      document.body.appendChild(container);
+    });
+
+    afterEach(() => {
+      renderer.destroy();
+      container.remove();
+    });
+
+    it('should initialize guides group on render', () => {
+      const state = createTestState();
+      renderer.render(container, state, () => undefined);
+
+      const guidesGroup = container.querySelector('g[id$="guides"]');
+      expect(guidesGroup).not.toBeNull();
+    });
+
+    it('should render horizontal guide', () => {
+      const state = createTestState();
+      renderer.render(container, state, () => undefined);
+
+      const guides = [createTestGuide('guide-1', 'horizontal', 100)];
+      renderer.renderGuides(guides, 1200, 1200);
+
+      const guideLine = container.querySelector('line[data-guide-id="guide-1"]');
+      expect(guideLine).not.toBeNull();
+      expect(guideLine?.getAttribute('x1')).toBe('0');
+      expect(guideLine?.getAttribute('y1')).toBe('100');
+      expect(guideLine?.getAttribute('x2')).toBe('1200');
+      expect(guideLine?.getAttribute('y2')).toBe('100');
+    });
+
+    it('should render vertical guide', () => {
+      const state = createTestState();
+      renderer.render(container, state, () => undefined);
+
+      const guides = [createTestGuide('guide-1', 'vertical', 200)];
+      renderer.renderGuides(guides, 1200, 1200);
+
+      const guideLine = container.querySelector('line[data-guide-id="guide-1"]');
+      expect(guideLine).not.toBeNull();
+      expect(guideLine?.getAttribute('x1')).toBe('200');
+      expect(guideLine?.getAttribute('y1')).toBe('0');
+      expect(guideLine?.getAttribute('x2')).toBe('200');
+      expect(guideLine?.getAttribute('y2')).toBe('1200');
+    });
+
+    it('should not render invisible guides', () => {
+      const state = createTestState();
+      renderer.render(container, state, () => undefined);
+
+      const guides = [createTestGuide('guide-1', 'horizontal', 100, { visible: false })];
+      renderer.renderGuides(guides, 1200, 1200);
+
+      const guideLine = container.querySelector('line[data-guide-id="guide-1"]');
+      expect(guideLine).toBeNull();
+    });
+
+    it('should render guide with custom color', () => {
+      const state = createTestState();
+      renderer.render(container, state, () => undefined);
+
+      const guides = [createTestGuide('guide-1', 'horizontal', 100, { color: '#ff0000' })];
+      renderer.renderGuides(guides, 1200, 1200);
+
+      const guideLine = container.querySelector('line[data-guide-id="guide-1"]');
+      expect(guideLine?.getAttribute('stroke')).toBe('#ff0000');
+    });
+
+    it('should render locked guide with dashed stroke', () => {
+      const state = createTestState();
+      renderer.render(container, state, () => undefined);
+
+      const guides = [createTestGuide('guide-1', 'horizontal', 100, { locked: true })];
+      renderer.renderGuides(guides, 1200, 1200);
+
+      const guideLine = container.querySelector('line[data-guide-id="guide-1"]');
+      expect(guideLine?.getAttribute('stroke-dasharray')).toBe('4,4');
+    });
+
+    it('should render unlocked guide without dashed stroke', () => {
+      const state = createTestState();
+      renderer.render(container, state, () => undefined);
+
+      const guides = [createTestGuide('guide-1', 'horizontal', 100, { locked: false })];
+      renderer.renderGuides(guides, 1200, 1200);
+
+      const guideLine = container.querySelector('line[data-guide-id="guide-1"]');
+      expect(guideLine?.getAttribute('stroke-dasharray')).toBe('none');
+    });
+
+    it('should update existing guide position', () => {
+      const state = createTestState();
+      renderer.render(container, state, () => undefined);
+
+      // Render initial guide
+      const guides1 = [createTestGuide('guide-1', 'horizontal', 100)];
+      renderer.renderGuides(guides1, 1200, 1200);
+
+      // Update guide position
+      const guides2 = [createTestGuide('guide-1', 'horizontal', 200)];
+      renderer.renderGuides(guides2, 1200, 1200);
+
+      const guideLine = container.querySelector('line[data-guide-id="guide-1"]');
+      expect(guideLine?.getAttribute('y1')).toBe('200');
+      expect(guideLine?.getAttribute('y2')).toBe('200');
+    });
+
+    it('should remove guide when no longer in list', () => {
+      const state = createTestState();
+      renderer.render(container, state, () => undefined);
+
+      // Render initial guides
+      const guides1 = [
+        createTestGuide('guide-1', 'horizontal', 100),
+        createTestGuide('guide-2', 'vertical', 200),
+      ];
+      renderer.renderGuides(guides1, 1200, 1200);
+
+      expect(container.querySelector('line[data-guide-id="guide-1"]')).not.toBeNull();
+      expect(container.querySelector('line[data-guide-id="guide-2"]')).not.toBeNull();
+
+      // Remove first guide
+      const guides2 = [createTestGuide('guide-2', 'vertical', 200)];
+      renderer.renderGuides(guides2, 1200, 1200);
+
+      expect(container.querySelector('line[data-guide-id="guide-1"]')).toBeNull();
+      expect(container.querySelector('line[data-guide-id="guide-2"]')).not.toBeNull();
+    });
+
+    it('should clear all guides with clearGuides', () => {
+      const state = createTestState();
+      renderer.render(container, state, () => undefined);
+
+      const guides = [
+        createTestGuide('guide-1', 'horizontal', 100),
+        createTestGuide('guide-2', 'vertical', 200),
+      ];
+      renderer.renderGuides(guides, 1200, 1200);
+
+      renderer.clearGuides();
+
+      expect(container.querySelector('line[data-guide-id="guide-1"]')).toBeNull();
+      expect(container.querySelector('line[data-guide-id="guide-2"]')).toBeNull();
+    });
+
+    it('should render multiple guides', () => {
+      const state = createTestState();
+      renderer.render(container, state, () => undefined);
+
+      const guides = [
+        createTestGuide('guide-1', 'horizontal', 100),
+        createTestGuide('guide-2', 'horizontal', 200),
+        createTestGuide('guide-3', 'vertical', 300),
+      ];
+      renderer.renderGuides(guides, 1200, 1200);
+
+      expect(container.querySelectorAll('line[data-guide-id]').length).toBe(3);
+    });
+  });
+
+  // ============================================================
+  // Snap Indicator Rendering
+  // ============================================================
+
+  describe('snap indicator rendering', () => {
+    let container: HTMLDivElement;
+
+    beforeEach(() => {
+      container = document.createElement('div');
+      document.body.appendChild(container);
+    });
+
+    afterEach(() => {
+      renderer.destroy();
+      container.remove();
+    });
+
+    it('should initialize snap indicators group on render', () => {
+      const state = createTestState();
+      renderer.render(container, state, () => undefined);
+
+      const snapGroup = container.querySelector('g[id$="snap-indicators"]');
+      expect(snapGroup).not.toBeNull();
+    });
+
+    it('should render vertical snap indicator', () => {
+      const state = createTestState();
+      renderer.render(container, state, () => undefined);
+
+      const snapLines: SnapLines = {
+        vertical: [
+          {
+            x: 100,
+            target: { type: 'guide', orientation: 'vertical', position: 100 } as SnapTarget,
+          },
+        ],
+        horizontal: [],
+      };
+      renderer.renderSnapIndicators(snapLines, 1200, 1200);
+
+      const snapGroup = container.querySelector('g[id$="snap-indicators"]');
+      const lines = snapGroup?.querySelectorAll('line');
+      expect(lines?.length).toBe(1);
+
+      const line = lines?.[0];
+      expect(line?.getAttribute('x1')).toBe('100');
+      expect(line?.getAttribute('y1')).toBe('0');
+      expect(line?.getAttribute('x2')).toBe('100');
+      expect(line?.getAttribute('y2')).toBe('1200');
+    });
+
+    it('should render horizontal snap indicator', () => {
+      const state = createTestState();
+      renderer.render(container, state, () => undefined);
+
+      const snapLines: SnapLines = {
+        vertical: [],
+        horizontal: [
+          {
+            y: 200,
+            target: { type: 'guide', orientation: 'horizontal', position: 200 } as SnapTarget,
+          },
+        ],
+      };
+      renderer.renderSnapIndicators(snapLines, 1200, 1200);
+
+      const snapGroup = container.querySelector('g[id$="snap-indicators"]');
+      const lines = snapGroup?.querySelectorAll('line');
+      expect(lines?.length).toBe(1);
+
+      const line = lines?.[0];
+      expect(line?.getAttribute('x1')).toBe('0');
+      expect(line?.getAttribute('y1')).toBe('200');
+      expect(line?.getAttribute('x2')).toBe('1200');
+      expect(line?.getAttribute('y2')).toBe('200');
+    });
+
+    it('should render snap indicators with dashed stroke', () => {
+      const state = createTestState();
+      renderer.render(container, state, () => undefined);
+
+      const snapLines: SnapLines = {
+        vertical: [
+          {
+            x: 100,
+            target: { type: 'guide', orientation: 'vertical', position: 100 } as SnapTarget,
+          },
+        ],
+        horizontal: [],
+      };
+      renderer.renderSnapIndicators(snapLines, 1200, 1200);
+
+      const snapGroup = container.querySelector('g[id$="snap-indicators"]');
+      const line = snapGroup?.querySelector('line');
+      expect(line?.getAttribute('stroke-dasharray')).toBe('4,4');
+    });
+
+    it('should clear snap indicators with clearSnapIndicators', () => {
+      const state = createTestState();
+      renderer.render(container, state, () => undefined);
+
+      const snapLines: SnapLines = {
+        vertical: [
+          {
+            x: 100,
+            target: { type: 'guide', orientation: 'vertical', position: 100 } as SnapTarget,
+          },
+        ],
+        horizontal: [
+          {
+            y: 200,
+            target: { type: 'guide', orientation: 'horizontal', position: 200 } as SnapTarget,
+          },
+        ],
+      };
+      renderer.renderSnapIndicators(snapLines, 1200, 1200);
+
+      const snapGroup = container.querySelector('g[id$="snap-indicators"]');
+      expect(snapGroup?.querySelectorAll('line').length).toBe(2);
+
+      renderer.clearSnapIndicators();
+
+      expect(snapGroup?.querySelectorAll('line').length).toBe(0);
+    });
+
+    it('should replace snap indicators on subsequent calls', () => {
+      const state = createTestState();
+      renderer.render(container, state, () => undefined);
+
+      // First snap
+      const snapLines1: SnapLines = {
+        vertical: [
+          {
+            x: 100,
+            target: { type: 'guide', orientation: 'vertical', position: 100 } as SnapTarget,
+          },
+        ],
+        horizontal: [],
+      };
+      renderer.renderSnapIndicators(snapLines1, 1200, 1200);
+
+      // Second snap with different position
+      const snapLines2: SnapLines = {
+        vertical: [
+          {
+            x: 200,
+            target: { type: 'guide', orientation: 'vertical', position: 200 } as SnapTarget,
+          },
+        ],
+        horizontal: [],
+      };
+      renderer.renderSnapIndicators(snapLines2, 1200, 1200);
+
+      const snapGroup = container.querySelector('g[id$="snap-indicators"]');
+      const lines = snapGroup?.querySelectorAll('line');
+      expect(lines?.length).toBe(1);
+      expect(lines?.[0]?.getAttribute('x1')).toBe('200');
     });
   });
 });

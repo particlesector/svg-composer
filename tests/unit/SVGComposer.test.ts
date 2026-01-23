@@ -3230,6 +3230,202 @@ describe('SVGComposer', () => {
   });
 
   // ============================================================
+  // Guides and Snapping
+  // ============================================================
+
+  describe('guide management', () => {
+    it('should add a horizontal guide', () => {
+      const guideId = editor.addHorizontalGuide(100);
+
+      const guide = editor.getGuide(guideId);
+      expect(guide).toBeDefined();
+      expect(guide?.orientation).toBe('horizontal');
+      expect(guide?.position).toBe(100);
+      expect(guide?.visible).toBe(true);
+      expect(guide?.locked).toBe(false);
+    });
+
+    it('should add a vertical guide', () => {
+      const guideId = editor.addVerticalGuide(200);
+
+      const guide = editor.getGuide(guideId);
+      expect(guide).toBeDefined();
+      expect(guide?.orientation).toBe('vertical');
+      expect(guide?.position).toBe(200);
+    });
+
+    it('should add a guide with custom options', () => {
+      const guideId = editor.addGuide({
+        orientation: 'horizontal',
+        position: 150,
+        locked: true,
+        visible: false,
+        color: '#ff0000',
+      });
+
+      const guide = editor.getGuide(guideId);
+      expect(guide?.locked).toBe(true);
+      expect(guide?.visible).toBe(false);
+      expect(guide?.color).toBe('#ff0000');
+    });
+
+    it('should get all guides', () => {
+      editor.addHorizontalGuide(100);
+      editor.addVerticalGuide(200);
+      editor.addHorizontalGuide(300);
+
+      const guides = editor.getGuides();
+      expect(guides).toHaveLength(3);
+    });
+
+    it('should update a guide', () => {
+      const guideId = editor.addHorizontalGuide(100);
+
+      editor.updateGuide(guideId, { position: 150, locked: true });
+
+      const guide = editor.getGuide(guideId);
+      expect(guide?.position).toBe(150);
+      expect(guide?.locked).toBe(true);
+    });
+
+    it('should remove a guide', () => {
+      const guideId = editor.addHorizontalGuide(100);
+      expect(editor.getGuide(guideId)).toBeDefined();
+
+      editor.removeGuide(guideId);
+      expect(editor.getGuide(guideId)).toBeUndefined();
+    });
+
+    it('should clear all guides', () => {
+      editor.addHorizontalGuide(100);
+      editor.addVerticalGuide(200);
+      expect(editor.getGuides()).toHaveLength(2);
+
+      editor.clearGuides();
+      expect(editor.getGuides()).toHaveLength(0);
+    });
+  });
+
+  describe('snapping configuration', () => {
+    it('should get snapping configuration', () => {
+      const config = editor.getSnappingConfig();
+
+      expect(config).toHaveProperty('enabled');
+      expect(config).toHaveProperty('snapDistance');
+      expect(config).toHaveProperty('snapToGuides');
+      expect(config).toHaveProperty('snapToGrid');
+    });
+
+    it('should update snapping configuration', () => {
+      editor.setSnappingConfig({ snapDistance: 20, gridSize: 25 });
+
+      const config = editor.getSnappingConfig();
+      expect(config.snapDistance).toBe(20);
+      expect(config.gridSize).toBe(25);
+    });
+
+    it('should enable snapping', () => {
+      editor.disableSnapping();
+      expect(editor.getSnappingConfig().enabled).toBe(false);
+
+      editor.enableSnapping();
+      expect(editor.getSnappingConfig().enabled).toBe(true);
+    });
+
+    it('should disable snapping', () => {
+      editor.enableSnapping();
+      expect(editor.getSnappingConfig().enabled).toBe(true);
+
+      editor.disableSnapping();
+      expect(editor.getSnappingConfig().enabled).toBe(false);
+    });
+
+    it('should toggle snapping', () => {
+      const initialState = editor.getSnappingConfig().enabled;
+
+      editor.toggleSnapping();
+      expect(editor.getSnappingConfig().enabled).toBe(!initialState);
+
+      editor.toggleSnapping();
+      expect(editor.getSnappingConfig().enabled).toBe(initialState);
+    });
+  });
+
+  describe('guide JSON serialization', () => {
+    it('should include guides in toJSON output', () => {
+      editor.addHorizontalGuide(100);
+      editor.addVerticalGuide(200);
+
+      const jsonString = editor.toJSON();
+      const json = JSON.parse(jsonString);
+
+      expect(json.guides).toBeDefined();
+      expect(json.guides).toHaveLength(2);
+      expect(json.guides[0].orientation).toBe('horizontal');
+      expect(json.guides[0].position).toBe(100);
+      expect(json.guides[1].orientation).toBe('vertical');
+      expect(json.guides[1].position).toBe(200);
+    });
+
+    it('should restore guides from JSON', () => {
+      const data = {
+        version: 1,
+        width: 800,
+        height: 600,
+        backgroundColor: '#ffffff',
+        elements: {},
+        selectedIds: [],
+        guides: [
+          {
+            id: 'guide-1',
+            orientation: 'horizontal' as const,
+            position: 100,
+            locked: false,
+            visible: true,
+          },
+          {
+            id: 'guide-2',
+            orientation: 'vertical' as const,
+            position: 200,
+            locked: true,
+            visible: true,
+            color: '#ff0000',
+          },
+        ],
+      };
+
+      editor.fromJSON(JSON.stringify(data));
+
+      const guides = editor.getGuides();
+      expect(guides).toHaveLength(2);
+
+      const guide1 = editor.getGuide('guide-1');
+      expect(guide1?.orientation).toBe('horizontal');
+      expect(guide1?.position).toBe(100);
+
+      const guide2 = editor.getGuide('guide-2');
+      expect(guide2?.orientation).toBe('vertical');
+      expect(guide2?.locked).toBe(true);
+      expect(guide2?.color).toBe('#ff0000');
+    });
+
+    it('should handle JSON without guides (backwards compatibility)', () => {
+      const data = {
+        version: 1,
+        width: 800,
+        height: 600,
+        backgroundColor: '#ffffff',
+        elements: {},
+        selectedIds: [],
+      };
+
+      editor.fromJSON(JSON.stringify(data));
+
+      expect(editor.getGuides()).toHaveLength(0);
+    });
+  });
+
+  // ============================================================
   // Public API Methods Exist
   // ============================================================
 

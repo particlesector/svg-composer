@@ -2,7 +2,19 @@
  * Main SVG Composer editor class
  */
 
-import type { SVGComposerOptions, ToolType, BoundingBox, CanvasState, Transform } from './types.js';
+import type {
+  SVGComposerOptions,
+  ToolType,
+  BoundingBox,
+  CanvasState,
+  Transform,
+  Guide,
+  GuideInput,
+  GuideOrientation,
+  SnappingConfig,
+  SnapResult,
+} from './types.js';
+import { DEFAULT_SNAPPING_CONFIG } from './types.js';
 import type {
   BaseElement,
   ClipPath,
@@ -23,6 +35,7 @@ import { PanTool } from '../interaction/tools/PanTool.js';
 import { AddShapeTool } from '../interaction/tools/AddShapeTool.js';
 import { AddTextTool } from '../interaction/tools/AddTextTool.js';
 import { AddImageTool } from '../interaction/tools/AddImageTool.js';
+import { SnappingManager } from '../interaction/SnappingManager.js';
 
 /**
  * SVG Composer - A zero-dependency SVG canvas editor
@@ -52,6 +65,7 @@ export class SVGComposer extends EditorEventEmitter {
   protected readonly _state: State;
   protected readonly _history: History;
   private readonly _renderer: SVGRenderer;
+  private readonly _snappingManager: SnappingManager;
   private _interactionManager: InteractionManager | null = null;
   private _currentTool: ToolType = 'select';
   private _destroyed = false;
@@ -69,6 +83,7 @@ export class SVGComposer extends EditorEventEmitter {
     this._state = new State(options);
     this._history = new History(options.historyLimit ?? DEFAULT_OPTIONS.historyLimit);
     this._renderer = new SVGRenderer();
+    this._snappingManager = new SnappingManager(DEFAULT_SNAPPING_CONFIG);
     // Push initial state to history stack
     this._history.push(this._state.snapshot());
   }
@@ -1253,6 +1268,7 @@ export class SVGComposer extends EditorEventEmitter {
       backgroundColor: snapshot.backgroundColor,
       elements,
       selectedIds,
+      guides: snapshot.guides,
     };
 
     return JSON.stringify(serialized);
@@ -1308,12 +1324,17 @@ export class SVGComposer extends EditorEventEmitter {
     const bgColor = data['backgroundColor'];
     const backgroundColor = typeof bgColor === 'string' ? bgColor : '#ffffff';
 
+    // Get optional guides with fallback
+    const guidesData = data['guides'];
+    const guides: Guide[] = Array.isArray(guidesData) ? (guidesData as Guide[]) : [];
+
     const canvasState: CanvasState = {
       width,
       height,
       backgroundColor,
       elements,
       selectedIds,
+      guides,
     };
 
     // Restore state
@@ -1355,6 +1376,230 @@ export class SVGComposer extends EditorEventEmitter {
       canUndo: this._history.canUndo(),
       canRedo: this._history.canRedo(),
     });
+  }
+
+  // ============================================================
+  // Guides
+  // ============================================================
+
+  /**
+   * Adds a guide to the canvas
+   *
+   * @param guide - Guide properties (id will be auto-generated if not provided)
+   * @returns The guide ID
+   *
+   * @example
+   * ```typescript
+   * // Add a horizontal guide at y=100
+   * const guideId = editor.addGuide({
+   *   orientation: 'horizontal',
+   *   position: 100,
+   *   locked: false,
+   *   visible: true
+   * });
+   * ```
+   */
+  addGuide(guide: GuideInput): string {
+    const id = guide.id ?? generateId();
+    const fullGuide: Guide = {
+      id,
+      orientation: guide.orientation,
+      position: guide.position,
+      locked: guide.locked ?? false,
+      visible: guide.visible ?? true,
+      ...(guide.color !== undefined && { color: guide.color }),
+    };
+
+    this._state.addGuide(fullGuide);
+    this._history.push(this._state.snapshot());
+
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
+
+    // Re-render to show guide
+    if (this._interactionInitialized) {
+      this.render();
+    }
+
+    return id;
+  }
+
+  /**
+   * Removes a guide from the canvas
+   *
+   * @param id - Guide ID to remove
+   * @throws Error if guide does not exist
+   */
+  removeGuide(id: string): void {
+    this._state.removeGuide(id);
+    this._history.push(this._state.snapshot());
+
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
+
+    // Re-render to hide guide
+    if (this._interactionInitialized) {
+      this.render();
+    }
+  }
+
+  /**
+   * Updates a guide's properties
+   *
+   * @param id - Guide ID to update
+   * @param updates - Partial guide properties to update
+   * @throws Error if guide does not exist
+   */
+  updateGuide(id: string, updates: Partial<Guide>): void {
+    this._state.updateGuide(id, updates);
+    this._history.push(this._state.snapshot());
+
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
+
+    // Re-render to show updated guide
+    if (this._interactionInitialized) {
+      this.render();
+    }
+  }
+
+  /**
+   * Gets a guide by ID
+   *
+   * @param id - Guide ID to find
+   * @returns The guide or undefined if not found
+   */
+  getGuide(id: string): Guide | undefined {
+    return this._state.getGuide(id);
+  }
+
+  /**
+   * Gets all guides
+   *
+   * @returns Array of all guides
+   */
+  getGuides(): Guide[] {
+    return this._state.getGuides();
+  }
+
+  /**
+   * Removes all guides from the canvas
+   */
+  clearGuides(): void {
+    const guides = this._state.getGuides();
+    if (guides.length === 0) {
+      return;
+    }
+
+    this._state.clearGuides();
+    this._history.push(this._state.snapshot());
+
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
+
+    // Re-render to hide guides
+    if (this._interactionInitialized) {
+      this.render();
+    }
+  }
+
+  /**
+   * Adds a horizontal guide at the specified Y position
+   *
+   * @param y - Y position in viewBox units
+   * @param options - Optional guide settings
+   * @returns The guide ID
+   */
+  addHorizontalGuide(
+    y: number,
+    options: { locked?: boolean; visible?: boolean; color?: string } = {},
+  ): string {
+    return this.addGuide({
+      orientation: 'horizontal' as GuideOrientation,
+      position: y,
+      locked: options.locked ?? false,
+      visible: options.visible ?? true,
+      ...(options.color !== undefined && { color: options.color }),
+    });
+  }
+
+  /**
+   * Adds a vertical guide at the specified X position
+   *
+   * @param x - X position in viewBox units
+   * @param options - Optional guide settings
+   * @returns The guide ID
+   */
+  addVerticalGuide(
+    x: number,
+    options: { locked?: boolean; visible?: boolean; color?: string } = {},
+  ): string {
+    return this.addGuide({
+      orientation: 'vertical' as GuideOrientation,
+      position: x,
+      locked: options.locked ?? false,
+      visible: options.visible ?? true,
+      ...(options.color !== undefined && { color: options.color }),
+    });
+  }
+
+  // ============================================================
+  // Snapping Configuration
+  // ============================================================
+
+  /**
+   * Gets the current snapping configuration
+   *
+   * @returns Current snapping configuration
+   */
+  getSnappingConfig(): SnappingConfig {
+    return this._snappingManager.config;
+  }
+
+  /**
+   * Updates the snapping configuration
+   *
+   * @param updates - Partial configuration updates
+   */
+  setSnappingConfig(updates: Partial<SnappingConfig>): void {
+    this._snappingManager.updateConfig(updates);
+  }
+
+  /**
+   * Enables snapping
+   */
+  enableSnapping(): void {
+    this._snappingManager.updateConfig({ enabled: true });
+  }
+
+  /**
+   * Disables snapping
+   */
+  disableSnapping(): void {
+    this._snappingManager.updateConfig({ enabled: false });
+  }
+
+  /**
+   * Toggles snapping on/off
+   *
+   * @returns The new enabled state
+   */
+  toggleSnapping(): boolean {
+    const newEnabled = !this._snappingManager.config.enabled;
+    this._snappingManager.updateConfig({ enabled: newEnabled });
+    return newEnabled;
   }
 
   // ============================================================
@@ -1417,6 +1662,16 @@ export class SVGComposer extends EditorEventEmitter {
     if (this._interactionManager) {
       this._interactionManager.updateHandles();
     }
+
+    // Render guides
+    const canvasSize = this.getCanvasSize();
+    this._renderer.renderGuides(this._state.getGuides(), canvasSize.width, canvasSize.height);
+
+    // Render snap indicators if active
+    const snapLines = this._snappingManager.activeSnapLines;
+    if (snapLines.vertical.length > 0 || snapLines.horizontal.length > 0) {
+      this._renderer.renderSnapIndicators(snapLines, canvasSize.width, canvasSize.height);
+    }
   }
 
   /**
@@ -1470,6 +1725,34 @@ export class SVGComposer extends EditorEventEmitter {
       onRequestRender: (): void => {
         this.render();
       },
+      // Snapping callbacks
+      calculateSnap: (
+        x: number,
+        y: number,
+        bounds: BoundingBox,
+        excludeIds: Set<string>,
+      ): SnapResult => {
+        return this._snappingManager.calculateSnap(
+          x,
+          y,
+          bounds,
+          this._state.state,
+          excludeIds,
+          (element: BaseElement) => this._getElementBounds(element),
+        );
+      },
+      renderSnapIndicators: (): void => {
+        const snapLines = this._snappingManager.activeSnapLines;
+        const canvasSize = this.getCanvasSize();
+        this._renderer.renderSnapIndicators(snapLines, canvasSize.width, canvasSize.height);
+      },
+      clearSnapIndicators: (): void => {
+        // Direct renderer manipulation for performance - clearing indicators
+        // doesn't require a full render cycle since it's just removing overlay elements
+        this._snappingManager.clearActiveSnapLines();
+        this._renderer.clearSnapIndicators();
+      },
+      getSnappingConfig: (): SnappingConfig => this._snappingManager.config,
     });
 
     // Create and register tools
@@ -1512,6 +1795,7 @@ export class SVGComposer extends EditorEventEmitter {
       backgroundColor: this._state.state.backgroundColor,
       elements: new Map(),
       selectedIds: new Set(),
+      guides: [],
     });
 
     // Clear history

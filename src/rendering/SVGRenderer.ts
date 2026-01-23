@@ -17,7 +17,11 @@ import type {
   RenderContext,
   ElementGetter,
   ViewportState,
+  GuideRenderConfig,
+  SnapLines,
 } from './types.js';
+import type { Guide } from '../core/types.js';
+import { DEFAULT_GUIDE_RENDER_CONFIG } from './types.js';
 
 /**
  * Default configuration values
@@ -36,25 +40,50 @@ const DEFAULT_CONFIG: SVGRendererConfig = {
  */
 export class SVGRenderer {
   private readonly _config: SVGRendererConfig;
+  private _guideConfig: GuideRenderConfig;
 
   // DOM references for incremental updates
   private _rootSvg: SVGSVGElement | null = null;
   private _defsElement: SVGDefsElement | null = null;
   private _backgroundRect: SVGRectElement | null = null;
   private _contentGroup: SVGGElement | null = null;
+  private _guidesGroup: SVGGElement | null = null;
+  private _snapIndicatorsGroup: SVGGElement | null = null;
 
   // Track rendered elements for differential updates
   // Stores both SVG element and z-index for proper ordering
   private readonly _elementMap = new Map<string, { element: SVGElement; zIndex: number }>();
   private readonly _renderedClipPaths = new Set<string>();
+  private readonly _renderedGuides = new Map<string, SVGLineElement>();
 
   /**
    * Creates a new SVGRenderer instance
    *
    * @param config - Optional configuration options
+   * @param guideConfig - Optional guide rendering configuration
    */
-  constructor(config: Partial<SVGRendererConfig> = {}) {
+  constructor(
+    config: Partial<SVGRendererConfig> = {},
+    guideConfig: Partial<GuideRenderConfig> = {},
+  ) {
     this._config = { ...DEFAULT_CONFIG, ...config };
+    this._guideConfig = { ...DEFAULT_GUIDE_RENDER_CONFIG, ...guideConfig };
+  }
+
+  /**
+   * Gets the current guide render configuration
+   */
+  get guideConfig(): GuideRenderConfig {
+    return { ...this._guideConfig };
+  }
+
+  /**
+   * Updates the guide render configuration
+   *
+   * @param updates - Partial configuration updates
+   */
+  updateGuideConfig(updates: Partial<GuideRenderConfig>): void {
+    this._guideConfig = { ...this._guideConfig, ...updates };
   }
 
   /**
@@ -137,6 +166,18 @@ export class SVGRenderer {
     this._contentGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     this._contentGroup.setAttribute('id', `${this._config.idPrefix}content`);
     this._rootSvg.appendChild(this._contentGroup);
+
+    // Create guides group (rendered above elements)
+    this._guidesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    this._guidesGroup.setAttribute('id', `${this._config.idPrefix}guides`);
+    this._guidesGroup.setAttribute('pointer-events', 'none');
+    this._rootSvg.appendChild(this._guidesGroup);
+
+    // Create snap indicators group (rendered on top of guides)
+    this._snapIndicatorsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    this._snapIndicatorsGroup.setAttribute('id', `${this._config.idPrefix}snap-indicators`);
+    this._snapIndicatorsGroup.setAttribute('pointer-events', 'none');
+    this._rootSvg.appendChild(this._snapIndicatorsGroup);
 
     // Clear container and append SVG
     container.innerHTML = '';
@@ -515,8 +556,181 @@ export class SVGRenderer {
     this._defsElement = null;
     this._backgroundRect = null;
     this._contentGroup = null;
+    this._guidesGroup = null;
+    this._snapIndicatorsGroup = null;
     this._elementMap.clear();
     this._renderedClipPaths.clear();
+    this._renderedGuides.clear();
+  }
+
+  // ============================================================
+  // Guide Rendering
+  // ============================================================
+
+  /**
+   * Renders guides on the canvas
+   *
+   * @param guides - Array of guides to render
+   * @param canvasWidth - Canvas width for horizontal guides
+   * @param canvasHeight - Canvas height for vertical guides
+   */
+  renderGuides(guides: Guide[], canvasWidth: number, canvasHeight: number): void {
+    if (!this._guidesGroup || !this._guideConfig.guidesVisible) {
+      return;
+    }
+
+    // Track which guides we've processed
+    const processedIds = new Set<string>();
+
+    for (const guide of guides) {
+      if (!guide.visible) {
+        continue;
+      }
+
+      processedIds.add(guide.id);
+
+      const existingLine = this._renderedGuides.get(guide.id);
+      if (existingLine) {
+        // Update existing guide
+        this._updateGuideElement(existingLine, guide, canvasWidth, canvasHeight);
+      } else {
+        // Create new guide
+        const line = this._createGuideElement(guide, canvasWidth, canvasHeight);
+        this._guidesGroup.appendChild(line);
+        this._renderedGuides.set(guide.id, line);
+      }
+    }
+
+    // Remove guides that no longer exist
+    const guideIdsToRemove: string[] = [];
+    for (const id of this._renderedGuides.keys()) {
+      if (!processedIds.has(id)) {
+        guideIdsToRemove.push(id);
+      }
+    }
+    for (const id of guideIdsToRemove) {
+      const line = this._renderedGuides.get(id);
+      if (line) {
+        line.remove();
+      }
+      this._renderedGuides.delete(id);
+    }
+  }
+
+  /**
+   * Creates a guide line SVG element
+   */
+  private _createGuideElement(
+    guide: Guide,
+    canvasWidth: number,
+    canvasHeight: number,
+  ): SVGLineElement {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('data-guide-id', guide.id);
+
+    this._updateGuideElement(line, guide, canvasWidth, canvasHeight);
+
+    return line;
+  }
+
+  /**
+   * Updates a guide line SVG element
+   */
+  private _updateGuideElement(
+    line: SVGLineElement,
+    guide: Guide,
+    canvasWidth: number,
+    canvasHeight: number,
+  ): void {
+    const color = guide.color ?? this._guideConfig.guideColor;
+
+    if (guide.orientation === 'horizontal') {
+      line.setAttribute('x1', '0');
+      line.setAttribute('y1', String(guide.position));
+      line.setAttribute('x2', String(canvasWidth));
+      line.setAttribute('y2', String(guide.position));
+    } else {
+      line.setAttribute('x1', String(guide.position));
+      line.setAttribute('y1', '0');
+      line.setAttribute('x2', String(guide.position));
+      line.setAttribute('y2', String(canvasHeight));
+    }
+
+    line.setAttribute('stroke', color);
+    line.setAttribute('stroke-width', String(this._guideConfig.guideStrokeWidth));
+    line.setAttribute('stroke-dasharray', guide.locked ? '4,4' : 'none');
+    // Use vector-effect to maintain consistent stroke width at any zoom level
+    line.setAttribute('vector-effect', 'non-scaling-stroke');
+  }
+
+  /**
+   * Clears all rendered guides
+   */
+  clearGuides(): void {
+    if (this._guidesGroup) {
+      this._guidesGroup.innerHTML = '';
+    }
+    this._renderedGuides.clear();
+  }
+
+  // ============================================================
+  // Snap Indicator Rendering
+  // ============================================================
+
+  /**
+   * Renders snap indicators during drag/resize operations
+   *
+   * @param snapLines - Active snap lines to render
+   * @param canvasWidth - Canvas width
+   * @param canvasHeight - Canvas height
+   */
+  renderSnapIndicators(snapLines: SnapLines, canvasWidth: number, canvasHeight: number): void {
+    if (!this._snapIndicatorsGroup) {
+      return;
+    }
+
+    // Clear existing snap indicators
+    this._snapIndicatorsGroup.innerHTML = '';
+
+    const color = this._guideConfig.snapIndicatorColor;
+    const strokeWidth = this._guideConfig.snapIndicatorStrokeWidth;
+
+    // Render vertical snap lines
+    for (const vLine of snapLines.vertical) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', String(vLine.x));
+      line.setAttribute('y1', '0');
+      line.setAttribute('x2', String(vLine.x));
+      line.setAttribute('y2', String(canvasHeight));
+      line.setAttribute('stroke', color);
+      line.setAttribute('stroke-width', String(strokeWidth));
+      line.setAttribute('stroke-dasharray', '4,4');
+      line.setAttribute('vector-effect', 'non-scaling-stroke');
+      this._snapIndicatorsGroup.appendChild(line);
+    }
+
+    // Render horizontal snap lines
+    for (const hLine of snapLines.horizontal) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', '0');
+      line.setAttribute('y1', String(hLine.y));
+      line.setAttribute('x2', String(canvasWidth));
+      line.setAttribute('y2', String(hLine.y));
+      line.setAttribute('stroke', color);
+      line.setAttribute('stroke-width', String(strokeWidth));
+      line.setAttribute('stroke-dasharray', '4,4');
+      line.setAttribute('vector-effect', 'non-scaling-stroke');
+      this._snapIndicatorsGroup.appendChild(line);
+    }
+  }
+
+  /**
+   * Clears all snap indicators
+   */
+  clearSnapIndicators(): void {
+    if (this._snapIndicatorsGroup) {
+      this._snapIndicatorsGroup.innerHTML = '';
+    }
   }
 
   // ============================================================
