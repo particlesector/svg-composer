@@ -1407,7 +1407,7 @@ export class SVGComposer extends EditorEventEmitter {
       position: guide.position,
       locked: guide.locked ?? false,
       visible: guide.visible ?? true,
-      color: guide.color,
+      ...(guide.color !== undefined && { color: guide.color }),
     };
 
     this._state.addGuide(fullGuide);
@@ -1531,7 +1531,7 @@ export class SVGComposer extends EditorEventEmitter {
       position: y,
       locked: options.locked ?? false,
       visible: options.visible ?? true,
-      color: options.color,
+      ...(options.color !== undefined && { color: options.color }),
     });
   }
 
@@ -1551,7 +1551,7 @@ export class SVGComposer extends EditorEventEmitter {
       position: x,
       locked: options.locked ?? false,
       visible: options.visible ?? true,
-      color: options.color,
+      ...(options.color !== undefined && { color: options.color }),
     });
   }
 

@@ -199,14 +199,19 @@ export class SnappingManager {
     // Update active snap lines
     this._updateActiveSnapLines(snapX, snapY);
 
-    return {
+    const result: SnapResult = {
       snappedX: snapX !== null,
       snappedY: snapY !== null,
       x: snapX !== null ? newBounds.x + (affectsLeft ? snapX.adjustment : 0) : newBounds.x,
       y: snapY !== null ? newBounds.y + (affectsTop ? snapY.adjustment : 0) : newBounds.y,
-      snapTargetX: snapX?.target,
-      snapTargetY: snapY?.target,
     };
+    if (snapX !== null) {
+      result.snapTargetX = snapX.target;
+    }
+    if (snapY !== null) {
+      result.snapTargetY = snapY.target;
+    }
+    return result;
   }
 
   /**

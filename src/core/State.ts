@@ -188,14 +188,22 @@ export class State {
    * @throws Error if guide does not exist
    */
   updateGuide(id: string, updates: Partial<Guide>): void {
-    const index = this._state.guides.findIndex((g) => g.id === id);
-    if (index === -1) {
+    const existingGuide = this._state.guides.find((g) => g.id === id);
+    if (!existingGuide) {
       throw new Error(`Guide with id "${id}" not found`);
     }
     if (updates.id !== undefined && updates.id !== id) {
       throw new Error('Cannot change guide id');
     }
-    this._state.guides[index] = { ...this._state.guides[index], ...updates };
+    // Update properties, filtering undefined to satisfy exactOptionalPropertyTypes
+    existingGuide.orientation = updates.orientation ?? existingGuide.orientation;
+    existingGuide.position = updates.position ?? existingGuide.position;
+    existingGuide.locked = updates.locked ?? existingGuide.locked;
+    existingGuide.visible = updates.visible ?? existingGuide.visible;
+    // Only set color if it's defined in updates
+    if (updates.color !== undefined) {
+      existingGuide.color = updates.color;
+    }
   }
 
   /**
