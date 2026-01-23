@@ -306,4 +306,83 @@ describe('AddTextTool', () => {
       expect(addTextTool.getCursor()).toBe('text');
     });
   });
+
+  describe('pointer events', () => {
+    const createPointerEvent = (type: string, pointerId: number): PointerEvent => {
+      return new PointerEvent(type, {
+        pointerId,
+        pointerType: 'touch',
+        clientX: 150,
+        clientY: 200,
+        isPrimary: pointerId === 1,
+      });
+    };
+
+    describe('onPointerDown', () => {
+      it('should delegate to onMouseDown for single pointer', () => {
+        addTextTool.activate();
+        const activePointers = new Map([
+          [
+            1,
+            {
+              pointerId: 1,
+              pointerType: 'touch',
+              clientX: 150,
+              clientY: 200,
+              viewBoxPoint: { x: 300, y: 400 },
+              isPrimary: true,
+            },
+          ],
+        ]);
+
+        const result = addTextTool.onPointerDown(
+          createPointerEvent('pointerdown', 1),
+          { x: 300, y: 400 },
+          activePointers,
+        );
+
+        expect(result).toBe(true);
+        expect(mockComposer.addElement).toHaveBeenCalled();
+        expect(mockComposer.select).toHaveBeenCalledWith('test-text-id');
+        expect(addedElement?.type).toBe('text');
+      });
+
+      it('should return false for multiple pointers', () => {
+        addTextTool.activate();
+        const activePointers = new Map([
+          [
+            1,
+            {
+              pointerId: 1,
+              pointerType: 'touch',
+              clientX: 100,
+              clientY: 100,
+              viewBoxPoint: { x: 200, y: 200 },
+              isPrimary: true,
+            },
+          ],
+          [
+            2,
+            {
+              pointerId: 2,
+              pointerType: 'touch',
+              clientX: 200,
+              clientY: 200,
+              viewBoxPoint: { x: 400, y: 400 },
+              isPrimary: false,
+            },
+          ],
+        ]);
+
+        const result = addTextTool.onPointerDown(
+          createPointerEvent('pointerdown', 2),
+          { x: 400, y: 400 },
+          activePointers,
+        );
+
+        expect(result).toBe(false);
+        expect(mockComposer.addElement).not.toHaveBeenCalled();
+      });
+    });
+  });
 });
