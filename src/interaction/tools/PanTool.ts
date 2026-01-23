@@ -4,22 +4,14 @@
 
 import type { ToolType } from '../../core/types.js';
 import type { ViewBoxPoint, PointerInfo } from '../types.js';
+import { ZOOM_LIMITS } from '../types.js';
 import { BaseTool } from './BaseTool.js';
+import { calculatePinchZoom } from '../utils/zoomUtils.js';
 
 /**
  * Zoom increment per wheel tick
  */
 const ZOOM_FACTOR = 0.1;
-
-/**
- * Minimum zoom level
- */
-const MIN_ZOOM = 0.1;
-
-/**
- * Maximum zoom level
- */
-const MAX_ZOOM = 10;
 
 /**
  * PanTool allows panning the canvas by dragging.
@@ -70,7 +62,7 @@ export class PanTool extends BaseTool {
     let newZoom = viewport.zoom + direction * ZOOM_FACTOR;
 
     // Clamp zoom
-    newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
+    newZoom = Math.max(ZOOM_LIMITS.MIN, Math.min(ZOOM_LIMITS.MAX, newZoom));
 
     if (newZoom !== viewport.zoom) {
       // Zoom toward mouse position
@@ -144,24 +136,15 @@ export class PanTool extends BaseTool {
   }
 
   override onPinchGesture(centerPoint: ViewBoxPoint, scale: number, initialZoom: number): boolean {
-    // Handle pinch-to-zoom
-    let newZoom = initialZoom * scale;
-    newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
-
     const viewport = this.context.getViewportState();
+    const result = calculatePinchZoom(centerPoint, scale, initialZoom, viewport);
 
-    if (newZoom !== viewport.zoom) {
-      // Zoom toward center point of pinch
-      const zoomRatio = newZoom / viewport.zoom;
-      const newPanX = centerPoint.x - (centerPoint.x - viewport.panX) * zoomRatio;
-      const newPanY = centerPoint.y - (centerPoint.y - viewport.panY) * zoomRatio;
-
+    if (result.changed) {
       this.context.setViewportState({
-        zoom: newZoom,
-        panX: newPanX,
-        panY: newPanY,
+        zoom: result.zoom,
+        panX: result.panX,
+        panY: result.panY,
       });
-
       this.context.requestRender();
     }
 

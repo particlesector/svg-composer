@@ -142,6 +142,16 @@ export const DEFAULT_VIEWPORT_STATE: ViewportState = {
 };
 
 /**
+ * Zoom limits for viewport
+ */
+export const ZOOM_LIMITS = {
+  /** Minimum zoom level (10%) */
+  MIN: 0.1,
+  /** Maximum zoom level (1000%) */
+  MAX: 10,
+} as const;
+
+/**
  * Tracked pointer information for multi-touch gestures
  */
 export interface PointerInfo {
@@ -164,15 +174,11 @@ export interface PointerInfo {
  */
 export interface GestureState {
   /** Type of gesture being performed */
-  type: 'pinch' | 'rotate' | 'pan';
+  type: 'pinch' | 'pan';
   /** Initial distance between two touch points (for pinch) */
   initialDistance: number;
   /** Current distance between two touch points (for pinch) */
   currentDistance: number;
-  /** Initial angle between two touch points (for rotation) */
-  initialAngle: number;
-  /** Current angle between two touch points (for rotation) */
-  currentAngle: number;
   /** Initial zoom level when gesture started */
   initialZoom: number;
   /** Center point of the gesture in viewBox coordinates */

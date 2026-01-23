@@ -540,11 +540,10 @@ export class InteractionManager {
       return;
     }
 
-    // Calculate initial distance and angle
+    // Calculate initial distance between touch points
     const dx = p2.clientX - p1.clientX;
     const dy = p2.clientY - p1.clientY;
     const distance = Math.sqrt(dx * dx + dy * dy);
-    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
 
     // Calculate center point in viewBox coordinates
     const centerX = (p1.viewBoxPoint.x + p2.viewBoxPoint.x) / 2;
@@ -556,8 +555,6 @@ export class InteractionManager {
       type: 'pinch',
       initialDistance: distance,
       currentDistance: distance,
-      initialAngle: angle,
-      currentAngle: angle,
       initialZoom: viewport.zoom,
       centerPoint: { x: centerX, y: centerY },
       initialPan: { x: viewport.panX, y: viewport.panY },
