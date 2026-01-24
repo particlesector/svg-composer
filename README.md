@@ -64,14 +64,18 @@ This is a spec-driven project. The table below shows the current implementation 
 | Touch/Multi-Touch | Implemented | Pointer events, pinch-zoom, two-finger pan |
 | Guides & Snapping | Implemented | Snap to guides, grid, elements, and canvas edges |
 | Filters & Effects | Implemented | SVG filters, shadows, blur, color effects |
+| Alignment & Distribution | Implemented | Align left/right/center, distribute evenly |
 
-### Roadmap
+### Future Improvements
 
-The following features are planned for future development:
+The following enhancements are planned for future development:
 
-| Priority | Feature | Description |
-|----------|---------|-------------|
-| Low | Alignment Tools | Align and distribute selected elements |
+| Area | Improvement | Description |
+|------|-------------|-------------|
+| Filters | Multiple filter support | Chain multiple effects into composite filters |
+| Filters | Cache eviction | LRU cache for preset filters to limit memory |
+| Filters | Enhanced color parsing | Support hsl(), oklch(), full CSS named colors |
+| Testing | Integration tests | Validate filter rendering in actual SVG output |
 
 ---
 
@@ -523,6 +527,34 @@ disableSnapping(): void;
 toggleSnapping(): boolean;                            // returns new state
 ```
 
+### Alignment & Distribution
+
+```typescript
+// Alignment (uses selected elements if ids not provided)
+alignLeft(ids?: string[], options?: AlignmentOptions): void;
+alignRight(ids?: string[], options?: AlignmentOptions): void;
+alignTop(ids?: string[], options?: AlignmentOptions): void;
+alignBottom(ids?: string[], options?: AlignmentOptions): void;
+alignCenterHorizontal(ids?: string[], options?: AlignmentOptions): void;
+alignCenterVertical(ids?: string[], options?: AlignmentOptions): void;
+alignCenter(ids?: string[], options?: AlignmentOptions): void;
+
+// Distribution (requires 3+ elements)
+distributeLeft(ids?: string[]): void;
+distributeRight(ids?: string[]): void;
+distributeTop(ids?: string[]): void;
+distributeBottom(ids?: string[]): void;
+distributeHorizontal(ids?: string[]): void;          // by center
+distributeVertical(ids?: string[]): void;            // by center
+distributeHorizontalGaps(ids?: string[]): void;      // equal spacing
+distributeVerticalGaps(ids?: string[]): void;        // equal spacing
+
+// AlignmentOptions
+interface AlignmentOptions {
+  relativeTo?: 'selection' | 'canvas' | 'first';     // default: 'selection'
+}
+```
+
 ### Export/Import
 
 ```typescript
@@ -855,6 +887,40 @@ console.log(`Snapping ${isEnabled ? 'enabled' : 'disabled'}`);
 
 // Disable snapping temporarily
 editor.disableSnapping();
+```
+
+### Aligning and Distributing Elements
+
+```typescript
+// Select multiple elements first
+editor.select([element1, element2, element3]);
+
+// Align selected elements to left edge
+editor.alignLeft();
+
+// Align to center horizontally and vertically
+editor.alignCenter();
+
+// Align to canvas instead of selection bounds
+editor.alignLeft(undefined, { relativeTo: 'canvas' });
+
+// Align specific elements (doesn't require selection)
+editor.alignTop([id1, id2, id3]);
+
+// Align to first element in list
+editor.alignRight([id1, id2, id3], { relativeTo: 'first' });
+
+// Distribute elements evenly (requires 3+ elements)
+editor.distributeHorizontal();      // by center points
+editor.distributeVertical();        // by center points
+editor.distributeHorizontalGaps();  // equal spacing between
+editor.distributeVerticalGaps();    // equal spacing between
+
+// Distribute by edges
+editor.distributeLeft();   // align left edges evenly
+editor.distributeRight();  // align right edges evenly
+editor.distributeTop();    // align top edges evenly
+editor.distributeBottom(); // align bottom edges evenly
 ```
 
 ### Undo/Redo
