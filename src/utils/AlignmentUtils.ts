@@ -2,20 +2,10 @@
  * Alignment and distribution utilities for SVG elements
  */
 
-import type { BoundingBox } from '../core/types.js';
+import type { BoundingBox, AlignmentOptions, AlignmentReference } from '../core/types.js';
 
-/**
- * Alignment reference point options
- */
-export type AlignmentReference = 'selection' | 'canvas' | 'first';
-
-/**
- * Configuration options for alignment operations
- */
-export interface AlignmentOptions {
-  /** What to align relative to (default: 'selection') */
-  relativeTo?: AlignmentReference;
-}
+// Re-export types for convenience
+export type { AlignmentOptions, AlignmentReference };
 
 /**
  * Represents an element with its ID and bounding box
@@ -31,13 +21,13 @@ export interface ElementBounds {
 export interface AlignmentResult {
   /** Element ID */
   id: string;
-  /** New X position (transform.x) */
+  /** New X position (used for testing/preview) */
   newX: number;
-  /** New Y position (transform.y) */
+  /** New Y position (used for testing/preview) */
   newY: number;
-  /** Delta X from original position */
+  /** Delta X from original position (used by _applyAlignmentResults) */
   deltaX: number;
-  /** Delta Y from original position */
+  /** Delta Y from original position (used by _applyAlignmentResults) */
   deltaY: number;
 }
 
