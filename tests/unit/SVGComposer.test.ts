@@ -3351,6 +3351,624 @@ describe('SVGComposer', () => {
     });
   });
 
+  // ============================================================
+  // Alignment & Distribution
+  // ============================================================
+
+  describe('alignLeft', () => {
+    it('should align elements to the leftmost element', () => {
+      const id1 = editor.addElement({
+        type: 'image',
+        src: 'test1.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 100, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      const id2 = editor.addElement({
+        type: 'image',
+        src: 'test2.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 200, y: 150 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      editor.alignLeft([id1, id2]);
+
+      // Both elements should align to leftmost (x=100)
+      expect(editor.getElement(id1)?.transform.x).toBe(100);
+      expect(editor.getElement(id2)?.transform.x).toBe(100);
+      // Y positions should be unchanged
+      expect(editor.getElement(id1)?.transform.y).toBe(100);
+      expect(editor.getElement(id2)?.transform.y).toBe(150);
+    });
+
+    it('should use current selection when no ids provided', () => {
+      const id1 = editor.addElement({
+        type: 'image',
+        src: 'test1.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 50, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      const id2 = editor.addElement({
+        type: 'image',
+        src: 'test2.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 200, y: 150 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      editor.select([id1, id2]);
+      editor.alignLeft();
+
+      expect(editor.getElement(id1)?.transform.x).toBe(50);
+      expect(editor.getElement(id2)?.transform.x).toBe(50);
+    });
+
+    it('should align to canvas left when relativeTo is canvas', () => {
+      const id1 = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 100, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      editor.alignLeft([id1], { relativeTo: 'canvas' });
+
+      expect(editor.getElement(id1)?.transform.x).toBe(0);
+    });
+
+    it('should be undoable', () => {
+      const id = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 100, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      editor.alignLeft([id], { relativeTo: 'canvas' });
+      expect(editor.getElement(id)?.transform.x).toBe(0);
+
+      editor.undo();
+      expect(editor.getElement(id)?.transform.x).toBe(100);
+    });
+
+    it('should emit element:updated events', () => {
+      const id1 = editor.addElement({
+        type: 'image',
+        src: 'test1.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 100, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      const id2 = editor.addElement({
+        type: 'image',
+        src: 'test2.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 200, y: 150 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      const handler = vi.fn();
+      editor.on('element:updated', handler);
+
+      editor.alignLeft([id1, id2]);
+
+      expect(handler).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('alignRight', () => {
+    it('should align elements to the rightmost element', () => {
+      const id1 = editor.addElement({
+        type: 'image',
+        src: 'test1.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 100, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      const id2 = editor.addElement({
+        type: 'image',
+        src: 'test2.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 200, y: 150 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      editor.alignRight([id1, id2]);
+
+      // Both elements should align right edge to rightmost (x+width=250)
+      // id1: new x = 250 - 50 = 200
+      // id2: stays at 200
+      expect(editor.getElement(id1)?.transform.x).toBe(200);
+      expect(editor.getElement(id2)?.transform.x).toBe(200);
+    });
+
+    it('should align to canvas right when relativeTo is canvas', () => {
+      const id1 = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 100, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      editor.alignRight([id1], { relativeTo: 'canvas' });
+
+      // Canvas width is 1200, element width is 50
+      expect(editor.getElement(id1)?.transform.x).toBe(1150);
+    });
+  });
+
+  describe('alignTop', () => {
+    it('should align elements to the topmost element', () => {
+      const id1 = editor.addElement({
+        type: 'image',
+        src: 'test1.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 100, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      const id2 = editor.addElement({
+        type: 'image',
+        src: 'test2.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 200, y: 200 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      editor.alignTop([id1, id2]);
+
+      expect(editor.getElement(id1)?.transform.y).toBe(100);
+      expect(editor.getElement(id2)?.transform.y).toBe(100);
+    });
+  });
+
+  describe('alignBottom', () => {
+    it('should align elements to the bottommost element', () => {
+      const id1 = editor.addElement({
+        type: 'image',
+        src: 'test1.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 100, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      const id2 = editor.addElement({
+        type: 'image',
+        src: 'test2.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 200, y: 200 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      editor.alignBottom([id1, id2]);
+
+      // Both should align bottom edge to y=250 (200 + 50)
+      expect(editor.getElement(id1)?.transform.y).toBe(200);
+      expect(editor.getElement(id2)?.transform.y).toBe(200);
+    });
+  });
+
+  describe('alignCenterHorizontal', () => {
+    it('should align elements to horizontal center of selection', () => {
+      const id1 = editor.addElement({
+        type: 'image',
+        src: 'test1.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 100, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      const id2 = editor.addElement({
+        type: 'image',
+        src: 'test2.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 200, y: 200 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      editor.alignCenterHorizontal([id1, id2]);
+
+      // Selection bounds: x=100 to x=250, width=150, center=175
+      // Element 1: center=125, new x = 175-25 = 150
+      // Element 2: center=225, new x = 175-25 = 150
+      expect(editor.getElement(id1)?.transform.x).toBe(150);
+      expect(editor.getElement(id2)?.transform.x).toBe(150);
+    });
+
+    it('should align to canvas center when relativeTo is canvas', () => {
+      const id1 = editor.addElement({
+        type: 'image',
+        src: 'test.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 100, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      editor.alignCenterHorizontal([id1], { relativeTo: 'canvas' });
+
+      // Canvas width is 1200, center is 600, element width is 50
+      expect(editor.getElement(id1)?.transform.x).toBe(575);
+    });
+  });
+
+  describe('alignCenterVertical', () => {
+    it('should align elements to vertical center of selection', () => {
+      const id1 = editor.addElement({
+        type: 'image',
+        src: 'test1.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 100, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      const id2 = editor.addElement({
+        type: 'image',
+        src: 'test2.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 200, y: 200 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      editor.alignCenterVertical([id1, id2]);
+
+      // Selection bounds: y=100 to y=250, height=150, center=175
+      expect(editor.getElement(id1)?.transform.y).toBe(150);
+      expect(editor.getElement(id2)?.transform.y).toBe(150);
+    });
+  });
+
+  describe('alignCenter', () => {
+    it('should align elements to both centers', () => {
+      const id1 = editor.addElement({
+        type: 'image',
+        src: 'test1.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 100, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      const id2 = editor.addElement({
+        type: 'image',
+        src: 'test2.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 200, y: 200 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      editor.alignCenter([id1, id2]);
+
+      expect(editor.getElement(id1)?.transform.x).toBe(150);
+      expect(editor.getElement(id1)?.transform.y).toBe(150);
+      expect(editor.getElement(id2)?.transform.x).toBe(150);
+      expect(editor.getElement(id2)?.transform.y).toBe(150);
+    });
+  });
+
+  describe('distributeHorizontal', () => {
+    it('should distribute elements evenly by center', () => {
+      const id1 = editor.addElement({
+        type: 'image',
+        src: 'test1.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 0, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      const id2 = editor.addElement({
+        type: 'image',
+        src: 'test2.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 100, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      const id3 = editor.addElement({
+        type: 'image',
+        src: 'test3.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 300, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      editor.distributeHorizontal([id1, id2, id3]);
+
+      // Centers: first=25, last=325, spacing=150
+      // Centers should be at 25, 175, 325
+      // x positions: 0, 150, 300
+      expect(editor.getElement(id1)?.transform.x).toBe(0);
+      expect(editor.getElement(id2)?.transform.x).toBe(150);
+      expect(editor.getElement(id3)?.transform.x).toBe(300);
+    });
+
+    it('should do nothing with less than 3 elements', () => {
+      const id1 = editor.addElement({
+        type: 'image',
+        src: 'test1.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 100, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      const id2 = editor.addElement({
+        type: 'image',
+        src: 'test2.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 200, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      editor.clearHistory();
+      editor.distributeHorizontal([id1, id2]);
+
+      // Positions should be unchanged
+      expect(editor.getElement(id1)?.transform.x).toBe(100);
+      expect(editor.getElement(id2)?.transform.x).toBe(200);
+      // No history entry
+      expect(editor.canUndo()).toBe(false);
+    });
+  });
+
+  describe('distributeVertical', () => {
+    it('should distribute elements evenly by vertical center', () => {
+      const id1 = editor.addElement({
+        type: 'image',
+        src: 'test1.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 100, y: 0 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      const id2 = editor.addElement({
+        type: 'image',
+        src: 'test2.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 100, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      const id3 = editor.addElement({
+        type: 'image',
+        src: 'test3.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 100, y: 300 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      editor.distributeVertical([id1, id2, id3]);
+
+      expect(editor.getElement(id1)?.transform.y).toBe(0);
+      expect(editor.getElement(id2)?.transform.y).toBe(150);
+      expect(editor.getElement(id3)?.transform.y).toBe(300);
+    });
+  });
+
+  describe('distributeHorizontalGaps', () => {
+    it('should distribute elements with equal horizontal gaps', () => {
+      const id1 = editor.addElement({
+        type: 'image',
+        src: 'test1.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 0, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      const id2 = editor.addElement({
+        type: 'image',
+        src: 'test2.jpg',
+        width: 100,
+        height: 50,
+        transform: createTestTransform({ x: 200, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      const id3 = editor.addElement({
+        type: 'image',
+        src: 'test3.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 400, y: 100 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      editor.distributeHorizontalGaps([id1, id2, id3]);
+
+      // Total space: 0 to 450 = 450
+      // Total element width: 50 + 100 + 50 = 200
+      // Gap space: 250, gaps: 2, gap size: 125
+      expect(editor.getElement(id1)?.transform.x).toBe(0);
+      expect(editor.getElement(id2)?.transform.x).toBe(175); // 0 + 50 + 125
+      expect(editor.getElement(id3)?.transform.x).toBe(400); // 175 + 100 + 125
+    });
+  });
+
+  describe('distributeVerticalGaps', () => {
+    it('should distribute elements with equal vertical gaps', () => {
+      const id1 = editor.addElement({
+        type: 'image',
+        src: 'test1.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 100, y: 0 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      const id2 = editor.addElement({
+        type: 'image',
+        src: 'test2.jpg',
+        width: 50,
+        height: 100,
+        transform: createTestTransform({ x: 100, y: 200 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      const id3 = editor.addElement({
+        type: 'image',
+        src: 'test3.jpg',
+        width: 50,
+        height: 50,
+        transform: createTestTransform({ x: 100, y: 400 }),
+        opacity: 1,
+        zIndex: 0,
+        locked: false,
+        visible: true,
+      } as Omit<ImageElement, 'id'>);
+
+      editor.distributeVerticalGaps([id1, id2, id3]);
+
+      // Total space: 0 to 450 = 450
+      // Total element height: 50 + 100 + 50 = 200
+      // Gap space: 250, gaps: 2, gap size: 125
+      expect(editor.getElement(id1)?.transform.y).toBe(0);
+      expect(editor.getElement(id2)?.transform.y).toBe(175);
+      expect(editor.getElement(id3)?.transform.y).toBe(400);
+    });
+  });
+
   describe('guide JSON serialization', () => {
     it('should include guides in toJSON output', () => {
       editor.addHorizontalGuide(100);

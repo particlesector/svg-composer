@@ -13,8 +13,28 @@ import type {
   GuideOrientation,
   SnappingConfig,
   SnapResult,
+  AlignmentOptions,
 } from './types.js';
 import { DEFAULT_SNAPPING_CONFIG } from './types.js';
+import {
+  alignLeft as alignLeftUtil,
+  alignRight as alignRightUtil,
+  alignTop as alignTopUtil,
+  alignBottom as alignBottomUtil,
+  alignCenterHorizontal as alignCenterHorizontalUtil,
+  alignCenterVertical as alignCenterVerticalUtil,
+  alignCenter as alignCenterUtil,
+  distributeLeft as distributeLeftUtil,
+  distributeCenterHorizontal as distributeCenterHorizontalUtil,
+  distributeRight as distributeRightUtil,
+  distributeTop as distributeTopUtil,
+  distributeCenterVertical as distributeCenterVerticalUtil,
+  distributeBottom as distributeBottomUtil,
+  distributeHorizontalGaps as distributeHorizontalGapsUtil,
+  distributeVerticalGaps as distributeVerticalGapsUtil,
+  type ElementBounds,
+  type AlignmentResult,
+} from '../utils/AlignmentUtils.js';
 import type {
   BaseElement,
   ClipPath,
@@ -1600,6 +1620,375 @@ export class SVGComposer extends EditorEventEmitter {
     const newEnabled = !this._snappingManager.config.enabled;
     this._snappingManager.updateConfig({ enabled: newEnabled });
     return newEnabled;
+  }
+
+  // ============================================================
+  // Alignment & Distribution
+  // ============================================================
+
+  /**
+   * Gets element bounds for alignment calculations
+   * @internal
+   */
+  private _getElementBoundsForAlignment(ids: string[]): ElementBounds[] {
+    const result: ElementBounds[] = [];
+    for (const id of ids) {
+      const element = this._state.getElement(id);
+      if (!element) {
+        continue;
+      }
+      const bounds = this._getElementBounds(element);
+      if (bounds) {
+        result.push({ id, bounds });
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Applies alignment results to elements
+   * @internal
+   */
+  private _applyAlignmentResults(results: AlignmentResult[]): void {
+    if (results.length === 0) {
+      return;
+    }
+
+    // Update each element silently
+    for (const { id, deltaX, deltaY } of results) {
+      const element = this._state.getElement(id);
+      if (!element) {
+        continue;
+      }
+      this._state.updateElement(id, {
+        transform: {
+          ...element.transform,
+          x: element.transform.x + deltaX,
+          y: element.transform.y + deltaY,
+        },
+      });
+    }
+
+    // Push history once for the batch operation
+    this._history.push(this._state.snapshot());
+
+    // Emit events for all updated elements
+    for (const { id } of results) {
+      const updatedElement = this._state.getElement(id);
+      if (updatedElement) {
+        this.emit('element:updated', { id, element: updatedElement });
+      }
+    }
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
+  }
+
+  /**
+   * Aligns elements to the left edge
+   *
+   * @param ids - Optional array of element IDs. Uses current selection if not provided.
+   * @param options - Alignment options
+   *
+   * @example
+   * ```typescript
+   * // Align selected elements to the left
+   * editor.alignLeft();
+   *
+   * // Align specific elements to the canvas left edge
+   * editor.alignLeft([id1, id2, id3], { relativeTo: 'canvas' });
+   * ```
+   */
+  alignLeft(ids?: string[], options: AlignmentOptions = {}): void {
+    const elementIds = ids ?? this.getSelection();
+    const elements = this._getElementBoundsForAlignment(elementIds);
+    const canvasBounds: BoundingBox = { x: 0, y: 0, ...this.getCanvasSize() };
+    const results = alignLeftUtil(elements, canvasBounds, options);
+    this._applyAlignmentResults(results);
+  }
+
+  /**
+   * Aligns elements to the right edge
+   *
+   * @param ids - Optional array of element IDs. Uses current selection if not provided.
+   * @param options - Alignment options
+   *
+   * @example
+   * ```typescript
+   * // Align selected elements to the right
+   * editor.alignRight();
+   *
+   * // Align specific elements to the canvas right edge
+   * editor.alignRight([id1, id2, id3], { relativeTo: 'canvas' });
+   * ```
+   */
+  alignRight(ids?: string[], options: AlignmentOptions = {}): void {
+    const elementIds = ids ?? this.getSelection();
+    const elements = this._getElementBoundsForAlignment(elementIds);
+    const canvasBounds: BoundingBox = { x: 0, y: 0, ...this.getCanvasSize() };
+    const results = alignRightUtil(elements, canvasBounds, options);
+    this._applyAlignmentResults(results);
+  }
+
+  /**
+   * Aligns elements to the top edge
+   *
+   * @param ids - Optional array of element IDs. Uses current selection if not provided.
+   * @param options - Alignment options
+   *
+   * @example
+   * ```typescript
+   * // Align selected elements to the top
+   * editor.alignTop();
+   *
+   * // Align specific elements to the canvas top edge
+   * editor.alignTop([id1, id2, id3], { relativeTo: 'canvas' });
+   * ```
+   */
+  alignTop(ids?: string[], options: AlignmentOptions = {}): void {
+    const elementIds = ids ?? this.getSelection();
+    const elements = this._getElementBoundsForAlignment(elementIds);
+    const canvasBounds: BoundingBox = { x: 0, y: 0, ...this.getCanvasSize() };
+    const results = alignTopUtil(elements, canvasBounds, options);
+    this._applyAlignmentResults(results);
+  }
+
+  /**
+   * Aligns elements to the bottom edge
+   *
+   * @param ids - Optional array of element IDs. Uses current selection if not provided.
+   * @param options - Alignment options
+   *
+   * @example
+   * ```typescript
+   * // Align selected elements to the bottom
+   * editor.alignBottom();
+   *
+   * // Align specific elements to the canvas bottom edge
+   * editor.alignBottom([id1, id2, id3], { relativeTo: 'canvas' });
+   * ```
+   */
+  alignBottom(ids?: string[], options: AlignmentOptions = {}): void {
+    const elementIds = ids ?? this.getSelection();
+    const elements = this._getElementBoundsForAlignment(elementIds);
+    const canvasBounds: BoundingBox = { x: 0, y: 0, ...this.getCanvasSize() };
+    const results = alignBottomUtil(elements, canvasBounds, options);
+    this._applyAlignmentResults(results);
+  }
+
+  /**
+   * Aligns elements to the horizontal center
+   *
+   * @param ids - Optional array of element IDs. Uses current selection if not provided.
+   * @param options - Alignment options
+   *
+   * @example
+   * ```typescript
+   * // Align selected elements horizontally centered
+   * editor.alignCenterHorizontal();
+   *
+   * // Align specific elements to canvas horizontal center
+   * editor.alignCenterHorizontal([id1, id2], { relativeTo: 'canvas' });
+   * ```
+   */
+  alignCenterHorizontal(ids?: string[], options: AlignmentOptions = {}): void {
+    const elementIds = ids ?? this.getSelection();
+    const elements = this._getElementBoundsForAlignment(elementIds);
+    const canvasBounds: BoundingBox = { x: 0, y: 0, ...this.getCanvasSize() };
+    const results = alignCenterHorizontalUtil(elements, canvasBounds, options);
+    this._applyAlignmentResults(results);
+  }
+
+  /**
+   * Aligns elements to the vertical center
+   *
+   * @param ids - Optional array of element IDs. Uses current selection if not provided.
+   * @param options - Alignment options
+   *
+   * @example
+   * ```typescript
+   * // Align selected elements vertically centered
+   * editor.alignCenterVertical();
+   *
+   * // Align specific elements to canvas vertical center
+   * editor.alignCenterVertical([id1, id2], { relativeTo: 'canvas' });
+   * ```
+   */
+  alignCenterVertical(ids?: string[], options: AlignmentOptions = {}): void {
+    const elementIds = ids ?? this.getSelection();
+    const elements = this._getElementBoundsForAlignment(elementIds);
+    const canvasBounds: BoundingBox = { x: 0, y: 0, ...this.getCanvasSize() };
+    const results = alignCenterVerticalUtil(elements, canvasBounds, options);
+    this._applyAlignmentResults(results);
+  }
+
+  /**
+   * Aligns elements to both horizontal and vertical center
+   *
+   * @param ids - Optional array of element IDs. Uses current selection if not provided.
+   * @param options - Alignment options
+   *
+   * @example
+   * ```typescript
+   * // Center selected elements within selection bounds
+   * editor.alignCenter();
+   *
+   * // Center specific elements on canvas
+   * editor.alignCenter([id1, id2], { relativeTo: 'canvas' });
+   * ```
+   */
+  alignCenter(ids?: string[], options: AlignmentOptions = {}): void {
+    const elementIds = ids ?? this.getSelection();
+    const elements = this._getElementBoundsForAlignment(elementIds);
+    const canvasBounds: BoundingBox = { x: 0, y: 0, ...this.getCanvasSize() };
+    const results = alignCenterUtil(elements, canvasBounds, options);
+    this._applyAlignmentResults(results);
+  }
+
+  /**
+   * Distributes elements evenly by their left edges (horizontal)
+   *
+   * @param ids - Optional array of element IDs. Uses current selection if not provided.
+   * @remarks Requires at least 3 elements to distribute
+   *
+   * @example
+   * ```typescript
+   * editor.distributeLeft();
+   * ```
+   */
+  distributeLeft(ids?: string[]): void {
+    const elementIds = ids ?? this.getSelection();
+    const elements = this._getElementBoundsForAlignment(elementIds);
+    const results = distributeLeftUtil(elements);
+    this._applyAlignmentResults(results);
+  }
+
+  /**
+   * Distributes elements evenly by their horizontal centers
+   *
+   * @param ids - Optional array of element IDs. Uses current selection if not provided.
+   * @remarks Requires at least 3 elements to distribute
+   *
+   * @example
+   * ```typescript
+   * editor.distributeHorizontal();
+   * ```
+   */
+  distributeHorizontal(ids?: string[]): void {
+    const elementIds = ids ?? this.getSelection();
+    const elements = this._getElementBoundsForAlignment(elementIds);
+    const results = distributeCenterHorizontalUtil(elements);
+    this._applyAlignmentResults(results);
+  }
+
+  /**
+   * Distributes elements evenly by their right edges (horizontal)
+   *
+   * @param ids - Optional array of element IDs. Uses current selection if not provided.
+   * @remarks Requires at least 3 elements to distribute
+   *
+   * @example
+   * ```typescript
+   * editor.distributeRight();
+   * ```
+   */
+  distributeRight(ids?: string[]): void {
+    const elementIds = ids ?? this.getSelection();
+    const elements = this._getElementBoundsForAlignment(elementIds);
+    const results = distributeRightUtil(elements);
+    this._applyAlignmentResults(results);
+  }
+
+  /**
+   * Distributes elements evenly by their top edges (vertical)
+   *
+   * @param ids - Optional array of element IDs. Uses current selection if not provided.
+   * @remarks Requires at least 3 elements to distribute
+   *
+   * @example
+   * ```typescript
+   * editor.distributeTop();
+   * ```
+   */
+  distributeTop(ids?: string[]): void {
+    const elementIds = ids ?? this.getSelection();
+    const elements = this._getElementBoundsForAlignment(elementIds);
+    const results = distributeTopUtil(elements);
+    this._applyAlignmentResults(results);
+  }
+
+  /**
+   * Distributes elements evenly by their vertical centers
+   *
+   * @param ids - Optional array of element IDs. Uses current selection if not provided.
+   * @remarks Requires at least 3 elements to distribute
+   *
+   * @example
+   * ```typescript
+   * editor.distributeVertical();
+   * ```
+   */
+  distributeVertical(ids?: string[]): void {
+    const elementIds = ids ?? this.getSelection();
+    const elements = this._getElementBoundsForAlignment(elementIds);
+    const results = distributeCenterVerticalUtil(elements);
+    this._applyAlignmentResults(results);
+  }
+
+  /**
+   * Distributes elements evenly by their bottom edges (vertical)
+   *
+   * @param ids - Optional array of element IDs. Uses current selection if not provided.
+   * @remarks Requires at least 3 elements to distribute
+   *
+   * @example
+   * ```typescript
+   * editor.distributeBottom();
+   * ```
+   */
+  distributeBottom(ids?: string[]): void {
+    const elementIds = ids ?? this.getSelection();
+    const elements = this._getElementBoundsForAlignment(elementIds);
+    const results = distributeBottomUtil(elements);
+    this._applyAlignmentResults(results);
+  }
+
+  /**
+   * Distributes elements with equal horizontal gaps between them
+   *
+   * @param ids - Optional array of element IDs. Uses current selection if not provided.
+   * @remarks Requires at least 3 elements to distribute
+   *
+   * @example
+   * ```typescript
+   * editor.distributeHorizontalGaps();
+   * ```
+   */
+  distributeHorizontalGaps(ids?: string[]): void {
+    const elementIds = ids ?? this.getSelection();
+    const elements = this._getElementBoundsForAlignment(elementIds);
+    const results = distributeHorizontalGapsUtil(elements);
+    this._applyAlignmentResults(results);
+  }
+
+  /**
+   * Distributes elements with equal vertical gaps between them
+   *
+   * @param ids - Optional array of element IDs. Uses current selection if not provided.
+   * @remarks Requires at least 3 elements to distribute
+   *
+   * @example
+   * ```typescript
+   * editor.distributeVerticalGaps();
+   * ```
+   */
+  distributeVerticalGaps(ids?: string[]): void {
+    const elementIds = ids ?? this.getSelection();
+    const elements = this._getElementBoundsForAlignment(elementIds);
+    const results = distributeVerticalGapsUtil(elements);
+    this._applyAlignmentResults(results);
   }
 
   // ============================================================
