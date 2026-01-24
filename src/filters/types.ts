@@ -83,11 +83,7 @@ export interface DropShadowPrimitive extends BaseFilterPrimitive {
 /**
  * Color matrix operation types
  */
-export type ColorMatrixType =
-  | 'matrix'
-  | 'saturate'
-  | 'hueRotate'
-  | 'luminanceToAlpha';
+export type ColorMatrixType = 'matrix' | 'saturate' | 'hueRotate' | 'luminanceToAlpha';
 
 /**
  * Color matrix filter primitive (feColorMatrix)
@@ -109,12 +105,7 @@ export interface ColorMatrixPrimitive extends BaseFilterPrimitive {
 /**
  * Transfer function types for component transfer
  */
-export type TransferFunctionType =
-  | 'identity'
-  | 'table'
-  | 'discrete'
-  | 'linear'
-  | 'gamma';
+export type TransferFunctionType = 'identity' | 'table' | 'discrete' | 'linear' | 'gamma';
 
 /**
  * Transfer function for a single color channel
@@ -248,14 +239,7 @@ export interface BlendPrimitive extends BaseFilterPrimitive {
 /**
  * Composite operation types
  */
-export type CompositeOperator =
-  | 'over'
-  | 'in'
-  | 'out'
-  | 'atop'
-  | 'xor'
-  | 'lighter'
-  | 'arithmetic';
+export type CompositeOperator = 'over' | 'in' | 'out' | 'atop' | 'xor' | 'lighter' | 'arithmetic';
 
 /**
  * Composite filter primitive (feComposite)

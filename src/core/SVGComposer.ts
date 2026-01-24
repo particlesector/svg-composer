@@ -43,11 +43,7 @@ import type {
   ShapeElement,
   GroupElement,
 } from '../elements/types.js';
-import type {
-  FilterDefinition,
-  EffectPreset,
-  ElementFilter,
-} from '../filters/types.js';
+import type { FilterDefinition, EffectPreset, ElementFilter } from '../filters/types.js';
 import { State, DEFAULT_OPTIONS } from './State.js';
 import { History } from './History.js';
 import { EditorEventEmitter } from './EventEmitter.js';

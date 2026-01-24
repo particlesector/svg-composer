@@ -1169,15 +1169,16 @@ export class SVGRenderer {
   }
 
   private _renderDropShadow(p: DropShadowPrimitive, common: string): string {
-    const opacity = p.floodOpacity !== undefined
-      ? ` flood-opacity="${String(p.floodOpacity)}"`
-      : '';
+    const opacity =
+      p.floodOpacity !== undefined ? ` flood-opacity="${String(p.floodOpacity)}"` : '';
     const attrs = common.length > 0 ? ` ${common}` : '';
     const dx = String(p.dx);
     const dy = String(p.dy);
     const stdDev = String(p.stdDeviation);
-    return `<feDropShadow dx="${dx}" dy="${dy}" stdDeviation="${stdDev}" ` +
-      `flood-color="${p.floodColor}"${opacity}${attrs} />`;
+    return (
+      `<feDropShadow dx="${dx}" dy="${dy}" stdDeviation="${stdDev}" ` +
+      `flood-color="${p.floodColor}"${opacity}${attrs} />`
+    );
   }
 
   private _renderColorMatrix(p: ColorMatrixPrimitive, common: string): string {
@@ -1301,9 +1302,8 @@ export class SVGRenderer {
   }
 
   private _renderFlood(p: FloodPrimitive, common: string): string {
-    const opacity = p.floodOpacity !== undefined
-      ? ` flood-opacity="${String(p.floodOpacity)}"`
-      : '';
+    const opacity =
+      p.floodOpacity !== undefined ? ` flood-opacity="${String(p.floodOpacity)}"` : '';
     const attrs = common.length > 0 ? ` ${common}` : '';
     return `<feFlood flood-color="${p.floodColor}"${opacity}${attrs} />`;
   }
@@ -1378,11 +1378,15 @@ export class SVGRenderer {
   private _renderLightSource(light: LightingPrimitive['light']): string {
     switch (light.type) {
       case 'distant':
-        return `<feDistantLight azimuth="${String(light.azimuth)}" ` +
-          `elevation="${String(light.elevation)}" />`;
+        return (
+          `<feDistantLight azimuth="${String(light.azimuth)}" ` +
+          `elevation="${String(light.elevation)}" />`
+        );
       case 'point':
-        return `<fePointLight x="${String(light.x)}" y="${String(light.y)}" ` +
-          `z="${String(light.z)}" />`;
+        return (
+          `<fePointLight x="${String(light.x)}" y="${String(light.y)}" ` +
+          `z="${String(light.z)}" />`
+        );
       case 'spot': {
         const attrs: string[] = [
           `x="${String(light.x)}"`,

@@ -396,8 +396,7 @@ export const presets = {
   /**
    * Neon glow effect
    */
-  neonGlow: (color = '#00ff00'): GlowEffect =>
-    glow({ radius: 12, color, opacity: 0.8 }),
+  neonGlow: (color = '#00ff00'): GlowEffect => glow({ radius: 12, color, opacity: 0.8 }),
 
   /**
    * Soft inner glow
@@ -413,14 +412,12 @@ export const presets = {
   /**
    * Faded/washed out look
    */
-  faded: (): BrightnessContrastEffect =>
-    brightnessContrast({ brightness: 1.1, contrast: 0.8 }),
+  faded: (): BrightnessContrastEffect => brightnessContrast({ brightness: 1.1, contrast: 0.8 }),
 
   /**
    * High contrast dramatic look
    */
-  dramatic: (): BrightnessContrastEffect =>
-    brightnessContrast({ brightness: 0.95, contrast: 1.4 }),
+  dramatic: (): BrightnessContrastEffect => brightnessContrast({ brightness: 0.95, contrast: 1.4 }),
 
   /**
    * Warm color temperature shift

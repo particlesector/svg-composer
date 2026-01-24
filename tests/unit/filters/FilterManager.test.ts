@@ -25,9 +25,7 @@ describe('FilterManager', () => {
   describe('addFilter', () => {
     it('should add a filter and return its ID', () => {
       const filter: Omit<FilterDefinition, 'id'> = {
-        primitives: [
-          { type: 'gaussianBlur', stdDeviation: 5 } as GaussianBlurPrimitive,
-        ],
+        primitives: [{ type: 'gaussianBlur', stdDeviation: 5 } as GaussianBlurPrimitive],
       };
 
       const id = filterManager.addFilter(filter);
