@@ -380,8 +380,14 @@ export function distributeLeft(elements: ElementBounds[]): AlignmentResult[] {
   // Sort by left edge (x position)
   const sorted = [...elements].sort((a, b) => a.bounds.x - b.bounds.x);
 
-  const firstX = sorted[0].bounds.x;
-  const lastX = sorted[sorted.length - 1].bounds.x;
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  if (!first || !last) {
+    return [];
+  }
+
+  const firstX = first.bounds.x;
+  const lastX = last.bounds.x;
   const spacing = (lastX - firstX) / (sorted.length - 1);
 
   return sorted.map(({ id, bounds }, index) => {
@@ -415,9 +421,14 @@ export function distributeCenterHorizontal(elements: ElementBounds[]): Alignment
     return aCenterX - bCenterX;
   });
 
-  const firstCenterX = sorted[0].bounds.x + sorted[0].bounds.width / 2;
-  const lastCenterX =
-    sorted[sorted.length - 1].bounds.x + sorted[sorted.length - 1].bounds.width / 2;
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  if (!first || !last) {
+    return [];
+  }
+
+  const firstCenterX = first.bounds.x + first.bounds.width / 2;
+  const lastCenterX = last.bounds.x + last.bounds.width / 2;
   const spacing = (lastCenterX - firstCenterX) / (sorted.length - 1);
 
   return sorted.map(({ id, bounds }, index) => {
@@ -452,8 +463,14 @@ export function distributeRight(elements: ElementBounds[]): AlignmentResult[] {
     return aRight - bRight;
   });
 
-  const firstRight = sorted[0].bounds.x + sorted[0].bounds.width;
-  const lastRight = sorted[sorted.length - 1].bounds.x + sorted[sorted.length - 1].bounds.width;
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  if (!first || !last) {
+    return [];
+  }
+
+  const firstRight = first.bounds.x + first.bounds.width;
+  const lastRight = last.bounds.x + last.bounds.width;
   const spacing = (lastRight - firstRight) / (sorted.length - 1);
 
   return sorted.map(({ id, bounds }, index) => {
@@ -484,8 +501,14 @@ export function distributeTop(elements: ElementBounds[]): AlignmentResult[] {
   // Sort by top edge (y position)
   const sorted = [...elements].sort((a, b) => a.bounds.y - b.bounds.y);
 
-  const firstY = sorted[0].bounds.y;
-  const lastY = sorted[sorted.length - 1].bounds.y;
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  if (!first || !last) {
+    return [];
+  }
+
+  const firstY = first.bounds.y;
+  const lastY = last.bounds.y;
   const spacing = (lastY - firstY) / (sorted.length - 1);
 
   return sorted.map(({ id, bounds }, index) => {
@@ -519,9 +542,14 @@ export function distributeCenterVertical(elements: ElementBounds[]): AlignmentRe
     return aCenterY - bCenterY;
   });
 
-  const firstCenterY = sorted[0].bounds.y + sorted[0].bounds.height / 2;
-  const lastCenterY =
-    sorted[sorted.length - 1].bounds.y + sorted[sorted.length - 1].bounds.height / 2;
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  if (!first || !last) {
+    return [];
+  }
+
+  const firstCenterY = first.bounds.y + first.bounds.height / 2;
+  const lastCenterY = last.bounds.y + last.bounds.height / 2;
   const spacing = (lastCenterY - firstCenterY) / (sorted.length - 1);
 
   return sorted.map(({ id, bounds }, index) => {
@@ -556,8 +584,14 @@ export function distributeBottom(elements: ElementBounds[]): AlignmentResult[] {
     return aBottom - bBottom;
   });
 
-  const firstBottom = sorted[0].bounds.y + sorted[0].bounds.height;
-  const lastBottom = sorted[sorted.length - 1].bounds.y + sorted[sorted.length - 1].bounds.height;
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  if (!first || !last) {
+    return [];
+  }
+
+  const firstBottom = first.bounds.y + first.bounds.height;
+  const lastBottom = last.bounds.y + last.bounds.height;
   const spacing = (lastBottom - firstBottom) / (sorted.length - 1);
 
   return sorted.map(({ id, bounds }, index) => {
@@ -588,12 +622,18 @@ export function distributeHorizontalGaps(elements: ElementBounds[]): AlignmentRe
   // Sort by left edge (x position)
   const sorted = [...elements].sort((a, b) => a.bounds.x - b.bounds.x);
 
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  if (!first || !last) {
+    return [];
+  }
+
   // Calculate total width of all elements
   const totalElementWidth = sorted.reduce((sum, { bounds }) => sum + bounds.width, 0);
 
   // Calculate the available space (from leftmost left edge to rightmost right edge)
-  const leftmostX = sorted[0].bounds.x;
-  const rightmostX = sorted[sorted.length - 1].bounds.x + sorted[sorted.length - 1].bounds.width;
+  const leftmostX = first.bounds.x;
+  const rightmostX = last.bounds.x + last.bounds.width;
   const totalSpace = rightmostX - leftmostX;
 
   // Calculate the gap size
@@ -630,12 +670,18 @@ export function distributeVerticalGaps(elements: ElementBounds[]): AlignmentResu
   // Sort by top edge (y position)
   const sorted = [...elements].sort((a, b) => a.bounds.y - b.bounds.y);
 
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  if (!first || !last) {
+    return [];
+  }
+
   // Calculate total height of all elements
   const totalElementHeight = sorted.reduce((sum, { bounds }) => sum + bounds.height, 0);
 
   // Calculate the available space (from topmost top edge to bottommost bottom edge)
-  const topmostY = sorted[0].bounds.y;
-  const bottommostY = sorted[sorted.length - 1].bounds.y + sorted[sorted.length - 1].bounds.height;
+  const topmostY = first.bounds.y;
+  const bottommostY = last.bounds.y + last.bounds.height;
   const totalSpace = bottommostY - topmostY;
 
   // Calculate the gap size
