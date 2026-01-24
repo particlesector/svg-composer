@@ -63,6 +63,7 @@ This is a spec-driven project. The table below shows the current implementation 
 | Viewport Management | Implemented | Pan and zoom support |
 | Touch/Multi-Touch | Implemented | Pointer events, pinch-zoom, two-finger pan |
 | Guides & Snapping | Implemented | Snap to guides, grid, elements, and canvas edges |
+| Filters & Effects | Implemented | SVG filters, shadows, blur, color effects |
 
 ### Roadmap
 
@@ -71,7 +72,6 @@ The following features are planned for future development:
 | Priority | Feature | Description |
 |----------|---------|-------------|
 | Low | Alignment Tools | Align and distribute selected elements |
-| Low | Filters & Effects | SVG filters, shadows, blur effects |
 
 ---
 
@@ -263,22 +263,110 @@ interface SnappingConfig {
 interface ClipPath {
   id: string;
   type: 'rect' | 'circle' | 'ellipse';
-  
+
   // Rectangle
   x?: number;
   y?: number;
   width?: number;
   height?: number;
   rx?: number;
-  
+
   // Circle
   cx?: number;
   cy?: number;
   r?: number;
-  
+
   // Ellipse (uses cx, cy)
   rx?: number;
   ry?: number;
+}
+```
+
+### Filters & Effects
+
+SVG Composer provides both low-level filter primitives and high-level effect presets.
+
+#### Effect Presets
+
+Effect presets provide a simple API for common visual effects:
+
+```typescript
+type EffectType =
+  | 'blur'              // Gaussian blur
+  | 'dropShadow'        // Drop shadow
+  | 'innerShadow'       // Inner shadow
+  | 'glow'              // Outer/inner glow
+  | 'grayscale'         // Grayscale conversion
+  | 'sepia'             // Sepia tone
+  | 'saturate'          // Saturation adjustment
+  | 'hueRotate'         // Hue rotation
+  | 'brightness'        // Brightness adjustment
+  | 'contrast'          // Contrast adjustment
+  | 'invert'            // Color inversion
+  | 'sharpen'           // Sharpening
+  | 'emboss'            // Emboss/relief effect
+  | 'noise'             // Noise/grain
+  | 'outline'           // Stroke outline
+  | 'brightnessContrast'// Combined brightness/contrast
+  | 'vintage'           // Vintage photo effect
+  | 'duotone';          // Two-tone color mapping
+
+// Example effect interfaces
+interface BlurEffect {
+  type: 'blur';
+  radius: number;          // blur radius in viewBox units
+}
+
+interface DropShadowEffect {
+  type: 'dropShadow';
+  offsetX: number;         // horizontal offset
+  offsetY: number;         // vertical offset
+  blur: number;            // blur radius
+  color: string;           // CSS color
+  opacity?: number;        // 0-1
+}
+
+interface GrayscaleEffect {
+  type: 'grayscale';
+  amount?: number;         // 0-1, default 1 (full grayscale)
+}
+
+interface DuotoneEffect {
+  type: 'duotone';
+  shadowColor: string;     // color for dark areas
+  highlightColor: string;  // color for light areas
+}
+```
+
+#### Filter Primitives
+
+For advanced effects, you can work directly with SVG filter primitives:
+
+```typescript
+type FilterPrimitiveType =
+  | 'gaussianBlur'      // feGaussianBlur
+  | 'dropShadow'        // feDropShadow
+  | 'colorMatrix'       // feColorMatrix
+  | 'componentTransfer' // feComponentTransfer
+  | 'morphology'        // feMorphology (dilate/erode)
+  | 'turbulence'        // feTurbulence (noise)
+  | 'displacement'      // feDisplacementMap
+  | 'blend'             // feBlend
+  | 'composite'         // feComposite
+  | 'flood'             // feFlood
+  | 'merge'             // feMerge
+  | 'offset'            // feOffset
+  | 'convolveMatrix'    // feConvolveMatrix
+  | 'lighting';         // feDiffuseLighting/feSpecularLighting
+
+interface FilterDefinition {
+  id: string;
+  primitives: FilterPrimitive[];
+  x?: string;           // filter region
+  y?: string;
+  width?: string;
+  height?: string;
+  filterUnits?: 'userSpaceOnUse' | 'objectBoundingBox';
 }
 ```
 
@@ -387,6 +475,27 @@ getHistorySize(): number;
 addClipPath(elementId: string, clipPath: Omit<ClipPath, 'id'>): string;
 removeClipPath(elementId: string): void;
 updateClipPath(elementId: string, updates: Partial<ClipPath>): void;
+```
+
+### Filters & Effects
+
+```typescript
+// Effect presets (simple API)
+addEffect(elementId: string, effect: EffectPreset): string;  // returns filter ID
+setEffect(elementId: string, effect: EffectPreset | null): string;  // replace all
+
+// Custom filters (advanced API)
+addFilter(filter: Omit<FilterDefinition, 'id'>): string;
+getFilter(filterId: string): FilterDefinition | undefined;
+getAllFilters(): FilterDefinition[];
+removeFilter(filterId: string): boolean;
+applyFilter(elementId: string, filterId: string): void;
+
+// Element filter management
+clearFilters(elementId: string): void;
+removeFilterFromElement(elementId: string, filterIndex: number): void;
+getElementFilters(elementId: string): ElementFilter[];
+hasFilters(elementId: string): boolean;
 ```
 
 ### Guides
@@ -573,6 +682,128 @@ editor.addClipPath(imageId, {
 editor.removeClipPath(imageId);
 ```
 
+### Applying Filters & Effects
+
+```typescript
+import {
+  blur,
+  dropShadow,
+  grayscale,
+  sepia,
+  glow,
+  duotone,
+  brightnessContrast,
+  presets
+} from 'svg-composer';
+
+// Add a simple blur effect
+editor.addEffect(imageId, blur(5));
+
+// Add a drop shadow
+editor.addEffect(imageId, dropShadow({
+  offsetX: 4,
+  offsetY: 4,
+  blur: 8,
+  color: 'rgba(0,0,0,0.5)'
+}));
+
+// Apply grayscale
+editor.addEffect(imageId, grayscale(1));
+
+// Add a glow effect
+editor.addEffect(imageId, glow({
+  radius: 12,
+  color: '#00ff00',
+  opacity: 0.8
+}));
+
+// Create duotone effect
+editor.addEffect(imageId, duotone('#0d0221', '#ff00ff'));
+
+// Combine brightness and contrast
+editor.addEffect(imageId, brightnessContrast({
+  brightness: 1.2,
+  contrast: 1.4
+}));
+
+// Use built-in presets
+editor.addEffect(imageId, presets.cardShadow());
+editor.addEffect(imageId, presets.neonGlow('#00ff00'));
+editor.addEffect(imageId, presets.blackAndWhite());
+editor.addEffect(imageId, presets.vintagePhoto());
+editor.addEffect(imageId, presets.filmGrain());
+
+// Replace all effects with a single one
+editor.setEffect(imageId, blur(3));
+
+// Clear all effects from element
+editor.setEffect(imageId, null);
+// or
+editor.clearFilters(imageId);
+
+// Check if element has filters
+if (editor.hasFilters(imageId)) {
+  const filters = editor.getElementFilters(imageId);
+  console.log(`Element has ${filters.length} filter(s)`);
+}
+
+// Remove a specific filter by index
+editor.removeFilterFromElement(imageId, 0);
+```
+
+### Working with Custom Filters (Advanced)
+
+```typescript
+// Create a custom filter with multiple primitives
+const filterId = editor.addFilter({
+  primitives: [
+    { type: 'gaussianBlur', stdDeviation: 3, in: 'SourceAlpha', result: 'blur' },
+    { type: 'offset', dx: 5, dy: 5, in: 'blur', result: 'offsetBlur' },
+    {
+      type: 'merge',
+      nodes: [
+        { in: 'offsetBlur' },
+        { in: 'SourceGraphic' }
+      ]
+    }
+  ]
+});
+
+// Apply custom filter to element
+editor.applyFilter(imageId, filterId);
+
+// Get filter definition
+const filter = editor.getFilter(filterId);
+
+// List all filters
+const allFilters = editor.getAllFilters();
+
+// Remove filter definition
+editor.removeFilter(filterId);
+```
+
+### Available Effect Presets
+
+| Preset | Description |
+|--------|-------------|
+| `presets.cardShadow()` | Soft shadow for cards |
+| `presets.floatingShadow()` | Strong shadow for floating elements |
+| `presets.textShadow()` | Subtle text shadow |
+| `presets.neonGlow(color)` | Neon glow effect |
+| `presets.innerGlow(color)` | Soft inner glow |
+| `presets.blackAndWhite()` | Full grayscale |
+| `presets.faded()` | Washed out look |
+| `presets.dramatic()` | High contrast |
+| `presets.warm()` | Warm color temperature |
+| `presets.cool()` | Cool color temperature |
+| `presets.vintagePhoto()` | Vintage photo effect |
+| `presets.nashville()` | Instagram-style filter |
+| `presets.backgroundBlur()` | Soft blur for backgrounds |
+| `presets.filmGrain()` | Film grain/noise effect |
+| `presets.cyberpunk()` | Cyberpunk duotone |
+| `presets.ocean()` | Ocean blue duotone |
+| `presets.sunset()` | Sunset orange duotone |
+
 ### Working with Guides
 
 ```typescript
@@ -726,25 +957,33 @@ function Editor() {
 The library produces clean, standard SVG markup:
 
 ```xml
-<svg xmlns="http://www.w3.org/2000/svg" 
+<svg xmlns="http://www.w3.org/2000/svg"
      viewBox="0 0 1200 1200"
-     width="1200" 
+     width="1200"
      height="1200">
   <defs>
     <clipPath id="clip-abc123">
       <circle cx="200" cy="150" r="100"/>
     </clipPath>
+    <filter id="filter-def456" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="4" dy="4" stdDeviation="8" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+    <filter id="filter-ghi789" x="-50%" y="-50%" width="200%" height="200%">
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
   </defs>
   <rect width="1200" height="1200" fill="#ffffff"/>
-  <image href="photo.jpg" 
+  <image href="photo.jpg"
          width="400" height="300"
          transform="translate(100, 150) rotate(15) scale(1, 1)"
-         clip-path="url(#clip-abc123)"/>
+         clip-path="url(#clip-abc123)"
+         filter="url(#filter-def456)"/>
   <text transform="translate(600, 50)"
         font-size="48"
         font-family="Georgia, serif"
         fill="#333333"
-        text-anchor="middle">Summer 2024</text>
+        text-anchor="middle"
+        filter="url(#filter-ghi789)">Summer 2024</text>
 </svg>
 ```
 
@@ -840,7 +1079,7 @@ This is a spec-driven project. See the [Implementation Status](#implementation-s
 - **Test Coverage** — Add integration tests and edge case coverage
 
 #### Medium Priority
-- **Advanced Features** — Guides, snapping, alignment tools, filters/effects
+- **Advanced Features** — Alignment tools, additional filter effects
 
 Open an issue to discuss your approach before starting large features.
 
@@ -967,6 +1206,11 @@ svg-composer/
 │   │   ├── TextElement.ts      # Text-specific logic
 │   │   ├── ShapeElement.ts     # Shape-specific logic
 │   │   └── GroupElement.ts     # Group logic
+│   ├── filters/
+│   │   ├── types.ts            # Filter type definitions
+│   │   ├── FilterManager.ts    # Filter definition management
+│   │   ├── EffectPresets.ts    # Effect preset utilities
+│   │   └── index.ts            # Filter module exports
 │   ├── rendering/
 │   │   ├── SVGRenderer.ts      # State to SVG DOM
 │   │   ├── TransformUtils.ts   # Transform math
@@ -986,7 +1230,11 @@ svg-composer/
 │   │   ├── SVGComposer.test.ts
 │   │   ├── State.test.ts
 │   │   ├── History.test.ts
-│   │   └── TransformUtils.test.ts
+│   │   ├── TransformUtils.test.ts
+│   │   └── filters/
+│   │       ├── FilterManager.test.ts
+│   │       ├── EffectPresets.test.ts
+│   │       └── SVGComposerFilters.test.ts
 │   └── integration/
 │       ├── Rendering.test.ts
 │       └── Interaction.test.ts

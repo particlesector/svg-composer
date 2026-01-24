@@ -22,6 +22,26 @@ import type {
 } from './types.js';
 import type { Guide } from '../core/types.js';
 import { DEFAULT_GUIDE_RENDER_CONFIG } from './types.js';
+import type {
+  FilterDefinition,
+  FilterPrimitive,
+  ElementFilter,
+  GaussianBlurPrimitive,
+  DropShadowPrimitive,
+  ColorMatrixPrimitive,
+  ComponentTransferPrimitive,
+  MorphologyPrimitive,
+  TurbulencePrimitive,
+  DisplacementPrimitive,
+  BlendPrimitive,
+  CompositePrimitive,
+  FloodPrimitive,
+  MergePrimitive,
+  OffsetPrimitive,
+  ConvolveMatrixPrimitive,
+  LightingPrimitive,
+  TransferFunction,
+} from '../filters/types.js';
 
 /**
  * Default configuration values
@@ -54,6 +74,7 @@ export class SVGRenderer {
   // Stores both SVG element and z-index for proper ordering
   private readonly _elementMap = new Map<string, { element: SVGElement; zIndex: number }>();
   private readonly _renderedClipPaths = new Set<string>();
+  private readonly _renderedFilters = new Set<string>();
   private readonly _renderedGuides = new Map<string, SVGLineElement>();
 
   /**
@@ -111,22 +132,34 @@ export class SVGRenderer {
    * @param getElement - Function to retrieve elements by ID
    * @returns Complete SVG markup string
    */
-  toSVG(state: CanvasState, getElement: ElementGetter): string {
+  toSVG(
+    state: CanvasState,
+    getElement: ElementGetter,
+    resolveFilter?: (filter: ElementFilter) => string,
+    getFilter?: (id: string) => FilterDefinition | undefined,
+  ): string {
     const elements = Array.from(state.elements.values())
       .filter((el) => el.visible)
       .sort((a, b) => a.zIndex - b.zIndex);
 
-    // Create render context to collect clip paths
+    // Create render context to collect clip paths and filters
     const context: RenderContext = {
       clipPaths: new Map(),
+      filters: new Map(),
       getElement,
     };
+    if (resolveFilter) {
+      context.resolveFilter = resolveFilter;
+    }
+    if (getFilter) {
+      context.getFilter = getFilter;
+    }
 
-    // Render all elements and collect clip paths
+    // Render all elements and collect clip paths and filters
     const svgElements = elements.map((el) => this._elementToSVG(el, context)).join('\n  ');
 
-    // Build defs section with clip paths
-    const defsContent = this._buildDefsContent(context.clipPaths);
+    // Build defs section with clip paths and filters
+    const defsContent = this._buildDefsContent(context.clipPaths, context.filters);
 
     const viewBox = `0 0 ${String(state.width)} ${String(state.height)}`;
 
@@ -191,12 +224,16 @@ export class SVGRenderer {
    * @param state - The canvas state to render
    * @param getElement - Function to retrieve elements by ID
    * @param viewportState - Optional viewport state for pan/zoom
+   * @param resolveFilter - Optional function to resolve element filters to filter IDs
+   * @param getFilter - Optional function to get filter definitions by ID
    */
   render(
     container: HTMLElement,
     state: CanvasState,
     getElement: ElementGetter,
     viewportState?: ViewportState,
+    resolveFilter?: (filter: ElementFilter) => string,
+    getFilter?: (id: string) => FilterDefinition | undefined,
   ): void {
     // Initialize if not already done
     if (this._rootSvg?.parentElement !== container) {
@@ -254,15 +291,16 @@ export class SVGRenderer {
     for (const element of topLevelElements) {
       if (this._elementMap.has(element.id)) {
         // Element exists, update it
-        this.updateElement(element, getElement);
+        this.updateElement(element, getElement, resolveFilter, getFilter);
       } else {
         // Element is new, add it
-        this.addElement(element, getElement);
+        this.addElement(element, getElement, resolveFilter, getFilter);
       }
     }
 
-    // Clean up orphaned clip paths
+    // Clean up orphaned clip paths and filters
     this._cleanupOrphanedClipPaths();
+    this._cleanupOrphanedFilters();
   }
 
   /**
@@ -270,16 +308,30 @@ export class SVGRenderer {
    *
    * @param element - The element to add
    * @param getElement - Function to retrieve elements by ID
+   * @param resolveFilter - Optional function to resolve element filters to filter IDs
+   * @param getFilter - Optional function to get filter definitions by ID
    */
-  addElement(element: BaseElement, getElement: ElementGetter): void {
+  addElement(
+    element: BaseElement,
+    getElement: ElementGetter,
+    resolveFilter?: (filter: ElementFilter) => string,
+    getFilter?: (id: string) => FilterDefinition | undefined,
+  ): void {
     if (!this._contentGroup) {
       return;
     }
 
     const context: RenderContext = {
       clipPaths: new Map(),
+      filters: new Map(),
       getElement,
     };
+    if (resolveFilter) {
+      context.resolveFilter = resolveFilter;
+    }
+    if (getFilter) {
+      context.getFilter = getFilter;
+    }
 
     const svgElement = this._createDOMElement(element, context);
     if (!svgElement) {
@@ -296,8 +348,9 @@ export class SVGRenderer {
 
     this._elementMap.set(element.id, { element: svgElement, zIndex: element.zIndex });
 
-    // Add any new clip paths
+    // Add any new clip paths and filters
     this._addClipPathsToDefs(context.clipPaths);
+    this._addFiltersToDefs(context.filters);
   }
 
   /**
@@ -305,8 +358,15 @@ export class SVGRenderer {
    *
    * @param element - The updated element
    * @param getElement - Function to retrieve elements by ID
+   * @param resolveFilter - Optional function to resolve element filters to filter IDs
+   * @param getFilter - Optional function to get filter definitions by ID
    */
-  updateElement(element: BaseElement, getElement: ElementGetter): void {
+  updateElement(
+    element: BaseElement,
+    getElement: ElementGetter,
+    resolveFilter?: (filter: ElementFilter) => string,
+    getFilter?: (id: string) => FilterDefinition | undefined,
+  ): void {
     if (!this._contentGroup) {
       return;
     }
@@ -314,7 +374,7 @@ export class SVGRenderer {
     const existingEntry = this._elementMap.get(element.id);
     if (!existingEntry) {
       // Element doesn't exist, add it
-      this.addElement(element, getElement);
+      this.addElement(element, getElement, resolveFilter, getFilter);
       return;
     }
 
@@ -334,15 +394,22 @@ export class SVGRenderer {
       if (needsRecreate) {
         // Remove old group and add new one
         this.removeElement(element.id);
-        this.addElement(element, getElement);
+        this.addElement(element, getElement, resolveFilter, getFilter);
         return;
       }
     }
 
     const context: RenderContext = {
       clipPaths: new Map(),
+      filters: new Map(),
       getElement,
     };
+    if (resolveFilter) {
+      context.resolveFilter = resolveFilter;
+    }
+    if (getFilter) {
+      context.getFilter = getFilter;
+    }
 
     // Update attributes using diffing
     this._updateElementAttributes(existingEl, element, context);
@@ -360,8 +427,9 @@ export class SVGRenderer {
       existingEntry.zIndex = element.zIndex;
     }
 
-    // Add any new clip paths
+    // Add any new clip paths and filters
     this._addClipPathsToDefs(context.clipPaths);
+    this._addFiltersToDefs(context.filters);
   }
 
   /**
@@ -441,6 +509,17 @@ export class SVGRenderer {
         svgElement.setAttribute('clip-path', newClipPath);
       } else {
         svgElement.removeAttribute('clip-path');
+      }
+    }
+
+    // Update filter
+    const newFilterAttr = this._resolveFilterAttribute(element, context);
+    const currentFilter = svgElement.getAttribute('filter');
+    if (newFilterAttr !== currentFilter) {
+      if (newFilterAttr) {
+        svgElement.setAttribute('filter', newFilterAttr);
+      } else {
+        svgElement.removeAttribute('filter');
       }
     }
 
@@ -560,6 +639,7 @@ export class SVGRenderer {
     this._snapIndicatorsGroup = null;
     this._elementMap.clear();
     this._renderedClipPaths.clear();
+    this._renderedFilters.clear();
     this._renderedGuides.clear();
   }
 
@@ -745,6 +825,7 @@ export class SVGRenderer {
     const transform = this._buildTransformAttr(element.transform, rotationCenter);
     const opacity = element.opacity !== 1 ? ` opacity="${String(element.opacity)}"` : '';
     const clipAttr = this._collectClipPath(element, context);
+    const filterAttr = this._collectFilterAttr(element, context);
 
     switch (element.type) {
       case 'image': {
@@ -752,7 +833,7 @@ export class SVGRenderer {
         const w = String(el.width);
         const h = String(el.height);
         const attrs = `href="${el.src}" width="${w}" height="${h}"`;
-        return `<image ${attrs}${transform}${opacity}${clipAttr} />`;
+        return `<image ${attrs}${transform}${opacity}${clipAttr}${filterAttr} />`;
       }
       case 'text': {
         const el = element as TextElement;
@@ -761,12 +842,12 @@ export class SVGRenderer {
         return (
           `<text font-size="${fs}" font-family="${el.fontFamily}" ` +
           `fill="${el.fill}" text-anchor="${el.textAnchor}" style="user-select: none"` +
-          `${transform}${opacity}${clipAttr}>${content}</text>`
+          `${transform}${opacity}${clipAttr}${filterAttr}>${content}</text>`
         );
       }
       case 'shape': {
         const el = element as ShapeElement;
-        return this._shapeToSVG(el, transform, opacity, clipAttr);
+        return this._shapeToSVG(el, transform, opacity, clipAttr, filterAttr);
       }
       case 'group': {
         const el = element as GroupElement;
@@ -777,7 +858,7 @@ export class SVGRenderer {
           })
           .filter((s) => s !== '')
           .join('');
-        return `<g${transform}${opacity}${clipAttr}>${children}</g>`;
+        return `<g${transform}${opacity}${clipAttr}${filterAttr}>${children}</g>`;
       }
       default:
         return '';
@@ -792,11 +873,12 @@ export class SVGRenderer {
     transform: string,
     opacity: string,
     clipAttr: string,
+    filterAttr: string,
   ): string {
     const sw = String(el.strokeWidth);
     const common =
       `fill="${el.fill}" stroke="${el.stroke}" stroke-width="${sw}"` +
-      `${transform}${opacity}${clipAttr}`;
+      `${transform}${opacity}${clipAttr}${filterAttr}`;
 
     switch (el.shapeType) {
       case 'rect': {
@@ -903,11 +985,671 @@ export class SVGRenderer {
     };
   }
 
+  // ============================================================
+  // Private: Filter Handling
+  // ============================================================
+
   /**
-   * Builds the defs section content from collected clip paths
+   * Collects the filter attribute for SVG string generation
    */
-  private _buildDefsContent(clipPaths: Map<string, ClipPath>): string {
-    if (clipPaths.size === 0) {
+  private _collectFilterAttr(element: BaseElement, context: RenderContext): string {
+    if (!element.filters || element.filters.length === 0) {
+      return '';
+    }
+
+    // For now, we only support single filter; combine multiple into one would require
+    // creating a composite filter which is complex. Support the first filter for simplicity.
+    const firstFilter = element.filters[0];
+    if (!firstFilter) {
+      return '';
+    }
+
+    if (firstFilter.type === 'custom') {
+      // Custom filter - look up by ID
+      const filterDef = context.getFilter?.(firstFilter.filterId);
+      if (filterDef) {
+        if (!context.filters.has(filterDef.id)) {
+          context.filters.set(filterDef.id, filterDef);
+        }
+        return ` filter="url(#${filterDef.id})"`;
+      }
+      return '';
+    }
+
+    // Preset filter - resolve to filter definition
+    if (context.resolveFilter) {
+      const filterId = context.resolveFilter(firstFilter);
+      const filterDef = context.getFilter?.(filterId);
+      if (filterDef) {
+        if (!context.filters.has(filterDef.id)) {
+          context.filters.set(filterDef.id, filterDef);
+        }
+        return ` filter="url(#${filterDef.id})"`;
+      }
+    }
+
+    return '';
+  }
+
+  /**
+   * Resolves the filter attribute for DOM rendering
+   */
+  private _resolveFilterAttribute(element: BaseElement, context: RenderContext): string | null {
+    if (!element.filters || element.filters.length === 0) {
+      return null;
+    }
+
+    const firstFilter = element.filters[0];
+    if (!firstFilter) {
+      return null;
+    }
+
+    if (firstFilter.type === 'custom') {
+      const filterDef = context.getFilter?.(firstFilter.filterId);
+      if (filterDef) {
+        if (!context.filters.has(filterDef.id)) {
+          context.filters.set(filterDef.id, filterDef);
+        }
+        return `url(#${filterDef.id})`;
+      }
+      return null;
+    }
+
+    if (context.resolveFilter) {
+      const filterId = context.resolveFilter(firstFilter);
+      const filterDef = context.getFilter?.(filterId);
+      if (filterDef) {
+        if (!context.filters.has(filterDef.id)) {
+          context.filters.set(filterDef.id, filterDef);
+        }
+        return `url(#${filterDef.id})`;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Renders a filter definition to SVG markup
+   */
+  private _renderFilterDef(filter: FilterDefinition): string {
+    const attrs: string[] = [`id="${filter.id}"`];
+
+    if (filter.x !== undefined) {
+      attrs.push(`x="${String(filter.x)}"`);
+    }
+    if (filter.y !== undefined) {
+      attrs.push(`y="${String(filter.y)}"`);
+    }
+    if (filter.width !== undefined) {
+      attrs.push(`width="${String(filter.width)}"`);
+    }
+    if (filter.height !== undefined) {
+      attrs.push(`height="${String(filter.height)}"`);
+    }
+    if (filter.filterUnits) {
+      attrs.push(`filterUnits="${filter.filterUnits}"`);
+    }
+    if (filter.primitiveUnits) {
+      attrs.push(`primitiveUnits="${filter.primitiveUnits}"`);
+    }
+    if (filter.colorInterpolationFilters) {
+      attrs.push(`color-interpolation-filters="${filter.colorInterpolationFilters}"`);
+    }
+
+    const primitiveMarkup = filter.primitives
+      .map((p) => this._renderFilterPrimitive(p))
+      .join('\n      ');
+
+    return `<filter ${attrs.join(' ')}>\n      ${primitiveMarkup}\n    </filter>`;
+  }
+
+  /**
+   * Renders a filter primitive to SVG markup
+   */
+  private _renderFilterPrimitive(primitive: FilterPrimitive): string {
+    const commonAttrs = this._buildCommonFilterAttrs(primitive);
+
+    switch (primitive.type) {
+      case 'gaussianBlur':
+        return this._renderGaussianBlur(primitive as GaussianBlurPrimitive, commonAttrs);
+      case 'dropShadow':
+        return this._renderDropShadow(primitive as DropShadowPrimitive, commonAttrs);
+      case 'colorMatrix':
+        return this._renderColorMatrix(primitive as ColorMatrixPrimitive, commonAttrs);
+      case 'componentTransfer':
+        return this._renderComponentTransfer(primitive as ComponentTransferPrimitive, commonAttrs);
+      case 'morphology':
+        return this._renderMorphology(primitive as MorphologyPrimitive, commonAttrs);
+      case 'turbulence':
+        return this._renderTurbulence(primitive as TurbulencePrimitive, commonAttrs);
+      case 'displacement':
+        return this._renderDisplacement(primitive as DisplacementPrimitive, commonAttrs);
+      case 'blend':
+        return this._renderBlend(primitive as BlendPrimitive, commonAttrs);
+      case 'composite':
+        return this._renderComposite(primitive as CompositePrimitive, commonAttrs);
+      case 'flood':
+        return this._renderFlood(primitive as FloodPrimitive, commonAttrs);
+      case 'merge':
+        return this._renderMerge(primitive as MergePrimitive, commonAttrs);
+      case 'offset':
+        return this._renderOffset(primitive as OffsetPrimitive, commonAttrs);
+      case 'convolveMatrix':
+        return this._renderConvolveMatrix(primitive as ConvolveMatrixPrimitive, commonAttrs);
+      case 'lighting':
+        return this._renderLighting(primitive as LightingPrimitive, commonAttrs);
+      default:
+        return '';
+    }
+  }
+
+  /**
+   * Builds common filter attributes (in, result)
+   */
+  private _buildCommonFilterAttrs(primitive: FilterPrimitive): string {
+    const attrs: string[] = [];
+    const base = primitive as { in?: string; result?: string };
+    if (base.in) {
+      attrs.push(`in="${base.in}"`);
+    }
+    if (base.result) {
+      attrs.push(`result="${base.result}"`);
+    }
+    return attrs.join(' ');
+  }
+
+  private _renderGaussianBlur(p: GaussianBlurPrimitive, common: string): string {
+    const stdDev = Array.isArray(p.stdDeviation)
+      ? `${p.stdDeviation[0]} ${p.stdDeviation[1]}`
+      : String(p.stdDeviation);
+    const edgeMode = p.edgeMode ? ` edgeMode="${p.edgeMode}"` : '';
+    const attrs = common ? ` ${common}` : '';
+    return `<feGaussianBlur stdDeviation="${stdDev}"${edgeMode}${attrs} />`;
+  }
+
+  private _renderDropShadow(p: DropShadowPrimitive, common: string): string {
+    const opacity = p.floodOpacity !== undefined ? ` flood-opacity="${p.floodOpacity}"` : '';
+    const attrs = common ? ` ${common}` : '';
+    return `<feDropShadow dx="${p.dx}" dy="${p.dy}" stdDeviation="${p.stdDeviation}" flood-color="${p.floodColor}"${opacity}${attrs} />`;
+  }
+
+  private _renderColorMatrix(p: ColorMatrixPrimitive, common: string): string {
+    let values = '';
+    if (p.values !== undefined) {
+      values = Array.isArray(p.values) ? ` values="${p.values.join(' ')}"` : ` values="${p.values}"`;
+    }
+    const attrs = common ? ` ${common}` : '';
+    return `<feColorMatrix type="${p.matrixType}"${values}${attrs} />`;
+  }
+
+  private _renderComponentTransfer(p: ComponentTransferPrimitive, common: string): string {
+    const attrs = common ? ` ${common}` : '';
+    const funcs: string[] = [];
+
+    if (p.funcR) funcs.push(this._renderTransferFunc('feFuncR', p.funcR));
+    if (p.funcG) funcs.push(this._renderTransferFunc('feFuncG', p.funcG));
+    if (p.funcB) funcs.push(this._renderTransferFunc('feFuncB', p.funcB));
+    if (p.funcA) funcs.push(this._renderTransferFunc('feFuncA', p.funcA));
+
+    const content = funcs.join('\n        ');
+    return `<feComponentTransfer${attrs}>\n        ${content}\n      </feComponentTransfer>`;
+  }
+
+  private _renderTransferFunc(tag: string, func: TransferFunction): string {
+    const attrs: string[] = [`type="${func.type}"`];
+
+    if (func.tableValues) {
+      attrs.push(`tableValues="${func.tableValues.join(' ')}"`);
+    }
+    if (func.slope !== undefined) {
+      attrs.push(`slope="${func.slope}"`);
+    }
+    if (func.intercept !== undefined) {
+      attrs.push(`intercept="${func.intercept}"`);
+    }
+    if (func.amplitude !== undefined) {
+      attrs.push(`amplitude="${func.amplitude}"`);
+    }
+    if (func.exponent !== undefined) {
+      attrs.push(`exponent="${func.exponent}"`);
+    }
+    if (func.offset !== undefined) {
+      attrs.push(`offset="${func.offset}"`);
+    }
+
+    return `<${tag} ${attrs.join(' ')} />`;
+  }
+
+  private _renderMorphology(p: MorphologyPrimitive, common: string): string {
+    const radius = Array.isArray(p.radius)
+      ? `${p.radius[0]} ${p.radius[1]}`
+      : String(p.radius);
+    const attrs = common ? ` ${common}` : '';
+    return `<feMorphology operator="${p.operator}" radius="${radius}"${attrs} />`;
+  }
+
+  private _renderTurbulence(p: TurbulencePrimitive, common: string): string {
+    const freq = Array.isArray(p.baseFrequency)
+      ? `${p.baseFrequency[0]} ${p.baseFrequency[1]}`
+      : String(p.baseFrequency);
+    const attrs: string[] = [`type="${p.turbulenceType}"`, `baseFrequency="${freq}"`];
+    if (p.numOctaves !== undefined) {
+      attrs.push(`numOctaves="${p.numOctaves}"`);
+    }
+    if (p.seed !== undefined) {
+      attrs.push(`seed="${p.seed}"`);
+    }
+    if (p.stitchTiles) {
+      attrs.push(`stitchTiles="${p.stitchTiles}"`);
+    }
+    const commonStr = common ? ` ${common}` : '';
+    return `<feTurbulence ${attrs.join(' ')}${commonStr} />`;
+  }
+
+  private _renderDisplacement(p: DisplacementPrimitive, common: string): string {
+    const attrs: string[] = [`in2="${p.in2}"`, `scale="${p.scale}"`];
+    if (p.xChannelSelector) {
+      attrs.push(`xChannelSelector="${p.xChannelSelector}"`);
+    }
+    if (p.yChannelSelector) {
+      attrs.push(`yChannelSelector="${p.yChannelSelector}"`);
+    }
+    const commonStr = common ? ` ${common}` : '';
+    return `<feDisplacementMap ${attrs.join(' ')}${commonStr} />`;
+  }
+
+  private _renderBlend(p: BlendPrimitive, common: string): string {
+    const attrs = common ? ` ${common}` : '';
+    return `<feBlend in2="${p.in2}" mode="${p.mode}"${attrs} />`;
+  }
+
+  private _renderComposite(p: CompositePrimitive, common: string): string {
+    const attrs: string[] = [`in2="${p.in2}"`, `operator="${p.operator}"`];
+    if (p.operator === 'arithmetic') {
+      if (p.k1 !== undefined) attrs.push(`k1="${p.k1}"`);
+      if (p.k2 !== undefined) attrs.push(`k2="${p.k2}"`);
+      if (p.k3 !== undefined) attrs.push(`k3="${p.k3}"`);
+      if (p.k4 !== undefined) attrs.push(`k4="${p.k4}"`);
+    }
+    const commonStr = common ? ` ${common}` : '';
+    return `<feComposite ${attrs.join(' ')}${commonStr} />`;
+  }
+
+  private _renderFlood(p: FloodPrimitive, common: string): string {
+    const opacity = p.floodOpacity !== undefined ? ` flood-opacity="${p.floodOpacity}"` : '';
+    const attrs = common ? ` ${common}` : '';
+    return `<feFlood flood-color="${p.floodColor}"${opacity}${attrs} />`;
+  }
+
+  private _renderMerge(p: MergePrimitive, common: string): string {
+    const attrs = common ? ` ${common}` : '';
+    const nodes = p.nodes.map((n) => `<feMergeNode in="${n.in}" />`).join('\n        ');
+    return `<feMerge${attrs}>\n        ${nodes}\n      </feMerge>`;
+  }
+
+  private _renderOffset(p: OffsetPrimitive, common: string): string {
+    const attrs = common ? ` ${common}` : '';
+    return `<feOffset dx="${p.dx}" dy="${p.dy}"${attrs} />`;
+  }
+
+  private _renderConvolveMatrix(p: ConvolveMatrixPrimitive, common: string): string {
+    const attrs: string[] = [
+      `order="${p.order[0]} ${p.order[1]}"`,
+      `kernelMatrix="${p.kernelMatrix.join(' ')}"`,
+    ];
+    if (p.divisor !== undefined) attrs.push(`divisor="${p.divisor}"`);
+    if (p.bias !== undefined) attrs.push(`bias="${p.bias}"`);
+    if (p.targetX !== undefined) attrs.push(`targetX="${p.targetX}"`);
+    if (p.targetY !== undefined) attrs.push(`targetY="${p.targetY}"`);
+    if (p.edgeMode) attrs.push(`edgeMode="${p.edgeMode}"`);
+    if (p.preserveAlpha !== undefined) attrs.push(`preserveAlpha="${p.preserveAlpha}"`);
+    const commonStr = common ? ` ${common}` : '';
+    return `<feConvolveMatrix ${attrs.join(' ')}${commonStr} />`;
+  }
+
+  private _renderLighting(p: LightingPrimitive, common: string): string {
+    const isDiffuse = p.lightingType === 'diffuse';
+    const tag = isDiffuse ? 'feDiffuseLighting' : 'feSpecularLighting';
+    const attrs: string[] = [];
+
+    if (p.surfaceScale !== undefined) attrs.push(`surfaceScale="${p.surfaceScale}"`);
+    if (p.lightingColor) attrs.push(`lighting-color="${p.lightingColor}"`);
+    if (isDiffuse && p.diffuseConstant !== undefined) {
+      attrs.push(`diffuseConstant="${p.diffuseConstant}"`);
+    }
+    if (!isDiffuse) {
+      if (p.specularConstant !== undefined) attrs.push(`specularConstant="${p.specularConstant}"`);
+      if (p.specularExponent !== undefined) attrs.push(`specularExponent="${p.specularExponent}"`);
+    }
+
+    const commonStr = common ? ` ${common}` : '';
+    const lightEl = this._renderLightSource(p.light);
+    const attrStr = attrs.length > 0 ? ` ${attrs.join(' ')}` : '';
+    return `<${tag}${attrStr}${commonStr}>\n        ${lightEl}\n      </${tag}>`;
+  }
+
+  private _renderLightSource(light: LightingPrimitive['light']): string {
+    switch (light.type) {
+      case 'distant':
+        return `<feDistantLight azimuth="${light.azimuth}" elevation="${light.elevation}" />`;
+      case 'point':
+        return `<fePointLight x="${light.x}" y="${light.y}" z="${light.z}" />`;
+      case 'spot': {
+        const attrs: string[] = [
+          `x="${light.x}"`,
+          `y="${light.y}"`,
+          `z="${light.z}"`,
+          `pointsAtX="${light.pointsAtX}"`,
+          `pointsAtY="${light.pointsAtY}"`,
+          `pointsAtZ="${light.pointsAtZ}"`,
+        ];
+        if (light.specularExponent !== undefined) {
+          attrs.push(`specularExponent="${light.specularExponent}"`);
+        }
+        if (light.limitingConeAngle !== undefined) {
+          attrs.push(`limitingConeAngle="${light.limitingConeAngle}"`);
+        }
+        return `<feSpotLight ${attrs.join(' ')} />`;
+      }
+      default:
+        return '';
+    }
+  }
+
+  /**
+   * Adds filters to the defs element in the DOM
+   */
+  private _addFiltersToDefs(filters: Map<string, FilterDefinition>): void {
+    if (!this._defsElement) {
+      return;
+    }
+
+    for (const [id, filter] of filters) {
+      if (!this._renderedFilters.has(id)) {
+        const filterEl = this._createFilterDOMElement(filter);
+        this._defsElement.appendChild(filterEl);
+        this._renderedFilters.add(id);
+      }
+    }
+  }
+
+  /**
+   * Creates a filter DOM element from a filter definition
+   */
+  private _createFilterDOMElement(filter: FilterDefinition): SVGFilterElement {
+    const filterEl = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+    filterEl.setAttribute('id', filter.id);
+
+    if (filter.x !== undefined) {
+      filterEl.setAttribute('x', String(filter.x));
+    }
+    if (filter.y !== undefined) {
+      filterEl.setAttribute('y', String(filter.y));
+    }
+    if (filter.width !== undefined) {
+      filterEl.setAttribute('width', String(filter.width));
+    }
+    if (filter.height !== undefined) {
+      filterEl.setAttribute('height', String(filter.height));
+    }
+    if (filter.filterUnits) {
+      filterEl.setAttribute('filterUnits', filter.filterUnits);
+    }
+    if (filter.primitiveUnits) {
+      filterEl.setAttribute('primitiveUnits', filter.primitiveUnits);
+    }
+    if (filter.colorInterpolationFilters) {
+      filterEl.setAttribute('color-interpolation-filters', filter.colorInterpolationFilters);
+    }
+
+    // Add primitives as child elements
+    for (const primitive of filter.primitives) {
+      const primitiveEl = this._createFilterPrimitiveDOMElement(primitive);
+      if (primitiveEl) {
+        filterEl.appendChild(primitiveEl);
+      }
+    }
+
+    return filterEl;
+  }
+
+  /**
+   * Creates a filter primitive DOM element
+   */
+  private _createFilterPrimitiveDOMElement(primitive: FilterPrimitive): SVGElement | null {
+    let el: SVGElement;
+    const base = primitive as { in?: string; result?: string };
+
+    switch (primitive.type) {
+      case 'gaussianBlur': {
+        const p = primitive as GaussianBlurPrimitive;
+        el = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+        const stdDev = Array.isArray(p.stdDeviation)
+          ? `${p.stdDeviation[0]} ${p.stdDeviation[1]}`
+          : String(p.stdDeviation);
+        el.setAttribute('stdDeviation', stdDev);
+        if (p.edgeMode) el.setAttribute('edgeMode', p.edgeMode);
+        break;
+      }
+      case 'dropShadow': {
+        const p = primitive as DropShadowPrimitive;
+        el = document.createElementNS('http://www.w3.org/2000/svg', 'feDropShadow');
+        el.setAttribute('dx', String(p.dx));
+        el.setAttribute('dy', String(p.dy));
+        el.setAttribute('stdDeviation', String(p.stdDeviation));
+        el.setAttribute('flood-color', p.floodColor);
+        if (p.floodOpacity !== undefined) el.setAttribute('flood-opacity', String(p.floodOpacity));
+        break;
+      }
+      case 'colorMatrix': {
+        const p = primitive as ColorMatrixPrimitive;
+        el = document.createElementNS('http://www.w3.org/2000/svg', 'feColorMatrix');
+        el.setAttribute('type', p.matrixType);
+        if (p.values !== undefined) {
+          el.setAttribute('values', Array.isArray(p.values) ? p.values.join(' ') : String(p.values));
+        }
+        break;
+      }
+      case 'componentTransfer': {
+        const p = primitive as ComponentTransferPrimitive;
+        el = document.createElementNS('http://www.w3.org/2000/svg', 'feComponentTransfer');
+        if (p.funcR) el.appendChild(this._createTransferFuncElement('feFuncR', p.funcR));
+        if (p.funcG) el.appendChild(this._createTransferFuncElement('feFuncG', p.funcG));
+        if (p.funcB) el.appendChild(this._createTransferFuncElement('feFuncB', p.funcB));
+        if (p.funcA) el.appendChild(this._createTransferFuncElement('feFuncA', p.funcA));
+        break;
+      }
+      case 'morphology': {
+        const p = primitive as MorphologyPrimitive;
+        el = document.createElementNS('http://www.w3.org/2000/svg', 'feMorphology');
+        el.setAttribute('operator', p.operator);
+        const radius = Array.isArray(p.radius) ? `${p.radius[0]} ${p.radius[1]}` : String(p.radius);
+        el.setAttribute('radius', radius);
+        break;
+      }
+      case 'turbulence': {
+        const p = primitive as TurbulencePrimitive;
+        el = document.createElementNS('http://www.w3.org/2000/svg', 'feTurbulence');
+        el.setAttribute('type', p.turbulenceType);
+        const freq = Array.isArray(p.baseFrequency)
+          ? `${p.baseFrequency[0]} ${p.baseFrequency[1]}`
+          : String(p.baseFrequency);
+        el.setAttribute('baseFrequency', freq);
+        if (p.numOctaves !== undefined) el.setAttribute('numOctaves', String(p.numOctaves));
+        if (p.seed !== undefined) el.setAttribute('seed', String(p.seed));
+        if (p.stitchTiles) el.setAttribute('stitchTiles', p.stitchTiles);
+        break;
+      }
+      case 'displacement': {
+        const p = primitive as DisplacementPrimitive;
+        el = document.createElementNS('http://www.w3.org/2000/svg', 'feDisplacementMap');
+        el.setAttribute('in2', p.in2);
+        el.setAttribute('scale', String(p.scale));
+        if (p.xChannelSelector) el.setAttribute('xChannelSelector', p.xChannelSelector);
+        if (p.yChannelSelector) el.setAttribute('yChannelSelector', p.yChannelSelector);
+        break;
+      }
+      case 'blend': {
+        const p = primitive as BlendPrimitive;
+        el = document.createElementNS('http://www.w3.org/2000/svg', 'feBlend');
+        el.setAttribute('in2', p.in2);
+        el.setAttribute('mode', p.mode);
+        break;
+      }
+      case 'composite': {
+        const p = primitive as CompositePrimitive;
+        el = document.createElementNS('http://www.w3.org/2000/svg', 'feComposite');
+        el.setAttribute('in2', p.in2);
+        el.setAttribute('operator', p.operator);
+        if (p.operator === 'arithmetic') {
+          if (p.k1 !== undefined) el.setAttribute('k1', String(p.k1));
+          if (p.k2 !== undefined) el.setAttribute('k2', String(p.k2));
+          if (p.k3 !== undefined) el.setAttribute('k3', String(p.k3));
+          if (p.k4 !== undefined) el.setAttribute('k4', String(p.k4));
+        }
+        break;
+      }
+      case 'flood': {
+        const p = primitive as FloodPrimitive;
+        el = document.createElementNS('http://www.w3.org/2000/svg', 'feFlood');
+        el.setAttribute('flood-color', p.floodColor);
+        if (p.floodOpacity !== undefined) el.setAttribute('flood-opacity', String(p.floodOpacity));
+        break;
+      }
+      case 'merge': {
+        const p = primitive as MergePrimitive;
+        el = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
+        for (const node of p.nodes) {
+          const nodeEl = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+          nodeEl.setAttribute('in', node.in);
+          el.appendChild(nodeEl);
+        }
+        break;
+      }
+      case 'offset': {
+        const p = primitive as OffsetPrimitive;
+        el = document.createElementNS('http://www.w3.org/2000/svg', 'feOffset');
+        el.setAttribute('dx', String(p.dx));
+        el.setAttribute('dy', String(p.dy));
+        break;
+      }
+      case 'convolveMatrix': {
+        const p = primitive as ConvolveMatrixPrimitive;
+        el = document.createElementNS('http://www.w3.org/2000/svg', 'feConvolveMatrix');
+        el.setAttribute('order', `${p.order[0]} ${p.order[1]}`);
+        el.setAttribute('kernelMatrix', p.kernelMatrix.join(' '));
+        if (p.divisor !== undefined) el.setAttribute('divisor', String(p.divisor));
+        if (p.bias !== undefined) el.setAttribute('bias', String(p.bias));
+        if (p.targetX !== undefined) el.setAttribute('targetX', String(p.targetX));
+        if (p.targetY !== undefined) el.setAttribute('targetY', String(p.targetY));
+        if (p.edgeMode) el.setAttribute('edgeMode', p.edgeMode);
+        if (p.preserveAlpha !== undefined) el.setAttribute('preserveAlpha', String(p.preserveAlpha));
+        break;
+      }
+      case 'lighting': {
+        const p = primitive as LightingPrimitive;
+        const tagName = p.lightingType === 'diffuse' ? 'feDiffuseLighting' : 'feSpecularLighting';
+        el = document.createElementNS('http://www.w3.org/2000/svg', tagName);
+        if (p.surfaceScale !== undefined) el.setAttribute('surfaceScale', String(p.surfaceScale));
+        if (p.lightingColor) el.setAttribute('lighting-color', p.lightingColor);
+        if (p.lightingType === 'diffuse' && p.diffuseConstant !== undefined) {
+          el.setAttribute('diffuseConstant', String(p.diffuseConstant));
+        }
+        if (p.lightingType === 'specular') {
+          if (p.specularConstant !== undefined) el.setAttribute('specularConstant', String(p.specularConstant));
+          if (p.specularExponent !== undefined) el.setAttribute('specularExponent', String(p.specularExponent));
+        }
+        el.appendChild(this._createLightSourceElement(p.light));
+        break;
+      }
+      default:
+        return null;
+    }
+
+    // Apply common attributes
+    if (base.in) el.setAttribute('in', base.in);
+    if (base.result) el.setAttribute('result', base.result);
+
+    return el;
+  }
+
+  /**
+   * Creates a transfer function element
+   */
+  private _createTransferFuncElement(tagName: string, func: TransferFunction): SVGElement {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', tagName);
+    el.setAttribute('type', func.type);
+
+    if (func.tableValues) {
+      el.setAttribute('tableValues', func.tableValues.join(' '));
+    }
+    if (func.slope !== undefined) {
+      el.setAttribute('slope', String(func.slope));
+    }
+    if (func.intercept !== undefined) {
+      el.setAttribute('intercept', String(func.intercept));
+    }
+    if (func.amplitude !== undefined) {
+      el.setAttribute('amplitude', String(func.amplitude));
+    }
+    if (func.exponent !== undefined) {
+      el.setAttribute('exponent', String(func.exponent));
+    }
+    if (func.offset !== undefined) {
+      el.setAttribute('offset', String(func.offset));
+    }
+
+    return el;
+  }
+
+  /**
+   * Creates a light source element
+   */
+  private _createLightSourceElement(light: LightingPrimitive['light']): SVGElement {
+    switch (light.type) {
+      case 'distant': {
+        const el = document.createElementNS('http://www.w3.org/2000/svg', 'feDistantLight');
+        el.setAttribute('azimuth', String(light.azimuth));
+        el.setAttribute('elevation', String(light.elevation));
+        return el;
+      }
+      case 'point': {
+        const el = document.createElementNS('http://www.w3.org/2000/svg', 'fePointLight');
+        el.setAttribute('x', String(light.x));
+        el.setAttribute('y', String(light.y));
+        el.setAttribute('z', String(light.z));
+        return el;
+      }
+      case 'spot': {
+        const el = document.createElementNS('http://www.w3.org/2000/svg', 'feSpotLight');
+        el.setAttribute('x', String(light.x));
+        el.setAttribute('y', String(light.y));
+        el.setAttribute('z', String(light.z));
+        el.setAttribute('pointsAtX', String(light.pointsAtX));
+        el.setAttribute('pointsAtY', String(light.pointsAtY));
+        el.setAttribute('pointsAtZ', String(light.pointsAtZ));
+        if (light.specularExponent !== undefined) {
+          el.setAttribute('specularExponent', String(light.specularExponent));
+        }
+        if (light.limitingConeAngle !== undefined) {
+          el.setAttribute('limitingConeAngle', String(light.limitingConeAngle));
+        }
+        return el;
+      }
+      default:
+        return document.createElementNS('http://www.w3.org/2000/svg', 'feDistantLight');
+    }
+  }
+
+  /**
+   * Builds the defs section content from collected clip paths and filters
+   */
+  private _buildDefsContent(
+    clipPaths: Map<string, ClipPath>,
+    filters: Map<string, FilterDefinition>,
+  ): string {
+    if (clipPaths.size === 0 && filters.size === 0) {
       return '';
     }
 
@@ -915,9 +1657,15 @@ export class SVGRenderer {
       .map((cp) => this._renderClipPathDef(cp).markup)
       .join('\n    ');
 
+    const filterMarkup = Array.from(filters.values())
+      .map((f) => this._renderFilterDef(f))
+      .join('\n    ');
+
+    const allMarkup = [clipPathMarkup, filterMarkup].filter((m) => m.length > 0).join('\n    ');
+
     return `
   <defs>
-    ${clipPathMarkup}
+    ${allMarkup}
   </defs>`;
   }
 
@@ -1075,6 +1823,12 @@ export class SVGRenderer {
         context.clipPaths.set(element.clipPath.id, element.clipPath);
       }
       svgElement.setAttribute('clip-path', `url(#${element.clipPath.id})`);
+    }
+
+    // Apply filter
+    const filterAttr = this._resolveFilterAttribute(element, context);
+    if (filterAttr) {
+      svgElement.setAttribute('filter', filterAttr);
     }
   }
 
@@ -1316,6 +2070,46 @@ export class SVGRenderer {
         clipPathEl.remove();
       }
       this._renderedClipPaths.delete(id);
+    }
+  }
+
+  /**
+   * Removes filters from defs that are no longer referenced by any rendered element.
+   */
+  private _cleanupOrphanedFilters(): void {
+    if (!this._defsElement) {
+      return;
+    }
+
+    // Collect all filter IDs currently in use by rendered elements
+    const usedFilterIds = new Set<string>();
+    const filterRegex = /url\(#([^)]+)\)/;
+    for (const entry of this._elementMap.values()) {
+      const filterAttr = entry.element.getAttribute('filter');
+      if (filterAttr !== null && filterAttr.length > 0) {
+        // Extract ID from "url(#filter-id)" format
+        const match = filterRegex.exec(filterAttr);
+        const filterId = match?.[1];
+        if (filterId !== undefined && filterId.length > 0) {
+          usedFilterIds.add(filterId);
+        }
+      }
+    }
+
+    // Remove orphaned filters
+    const orphanedIds: string[] = [];
+    for (const id of this._renderedFilters) {
+      if (!usedFilterIds.has(id)) {
+        orphanedIds.push(id);
+      }
+    }
+
+    for (const id of orphanedIds) {
+      const filterEl = this._defsElement.querySelector(`filter#${id}`);
+      if (filterEl) {
+        filterEl.remove();
+      }
+      this._renderedFilters.delete(id);
     }
   }
 

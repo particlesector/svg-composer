@@ -4,6 +4,7 @@
 
 import type { BaseElement, ClipPath } from '../elements/types.js';
 import type { SnapTarget } from '../core/types.js';
+import type { FilterDefinition } from '../filters/types.js';
 
 /**
  * Viewport state for pan and zoom
@@ -41,8 +42,14 @@ export interface ClipPathDef {
 export interface RenderContext {
   /** Collection of clip paths to add to defs (stores original ClipPath for DOM creation) */
   clipPaths: Map<string, ClipPath>;
+  /** Collection of filters to add to defs */
+  filters: Map<string, FilterDefinition>;
   /** Function to get element by ID (for resolving group children) */
   getElement: (id: string) => BaseElement | undefined;
+  /** Function to resolve an element filter to a filter ID */
+  resolveFilter?: (filter: import('../filters/types.js').ElementFilter) => string;
+  /** Function to get a filter by ID */
+  getFilter?: (id: string) => FilterDefinition | undefined;
 }
 
 /**
