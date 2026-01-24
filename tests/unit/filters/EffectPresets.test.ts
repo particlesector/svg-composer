@@ -90,6 +90,17 @@ describe('EffectPresets', () => {
       expect(effect.blur).toBe(10);
       expect(effect.color).toBe('#000000');
     });
+
+    it('should create an inner shadow with opacity when specified', () => {
+      const effect = innerShadow({
+        offsetX: 2,
+        offsetY: 2,
+        blur: 4,
+        color: '#000000',
+        opacity: 0.5,
+      });
+      expect(effect.opacity).toBe(0.5);
+    });
   });
 
   describe('glow', () => {

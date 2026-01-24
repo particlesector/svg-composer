@@ -442,5 +442,48 @@ describe('FilterManager', () => {
       const filter = filterManager.effectToFilter(effect);
       expect(filter.primitives.length).toBeGreaterThan(0);
     });
+
+    it('should handle invalid color format and fallback to black', () => {
+      const effect: EffectPreset = {
+        type: 'duotone',
+        shadowColor: 'invalid-color-format',
+        highlightColor: 'also-invalid',
+      };
+      // Should not throw, should fallback to black
+      const filter = filterManager.effectToFilter(effect);
+      expect(filter.primitives.length).toBeGreaterThan(0);
+    });
+  });
+
+  // ============================================================
+  // Inner Glow
+  // ============================================================
+
+  describe('inner glow', () => {
+    it('should convert inner glow effect to filter definition', () => {
+      const effect: EffectPreset = {
+        type: 'glow',
+        radius: 10,
+        color: '#ff0000',
+        inner: true,
+      };
+      const filter = filterManager.effectToFilter(effect);
+
+      // Inner glow uses inner shadow primitives
+      expect(filter.primitives.length).toBeGreaterThanOrEqual(4);
+    });
+
+    it('should convert inner glow with opacity to filter definition', () => {
+      const effect: EffectPreset = {
+        type: 'glow',
+        radius: 8,
+        color: '#00ff00',
+        opacity: 0.5,
+        inner: true,
+      };
+      const filter = filterManager.effectToFilter(effect);
+
+      expect(filter.primitives.length).toBeGreaterThanOrEqual(4);
+    });
   });
 });
