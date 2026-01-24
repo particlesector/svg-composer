@@ -43,6 +43,7 @@ import type {
   ShapeElement,
   GroupElement,
 } from '../elements/types.js';
+import type { FilterDefinition, EffectPreset, ElementFilter } from '../filters/types.js';
 import { State, DEFAULT_OPTIONS } from './State.js';
 import { History } from './History.js';
 import { EditorEventEmitter } from './EventEmitter.js';
@@ -56,6 +57,7 @@ import { AddShapeTool } from '../interaction/tools/AddShapeTool.js';
 import { AddTextTool } from '../interaction/tools/AddTextTool.js';
 import { AddImageTool } from '../interaction/tools/AddImageTool.js';
 import { SnappingManager } from '../interaction/SnappingManager.js';
+import { FilterManager } from '../filters/FilterManager.js';
 
 /**
  * SVG Composer - A zero-dependency SVG canvas editor
@@ -86,6 +88,7 @@ export class SVGComposer extends EditorEventEmitter {
   protected readonly _history: History;
   private readonly _renderer: SVGRenderer;
   private readonly _snappingManager: SnappingManager;
+  private readonly _filterManager: FilterManager;
   private _interactionManager: InteractionManager | null = null;
   private _currentTool: ToolType = 'select';
   private _destroyed = false;
@@ -104,6 +107,7 @@ export class SVGComposer extends EditorEventEmitter {
     this._history = new History(options.historyLimit ?? DEFAULT_OPTIONS.historyLimit);
     this._renderer = new SVGRenderer();
     this._snappingManager = new SnappingManager(DEFAULT_SNAPPING_CONFIG);
+    this._filterManager = new FilterManager();
     // Push initial state to history stack
     this._history.push(this._state.snapshot());
   }
@@ -1252,6 +1256,291 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   // ============================================================
+  // Filters & Effects
+  // ============================================================
+
+  /**
+   * Adds a filter to an element using an effect preset
+   *
+   * @param elementId - Element ID to apply filter to
+   * @param effect - Effect preset to apply
+   * @returns The generated filter ID
+   * @throws Error if element not found
+   *
+   * @example
+   * ```typescript
+   * // Apply a blur effect
+   * editor.addEffect(imageId, { type: 'blur', radius: 5 });
+   *
+   * // Apply a drop shadow
+   * editor.addEffect(imageId, {
+   *   type: 'dropShadow',
+   *   offsetX: 4,
+   *   offsetY: 4,
+   *   blur: 8,
+   *   color: 'rgba(0,0,0,0.5)'
+   * });
+   * ```
+   */
+  addEffect(elementId: string, effect: EffectPreset): string {
+    const element = this._state.getElement(elementId);
+    if (element === undefined) {
+      throw new Error(`Element not found: ${elementId}`);
+    }
+
+    // Get or create filter for this preset
+    const filterId = this._filterManager.getOrCreatePresetFilter(effect);
+
+    // Create element filter reference
+    const elementFilter: ElementFilter = {
+      type: 'preset',
+      effect,
+    };
+
+    // Add to element's filters array
+    const existingFilters = element.filters ?? [];
+    this._state.updateElement(elementId, {
+      filters: [...existingFilters, elementFilter],
+    });
+    this._history.push(this._state.snapshot());
+
+    const updatedElement = this._state.getElement(elementId);
+    if (updatedElement !== undefined) {
+      this.emit('element:updated', { id: elementId, element: updatedElement });
+    }
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
+
+    return filterId;
+  }
+
+  /**
+   * Replaces all filters on an element with a single effect preset
+   *
+   * @param elementId - Element ID to apply filter to
+   * @param effect - Effect preset to apply (or null to clear)
+   * @returns The generated filter ID or empty string if cleared
+   * @throws Error if element not found
+   */
+  setEffect(elementId: string, effect: EffectPreset | null): string {
+    const element = this._state.getElement(elementId);
+    if (element === undefined) {
+      throw new Error(`Element not found: ${elementId}`);
+    }
+
+    if (effect === null) {
+      // Clear all filters
+      this.clearFilters(elementId);
+      return '';
+    }
+
+    // Get or create filter for this preset
+    const filterId = this._filterManager.getOrCreatePresetFilter(effect);
+
+    // Create element filter reference
+    const elementFilter: ElementFilter = {
+      type: 'preset',
+      effect,
+    };
+
+    // Replace element's filters
+    this._state.updateElement(elementId, {
+      filters: [elementFilter],
+    });
+    this._history.push(this._state.snapshot());
+
+    const updatedElement = this._state.getElement(elementId);
+    if (updatedElement !== undefined) {
+      this.emit('element:updated', { id: elementId, element: updatedElement });
+    }
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
+
+    return filterId;
+  }
+
+  /**
+   * Adds a custom filter definition
+   *
+   * @param filter - Filter definition (without ID)
+   * @returns The generated filter ID
+   */
+  addFilter(filter: Omit<FilterDefinition, 'id'>): string {
+    return this._filterManager.addFilter(filter);
+  }
+
+  /**
+   * Gets a filter definition by ID
+   *
+   * @param filterId - Filter ID
+   * @returns Filter definition or undefined
+   */
+  getFilter(filterId: string): FilterDefinition | undefined {
+    return this._filterManager.getFilter(filterId);
+  }
+
+  /**
+   * Gets all registered filters
+   *
+   * @returns Array of all filter definitions
+   */
+  getAllFilters(): FilterDefinition[] {
+    return this._filterManager.getAllFilters();
+  }
+
+  /**
+   * Removes a custom filter by ID
+   *
+   * @param filterId - Filter ID to remove
+   * @returns true if filter was removed
+   */
+  removeFilter(filterId: string): boolean {
+    return this._filterManager.removeFilter(filterId);
+  }
+
+  /**
+   * Applies a custom filter to an element
+   *
+   * @param elementId - Element ID to apply filter to
+   * @param filterId - Custom filter ID to apply
+   * @throws Error if element or filter not found
+   */
+  applyFilter(elementId: string, filterId: string): void {
+    const element = this._state.getElement(elementId);
+    if (element === undefined) {
+      throw new Error(`Element not found: ${elementId}`);
+    }
+
+    const filter = this._filterManager.getFilter(filterId);
+    if (filter === undefined) {
+      throw new Error(`Filter not found: ${filterId}`);
+    }
+
+    // Create element filter reference
+    const elementFilter: ElementFilter = {
+      type: 'custom',
+      filterId,
+    };
+
+    // Add to element's filters array
+    const existingFilters = element.filters ?? [];
+    this._state.updateElement(elementId, {
+      filters: [...existingFilters, elementFilter],
+    });
+    this._history.push(this._state.snapshot());
+
+    const updatedElement = this._state.getElement(elementId);
+    if (updatedElement !== undefined) {
+      this.emit('element:updated', { id: elementId, element: updatedElement });
+    }
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
+  }
+
+  /**
+   * Clears all filters from an element
+   *
+   * @param elementId - Element ID to clear filters from
+   * @throws Error if element not found
+   */
+  clearFilters(elementId: string): void {
+    const element = this._state.getElement(elementId);
+    if (element === undefined) {
+      throw new Error(`Element not found: ${elementId}`);
+    }
+
+    if (!element.filters || element.filters.length === 0) {
+      return; // Nothing to clear
+    }
+
+    // Create element copy without filters property
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { filters: _removed, ...elementWithoutFilters } = element;
+    this._state.state.elements.set(elementId, elementWithoutFilters as BaseElement);
+    this._history.push(this._state.snapshot());
+
+    const updatedElement = this._state.getElement(elementId);
+    if (updatedElement !== undefined) {
+      this.emit('element:updated', { id: elementId, element: updatedElement });
+    }
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
+  }
+
+  /**
+   * Removes a specific filter from an element by index
+   *
+   * @param elementId - Element ID
+   * @param filterIndex - Index of filter to remove
+   * @throws Error if element not found or index out of bounds
+   */
+  removeFilterFromElement(elementId: string, filterIndex: number): void {
+    const element = this._state.getElement(elementId);
+    if (element === undefined) {
+      throw new Error(`Element not found: ${elementId}`);
+    }
+
+    if (!element.filters || filterIndex < 0 || filterIndex >= element.filters.length) {
+      throw new Error(`Filter index out of bounds: ${String(filterIndex)}`);
+    }
+
+    const newFilters = element.filters.filter((_, i) => i !== filterIndex);
+    if (newFilters.length > 0) {
+      this._state.updateElement(elementId, { filters: newFilters });
+    } else {
+      // Remove filters property entirely (same pattern as clearFilters)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { filters: _removed, ...elementWithoutFilters } = element;
+      this._state.state.elements.set(elementId, elementWithoutFilters as BaseElement);
+    }
+    this._history.push(this._state.snapshot());
+
+    const updatedElement = this._state.getElement(elementId);
+    if (updatedElement !== undefined) {
+      this.emit('element:updated', { id: elementId, element: updatedElement });
+    }
+    this.emit('state:changed', { state: this._state.state });
+    this.emit('history:changed', {
+      canUndo: this._history.canUndo(),
+      canRedo: this._history.canRedo(),
+    });
+  }
+
+  /**
+   * Gets the filters applied to an element
+   *
+   * @param elementId - Element ID
+   * @returns Array of element filters or empty array
+   */
+  getElementFilters(elementId: string): ElementFilter[] {
+    const element = this._state.getElement(elementId);
+    return element?.filters ?? [];
+  }
+
+  /**
+   * Checks if an element has any filters applied
+   *
+   * @param elementId - Element ID
+   * @returns true if element has filters
+   */
+  hasFilters(elementId: string): boolean {
+    const element = this._state.getElement(elementId);
+    return (element?.filters?.length ?? 0) > 0;
+  }
+
+  // ============================================================
   // Export/Import
   // ============================================================
 
@@ -1261,7 +1550,12 @@ export class SVGComposer extends EditorEventEmitter {
    * @returns Clean SVG markup string
    */
   toSVG(): string {
-    return this._renderer.toSVG(this._state.state, (id) => this._state.getElement(id));
+    return this._renderer.toSVG(
+      this._state.state,
+      (id) => this._state.getElement(id),
+      (filter) => this._filterManager.resolveElementFilter(filter),
+      (id) => this._filterManager.getFilter(id),
+    );
   }
 
   /**
@@ -2039,6 +2333,8 @@ export class SVGComposer extends EditorEventEmitter {
       this._state.state,
       (id) => this._state.getElement(id),
       viewportState,
+      (filter) => this._filterManager.resolveElementFilter(filter),
+      (id) => this._filterManager.getFilter(id),
     );
 
     // Initialize interaction manager on first render (after SVG is in DOM)

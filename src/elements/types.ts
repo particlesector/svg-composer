@@ -3,6 +3,7 @@
  */
 
 import type { Transform } from '../core/types.js';
+import type { ElementFilter } from '../filters/types.js';
 
 /**
  * Base interface for all canvas elements
@@ -24,6 +25,8 @@ export interface BaseElement {
   visible: boolean;
   /** Optional clip path applied to this element */
   clipPath?: ClipPath;
+  /** Optional filters/effects applied to this element */
+  filters?: ElementFilter[];
 }
 
 /**
