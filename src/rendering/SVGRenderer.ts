@@ -516,7 +516,7 @@ export class SVGRenderer {
     const newFilterAttr = this._resolveFilterAttribute(element, context);
     const currentFilter = svgElement.getAttribute('filter');
     if (newFilterAttr !== currentFilter) {
-      if (newFilterAttr) {
+      if (newFilterAttr !== null && newFilterAttr.length > 0) {
         svgElement.setAttribute('filter', newFilterAttr);
       } else {
         svgElement.removeAttribute('filter');
@@ -1112,33 +1112,33 @@ export class SVGRenderer {
 
     switch (primitive.type) {
       case 'gaussianBlur':
-        return this._renderGaussianBlur(primitive as GaussianBlurPrimitive, commonAttrs);
+        return this._renderGaussianBlur(primitive, commonAttrs);
       case 'dropShadow':
-        return this._renderDropShadow(primitive as DropShadowPrimitive, commonAttrs);
+        return this._renderDropShadow(primitive, commonAttrs);
       case 'colorMatrix':
-        return this._renderColorMatrix(primitive as ColorMatrixPrimitive, commonAttrs);
+        return this._renderColorMatrix(primitive, commonAttrs);
       case 'componentTransfer':
-        return this._renderComponentTransfer(primitive as ComponentTransferPrimitive, commonAttrs);
+        return this._renderComponentTransfer(primitive, commonAttrs);
       case 'morphology':
-        return this._renderMorphology(primitive as MorphologyPrimitive, commonAttrs);
+        return this._renderMorphology(primitive, commonAttrs);
       case 'turbulence':
-        return this._renderTurbulence(primitive as TurbulencePrimitive, commonAttrs);
+        return this._renderTurbulence(primitive, commonAttrs);
       case 'displacement':
-        return this._renderDisplacement(primitive as DisplacementPrimitive, commonAttrs);
+        return this._renderDisplacement(primitive, commonAttrs);
       case 'blend':
-        return this._renderBlend(primitive as BlendPrimitive, commonAttrs);
+        return this._renderBlend(primitive, commonAttrs);
       case 'composite':
-        return this._renderComposite(primitive as CompositePrimitive, commonAttrs);
+        return this._renderComposite(primitive, commonAttrs);
       case 'flood':
-        return this._renderFlood(primitive as FloodPrimitive, commonAttrs);
+        return this._renderFlood(primitive, commonAttrs);
       case 'merge':
-        return this._renderMerge(primitive as MergePrimitive, commonAttrs);
+        return this._renderMerge(primitive, commonAttrs);
       case 'offset':
-        return this._renderOffset(primitive as OffsetPrimitive, commonAttrs);
+        return this._renderOffset(primitive, commonAttrs);
       case 'convolveMatrix':
-        return this._renderConvolveMatrix(primitive as ConvolveMatrixPrimitive, commonAttrs);
+        return this._renderConvolveMatrix(primitive, commonAttrs);
       case 'lighting':
-        return this._renderLighting(primitive as LightingPrimitive, commonAttrs);
+        return this._renderLighting(primitive, commonAttrs);
       default:
         return '';
     }
@@ -1150,10 +1150,10 @@ export class SVGRenderer {
   private _buildCommonFilterAttrs(primitive: FilterPrimitive): string {
     const attrs: string[] = [];
     const base = primitive as { in?: string; result?: string };
-    if (base.in) {
+    if (base.in !== undefined && base.in.length > 0) {
       attrs.push(`in="${base.in}"`);
     }
-    if (base.result) {
+    if (base.result !== undefined && base.result.length > 0) {
       attrs.push(`result="${base.result}"`);
     }
     return attrs.join(' ');
@@ -1161,36 +1161,52 @@ export class SVGRenderer {
 
   private _renderGaussianBlur(p: GaussianBlurPrimitive, common: string): string {
     const stdDev = Array.isArray(p.stdDeviation)
-      ? `${p.stdDeviation[0]} ${p.stdDeviation[1]}`
+      ? `${String(p.stdDeviation[0])} ${String(p.stdDeviation[1])}`
       : String(p.stdDeviation);
-    const edgeMode = p.edgeMode ? ` edgeMode="${p.edgeMode}"` : '';
-    const attrs = common ? ` ${common}` : '';
+    const edgeMode = p.edgeMode !== undefined ? ` edgeMode="${p.edgeMode}"` : '';
+    const attrs = common.length > 0 ? ` ${common}` : '';
     return `<feGaussianBlur stdDeviation="${stdDev}"${edgeMode}${attrs} />`;
   }
 
   private _renderDropShadow(p: DropShadowPrimitive, common: string): string {
-    const opacity = p.floodOpacity !== undefined ? ` flood-opacity="${p.floodOpacity}"` : '';
-    const attrs = common ? ` ${common}` : '';
-    return `<feDropShadow dx="${p.dx}" dy="${p.dy}" stdDeviation="${p.stdDeviation}" flood-color="${p.floodColor}"${opacity}${attrs} />`;
+    const opacity = p.floodOpacity !== undefined
+      ? ` flood-opacity="${String(p.floodOpacity)}"`
+      : '';
+    const attrs = common.length > 0 ? ` ${common}` : '';
+    const dx = String(p.dx);
+    const dy = String(p.dy);
+    const stdDev = String(p.stdDeviation);
+    return `<feDropShadow dx="${dx}" dy="${dy}" stdDeviation="${stdDev}" ` +
+      `flood-color="${p.floodColor}"${opacity}${attrs} />`;
   }
 
   private _renderColorMatrix(p: ColorMatrixPrimitive, common: string): string {
     let values = '';
     if (p.values !== undefined) {
-      values = Array.isArray(p.values) ? ` values="${p.values.join(' ')}"` : ` values="${p.values}"`;
+      values = Array.isArray(p.values)
+        ? ` values="${p.values.join(' ')}"`
+        : ` values="${String(p.values)}"`;
     }
-    const attrs = common ? ` ${common}` : '';
+    const attrs = common.length > 0 ? ` ${common}` : '';
     return `<feColorMatrix type="${p.matrixType}"${values}${attrs} />`;
   }
 
   private _renderComponentTransfer(p: ComponentTransferPrimitive, common: string): string {
-    const attrs = common ? ` ${common}` : '';
+    const attrs = common.length > 0 ? ` ${common}` : '';
     const funcs: string[] = [];
 
-    if (p.funcR) funcs.push(this._renderTransferFunc('feFuncR', p.funcR));
-    if (p.funcG) funcs.push(this._renderTransferFunc('feFuncG', p.funcG));
-    if (p.funcB) funcs.push(this._renderTransferFunc('feFuncB', p.funcB));
-    if (p.funcA) funcs.push(this._renderTransferFunc('feFuncA', p.funcA));
+    if (p.funcR !== undefined) {
+      funcs.push(this._renderTransferFunc('feFuncR', p.funcR));
+    }
+    if (p.funcG !== undefined) {
+      funcs.push(this._renderTransferFunc('feFuncG', p.funcG));
+    }
+    if (p.funcB !== undefined) {
+      funcs.push(this._renderTransferFunc('feFuncB', p.funcB));
+    }
+    if (p.funcA !== undefined) {
+      funcs.push(this._renderTransferFunc('feFuncA', p.funcA));
+    }
 
     const content = funcs.join('\n        ');
     return `<feComponentTransfer${attrs}>\n        ${content}\n      </feComponentTransfer>`;
@@ -1199,23 +1215,23 @@ export class SVGRenderer {
   private _renderTransferFunc(tag: string, func: TransferFunction): string {
     const attrs: string[] = [`type="${func.type}"`];
 
-    if (func.tableValues) {
+    if (func.tableValues !== undefined) {
       attrs.push(`tableValues="${func.tableValues.join(' ')}"`);
     }
     if (func.slope !== undefined) {
-      attrs.push(`slope="${func.slope}"`);
+      attrs.push(`slope="${String(func.slope)}"`);
     }
     if (func.intercept !== undefined) {
-      attrs.push(`intercept="${func.intercept}"`);
+      attrs.push(`intercept="${String(func.intercept)}"`);
     }
     if (func.amplitude !== undefined) {
-      attrs.push(`amplitude="${func.amplitude}"`);
+      attrs.push(`amplitude="${String(func.amplitude)}"`);
     }
     if (func.exponent !== undefined) {
-      attrs.push(`exponent="${func.exponent}"`);
+      attrs.push(`exponent="${String(func.exponent)}"`);
     }
     if (func.offset !== undefined) {
-      attrs.push(`offset="${func.offset}"`);
+      attrs.push(`offset="${String(func.offset)}"`);
     }
 
     return `<${tag} ${attrs.join(' ')} />`;
@@ -1223,88 +1239,110 @@ export class SVGRenderer {
 
   private _renderMorphology(p: MorphologyPrimitive, common: string): string {
     const radius = Array.isArray(p.radius)
-      ? `${p.radius[0]} ${p.radius[1]}`
+      ? `${String(p.radius[0])} ${String(p.radius[1])}`
       : String(p.radius);
-    const attrs = common ? ` ${common}` : '';
+    const attrs = common.length > 0 ? ` ${common}` : '';
     return `<feMorphology operator="${p.operator}" radius="${radius}"${attrs} />`;
   }
 
   private _renderTurbulence(p: TurbulencePrimitive, common: string): string {
     const freq = Array.isArray(p.baseFrequency)
-      ? `${p.baseFrequency[0]} ${p.baseFrequency[1]}`
+      ? `${String(p.baseFrequency[0])} ${String(p.baseFrequency[1])}`
       : String(p.baseFrequency);
     const attrs: string[] = [`type="${p.turbulenceType}"`, `baseFrequency="${freq}"`];
     if (p.numOctaves !== undefined) {
-      attrs.push(`numOctaves="${p.numOctaves}"`);
+      attrs.push(`numOctaves="${String(p.numOctaves)}"`);
     }
     if (p.seed !== undefined) {
-      attrs.push(`seed="${p.seed}"`);
+      attrs.push(`seed="${String(p.seed)}"`);
     }
-    if (p.stitchTiles) {
+    if (p.stitchTiles !== undefined) {
       attrs.push(`stitchTiles="${p.stitchTiles}"`);
     }
-    const commonStr = common ? ` ${common}` : '';
+    const commonStr = common.length > 0 ? ` ${common}` : '';
     return `<feTurbulence ${attrs.join(' ')}${commonStr} />`;
   }
 
   private _renderDisplacement(p: DisplacementPrimitive, common: string): string {
-    const attrs: string[] = [`in2="${p.in2}"`, `scale="${p.scale}"`];
-    if (p.xChannelSelector) {
+    const attrs: string[] = [`in2="${p.in2}"`, `scale="${String(p.scale)}"`];
+    if (p.xChannelSelector !== undefined) {
       attrs.push(`xChannelSelector="${p.xChannelSelector}"`);
     }
-    if (p.yChannelSelector) {
+    if (p.yChannelSelector !== undefined) {
       attrs.push(`yChannelSelector="${p.yChannelSelector}"`);
     }
-    const commonStr = common ? ` ${common}` : '';
+    const commonStr = common.length > 0 ? ` ${common}` : '';
     return `<feDisplacementMap ${attrs.join(' ')}${commonStr} />`;
   }
 
   private _renderBlend(p: BlendPrimitive, common: string): string {
-    const attrs = common ? ` ${common}` : '';
+    const attrs = common.length > 0 ? ` ${common}` : '';
     return `<feBlend in2="${p.in2}" mode="${p.mode}"${attrs} />`;
   }
 
   private _renderComposite(p: CompositePrimitive, common: string): string {
     const attrs: string[] = [`in2="${p.in2}"`, `operator="${p.operator}"`];
     if (p.operator === 'arithmetic') {
-      if (p.k1 !== undefined) attrs.push(`k1="${p.k1}"`);
-      if (p.k2 !== undefined) attrs.push(`k2="${p.k2}"`);
-      if (p.k3 !== undefined) attrs.push(`k3="${p.k3}"`);
-      if (p.k4 !== undefined) attrs.push(`k4="${p.k4}"`);
+      if (p.k1 !== undefined) {
+        attrs.push(`k1="${String(p.k1)}"`);
+      }
+      if (p.k2 !== undefined) {
+        attrs.push(`k2="${String(p.k2)}"`);
+      }
+      if (p.k3 !== undefined) {
+        attrs.push(`k3="${String(p.k3)}"`);
+      }
+      if (p.k4 !== undefined) {
+        attrs.push(`k4="${String(p.k4)}"`);
+      }
     }
-    const commonStr = common ? ` ${common}` : '';
+    const commonStr = common.length > 0 ? ` ${common}` : '';
     return `<feComposite ${attrs.join(' ')}${commonStr} />`;
   }
 
   private _renderFlood(p: FloodPrimitive, common: string): string {
-    const opacity = p.floodOpacity !== undefined ? ` flood-opacity="${p.floodOpacity}"` : '';
-    const attrs = common ? ` ${common}` : '';
+    const opacity = p.floodOpacity !== undefined
+      ? ` flood-opacity="${String(p.floodOpacity)}"`
+      : '';
+    const attrs = common.length > 0 ? ` ${common}` : '';
     return `<feFlood flood-color="${p.floodColor}"${opacity}${attrs} />`;
   }
 
   private _renderMerge(p: MergePrimitive, common: string): string {
-    const attrs = common ? ` ${common}` : '';
+    const attrs = common.length > 0 ? ` ${common}` : '';
     const nodes = p.nodes.map((n) => `<feMergeNode in="${n.in}" />`).join('\n        ');
     return `<feMerge${attrs}>\n        ${nodes}\n      </feMerge>`;
   }
 
   private _renderOffset(p: OffsetPrimitive, common: string): string {
-    const attrs = common ? ` ${common}` : '';
-    return `<feOffset dx="${p.dx}" dy="${p.dy}"${attrs} />`;
+    const attrs = common.length > 0 ? ` ${common}` : '';
+    return `<feOffset dx="${String(p.dx)}" dy="${String(p.dy)}"${attrs} />`;
   }
 
   private _renderConvolveMatrix(p: ConvolveMatrixPrimitive, common: string): string {
     const attrs: string[] = [
-      `order="${p.order[0]} ${p.order[1]}"`,
+      `order="${String(p.order[0])} ${String(p.order[1])}"`,
       `kernelMatrix="${p.kernelMatrix.join(' ')}"`,
     ];
-    if (p.divisor !== undefined) attrs.push(`divisor="${p.divisor}"`);
-    if (p.bias !== undefined) attrs.push(`bias="${p.bias}"`);
-    if (p.targetX !== undefined) attrs.push(`targetX="${p.targetX}"`);
-    if (p.targetY !== undefined) attrs.push(`targetY="${p.targetY}"`);
-    if (p.edgeMode) attrs.push(`edgeMode="${p.edgeMode}"`);
-    if (p.preserveAlpha !== undefined) attrs.push(`preserveAlpha="${p.preserveAlpha}"`);
-    const commonStr = common ? ` ${common}` : '';
+    if (p.divisor !== undefined) {
+      attrs.push(`divisor="${String(p.divisor)}"`);
+    }
+    if (p.bias !== undefined) {
+      attrs.push(`bias="${String(p.bias)}"`);
+    }
+    if (p.targetX !== undefined) {
+      attrs.push(`targetX="${String(p.targetX)}"`);
+    }
+    if (p.targetY !== undefined) {
+      attrs.push(`targetY="${String(p.targetY)}"`);
+    }
+    if (p.edgeMode !== undefined) {
+      attrs.push(`edgeMode="${p.edgeMode}"`);
+    }
+    if (p.preserveAlpha !== undefined) {
+      attrs.push(`preserveAlpha="${String(p.preserveAlpha)}"`);
+    }
+    const commonStr = common.length > 0 ? ` ${common}` : '';
     return `<feConvolveMatrix ${attrs.join(' ')}${commonStr} />`;
   }
 
@@ -1313,17 +1351,25 @@ export class SVGRenderer {
     const tag = isDiffuse ? 'feDiffuseLighting' : 'feSpecularLighting';
     const attrs: string[] = [];
 
-    if (p.surfaceScale !== undefined) attrs.push(`surfaceScale="${p.surfaceScale}"`);
-    if (p.lightingColor) attrs.push(`lighting-color="${p.lightingColor}"`);
+    if (p.surfaceScale !== undefined) {
+      attrs.push(`surfaceScale="${String(p.surfaceScale)}"`);
+    }
+    if (p.lightingColor !== undefined && p.lightingColor.length > 0) {
+      attrs.push(`lighting-color="${p.lightingColor}"`);
+    }
     if (isDiffuse && p.diffuseConstant !== undefined) {
-      attrs.push(`diffuseConstant="${p.diffuseConstant}"`);
+      attrs.push(`diffuseConstant="${String(p.diffuseConstant)}"`);
     }
     if (!isDiffuse) {
-      if (p.specularConstant !== undefined) attrs.push(`specularConstant="${p.specularConstant}"`);
-      if (p.specularExponent !== undefined) attrs.push(`specularExponent="${p.specularExponent}"`);
+      if (p.specularConstant !== undefined) {
+        attrs.push(`specularConstant="${String(p.specularConstant)}"`);
+      }
+      if (p.specularExponent !== undefined) {
+        attrs.push(`specularExponent="${String(p.specularExponent)}"`);
+      }
     }
 
-    const commonStr = common ? ` ${common}` : '';
+    const commonStr = common.length > 0 ? ` ${common}` : '';
     const lightEl = this._renderLightSource(p.light);
     const attrStr = attrs.length > 0 ? ` ${attrs.join(' ')}` : '';
     return `<${tag}${attrStr}${commonStr}>\n        ${lightEl}\n      </${tag}>`;
@@ -1332,23 +1378,25 @@ export class SVGRenderer {
   private _renderLightSource(light: LightingPrimitive['light']): string {
     switch (light.type) {
       case 'distant':
-        return `<feDistantLight azimuth="${light.azimuth}" elevation="${light.elevation}" />`;
+        return `<feDistantLight azimuth="${String(light.azimuth)}" ` +
+          `elevation="${String(light.elevation)}" />`;
       case 'point':
-        return `<fePointLight x="${light.x}" y="${light.y}" z="${light.z}" />`;
+        return `<fePointLight x="${String(light.x)}" y="${String(light.y)}" ` +
+          `z="${String(light.z)}" />`;
       case 'spot': {
         const attrs: string[] = [
-          `x="${light.x}"`,
-          `y="${light.y}"`,
-          `z="${light.z}"`,
-          `pointsAtX="${light.pointsAtX}"`,
-          `pointsAtY="${light.pointsAtY}"`,
-          `pointsAtZ="${light.pointsAtZ}"`,
+          `x="${String(light.x)}"`,
+          `y="${String(light.y)}"`,
+          `z="${String(light.z)}"`,
+          `pointsAtX="${String(light.pointsAtX)}"`,
+          `pointsAtY="${String(light.pointsAtY)}"`,
+          `pointsAtZ="${String(light.pointsAtZ)}"`,
         ];
         if (light.specularExponent !== undefined) {
-          attrs.push(`specularExponent="${light.specularExponent}"`);
+          attrs.push(`specularExponent="${String(light.specularExponent)}"`);
         }
         if (light.limitingConeAngle !== undefined) {
-          attrs.push(`limitingConeAngle="${light.limitingConeAngle}"`);
+          attrs.push(`limitingConeAngle="${String(light.limitingConeAngle)}"`);
         }
         return `<feSpotLight ${attrs.join(' ')} />`;
       }
@@ -1393,20 +1441,20 @@ export class SVGRenderer {
     if (filter.height !== undefined) {
       filterEl.setAttribute('height', String(filter.height));
     }
-    if (filter.filterUnits) {
+    if (filter.filterUnits !== undefined) {
       filterEl.setAttribute('filterUnits', filter.filterUnits);
     }
-    if (filter.primitiveUnits) {
+    if (filter.primitiveUnits !== undefined) {
       filterEl.setAttribute('primitiveUnits', filter.primitiveUnits);
     }
-    if (filter.colorInterpolationFilters) {
+    if (filter.colorInterpolationFilters !== undefined) {
       filterEl.setAttribute('color-interpolation-filters', filter.colorInterpolationFilters);
     }
 
     // Add primitives as child elements
     for (const primitive of filter.primitives) {
       const primitiveEl = this._createFilterPrimitiveDOMElement(primitive);
-      if (primitiveEl) {
+      if (primitiveEl !== null) {
         filterEl.appendChild(primitiveEl);
       }
     }
@@ -1423,102 +1471,139 @@ export class SVGRenderer {
 
     switch (primitive.type) {
       case 'gaussianBlur': {
-        const p = primitive as GaussianBlurPrimitive;
+        const p = primitive;
         el = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
         const stdDev = Array.isArray(p.stdDeviation)
-          ? `${p.stdDeviation[0]} ${p.stdDeviation[1]}`
+          ? `${String(p.stdDeviation[0])} ${String(p.stdDeviation[1])}`
           : String(p.stdDeviation);
         el.setAttribute('stdDeviation', stdDev);
-        if (p.edgeMode) el.setAttribute('edgeMode', p.edgeMode);
+        if (p.edgeMode !== undefined) {
+          el.setAttribute('edgeMode', p.edgeMode);
+        }
         break;
       }
       case 'dropShadow': {
-        const p = primitive as DropShadowPrimitive;
+        const p = primitive;
         el = document.createElementNS('http://www.w3.org/2000/svg', 'feDropShadow');
         el.setAttribute('dx', String(p.dx));
         el.setAttribute('dy', String(p.dy));
         el.setAttribute('stdDeviation', String(p.stdDeviation));
         el.setAttribute('flood-color', p.floodColor);
-        if (p.floodOpacity !== undefined) el.setAttribute('flood-opacity', String(p.floodOpacity));
+        if (p.floodOpacity !== undefined) {
+          el.setAttribute('flood-opacity', String(p.floodOpacity));
+        }
         break;
       }
       case 'colorMatrix': {
-        const p = primitive as ColorMatrixPrimitive;
+        const p = primitive;
         el = document.createElementNS('http://www.w3.org/2000/svg', 'feColorMatrix');
         el.setAttribute('type', p.matrixType);
         if (p.values !== undefined) {
-          el.setAttribute('values', Array.isArray(p.values) ? p.values.join(' ') : String(p.values));
+          el.setAttribute(
+            'values',
+            Array.isArray(p.values) ? p.values.join(' ') : String(p.values),
+          );
         }
         break;
       }
       case 'componentTransfer': {
-        const p = primitive as ComponentTransferPrimitive;
+        const p = primitive;
         el = document.createElementNS('http://www.w3.org/2000/svg', 'feComponentTransfer');
-        if (p.funcR) el.appendChild(this._createTransferFuncElement('feFuncR', p.funcR));
-        if (p.funcG) el.appendChild(this._createTransferFuncElement('feFuncG', p.funcG));
-        if (p.funcB) el.appendChild(this._createTransferFuncElement('feFuncB', p.funcB));
-        if (p.funcA) el.appendChild(this._createTransferFuncElement('feFuncA', p.funcA));
+        if (p.funcR !== undefined) {
+          el.appendChild(this._createTransferFuncElement('feFuncR', p.funcR));
+        }
+        if (p.funcG !== undefined) {
+          el.appendChild(this._createTransferFuncElement('feFuncG', p.funcG));
+        }
+        if (p.funcB !== undefined) {
+          el.appendChild(this._createTransferFuncElement('feFuncB', p.funcB));
+        }
+        if (p.funcA !== undefined) {
+          el.appendChild(this._createTransferFuncElement('feFuncA', p.funcA));
+        }
         break;
       }
       case 'morphology': {
-        const p = primitive as MorphologyPrimitive;
+        const p = primitive;
         el = document.createElementNS('http://www.w3.org/2000/svg', 'feMorphology');
         el.setAttribute('operator', p.operator);
-        const radius = Array.isArray(p.radius) ? `${p.radius[0]} ${p.radius[1]}` : String(p.radius);
+        const radius = Array.isArray(p.radius)
+          ? `${String(p.radius[0])} ${String(p.radius[1])}`
+          : String(p.radius);
         el.setAttribute('radius', radius);
         break;
       }
       case 'turbulence': {
-        const p = primitive as TurbulencePrimitive;
+        const p = primitive;
         el = document.createElementNS('http://www.w3.org/2000/svg', 'feTurbulence');
         el.setAttribute('type', p.turbulenceType);
         const freq = Array.isArray(p.baseFrequency)
-          ? `${p.baseFrequency[0]} ${p.baseFrequency[1]}`
+          ? `${String(p.baseFrequency[0])} ${String(p.baseFrequency[1])}`
           : String(p.baseFrequency);
         el.setAttribute('baseFrequency', freq);
-        if (p.numOctaves !== undefined) el.setAttribute('numOctaves', String(p.numOctaves));
-        if (p.seed !== undefined) el.setAttribute('seed', String(p.seed));
-        if (p.stitchTiles) el.setAttribute('stitchTiles', p.stitchTiles);
+        if (p.numOctaves !== undefined) {
+          el.setAttribute('numOctaves', String(p.numOctaves));
+        }
+        if (p.seed !== undefined) {
+          el.setAttribute('seed', String(p.seed));
+        }
+        if (p.stitchTiles !== undefined) {
+          el.setAttribute('stitchTiles', p.stitchTiles);
+        }
         break;
       }
       case 'displacement': {
-        const p = primitive as DisplacementPrimitive;
+        const p = primitive;
         el = document.createElementNS('http://www.w3.org/2000/svg', 'feDisplacementMap');
         el.setAttribute('in2', p.in2);
         el.setAttribute('scale', String(p.scale));
-        if (p.xChannelSelector) el.setAttribute('xChannelSelector', p.xChannelSelector);
-        if (p.yChannelSelector) el.setAttribute('yChannelSelector', p.yChannelSelector);
+        if (p.xChannelSelector !== undefined) {
+          el.setAttribute('xChannelSelector', p.xChannelSelector);
+        }
+        if (p.yChannelSelector !== undefined) {
+          el.setAttribute('yChannelSelector', p.yChannelSelector);
+        }
         break;
       }
       case 'blend': {
-        const p = primitive as BlendPrimitive;
+        const p = primitive;
         el = document.createElementNS('http://www.w3.org/2000/svg', 'feBlend');
         el.setAttribute('in2', p.in2);
         el.setAttribute('mode', p.mode);
         break;
       }
       case 'composite': {
-        const p = primitive as CompositePrimitive;
+        const p = primitive;
         el = document.createElementNS('http://www.w3.org/2000/svg', 'feComposite');
         el.setAttribute('in2', p.in2);
         el.setAttribute('operator', p.operator);
         if (p.operator === 'arithmetic') {
-          if (p.k1 !== undefined) el.setAttribute('k1', String(p.k1));
-          if (p.k2 !== undefined) el.setAttribute('k2', String(p.k2));
-          if (p.k3 !== undefined) el.setAttribute('k3', String(p.k3));
-          if (p.k4 !== undefined) el.setAttribute('k4', String(p.k4));
+          if (p.k1 !== undefined) {
+            el.setAttribute('k1', String(p.k1));
+          }
+          if (p.k2 !== undefined) {
+            el.setAttribute('k2', String(p.k2));
+          }
+          if (p.k3 !== undefined) {
+            el.setAttribute('k3', String(p.k3));
+          }
+          if (p.k4 !== undefined) {
+            el.setAttribute('k4', String(p.k4));
+          }
         }
         break;
       }
       case 'flood': {
-        const p = primitive as FloodPrimitive;
+        const p = primitive;
         el = document.createElementNS('http://www.w3.org/2000/svg', 'feFlood');
         el.setAttribute('flood-color', p.floodColor);
-        if (p.floodOpacity !== undefined) el.setAttribute('flood-opacity', String(p.floodOpacity));
+        if (p.floodOpacity !== undefined) {
+          el.setAttribute('flood-opacity', String(p.floodOpacity));
+        }
         break;
       }
       case 'merge': {
-        const p = primitive as MergePrimitive;
+        const p = primitive;
         el = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
         for (const node of p.nodes) {
           const nodeEl = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
@@ -1528,37 +1613,57 @@ export class SVGRenderer {
         break;
       }
       case 'offset': {
-        const p = primitive as OffsetPrimitive;
+        const p = primitive;
         el = document.createElementNS('http://www.w3.org/2000/svg', 'feOffset');
         el.setAttribute('dx', String(p.dx));
         el.setAttribute('dy', String(p.dy));
         break;
       }
       case 'convolveMatrix': {
-        const p = primitive as ConvolveMatrixPrimitive;
+        const p = primitive;
         el = document.createElementNS('http://www.w3.org/2000/svg', 'feConvolveMatrix');
-        el.setAttribute('order', `${p.order[0]} ${p.order[1]}`);
+        el.setAttribute('order', `${String(p.order[0])} ${String(p.order[1])}`);
         el.setAttribute('kernelMatrix', p.kernelMatrix.join(' '));
-        if (p.divisor !== undefined) el.setAttribute('divisor', String(p.divisor));
-        if (p.bias !== undefined) el.setAttribute('bias', String(p.bias));
-        if (p.targetX !== undefined) el.setAttribute('targetX', String(p.targetX));
-        if (p.targetY !== undefined) el.setAttribute('targetY', String(p.targetY));
-        if (p.edgeMode) el.setAttribute('edgeMode', p.edgeMode);
-        if (p.preserveAlpha !== undefined) el.setAttribute('preserveAlpha', String(p.preserveAlpha));
+        if (p.divisor !== undefined) {
+          el.setAttribute('divisor', String(p.divisor));
+        }
+        if (p.bias !== undefined) {
+          el.setAttribute('bias', String(p.bias));
+        }
+        if (p.targetX !== undefined) {
+          el.setAttribute('targetX', String(p.targetX));
+        }
+        if (p.targetY !== undefined) {
+          el.setAttribute('targetY', String(p.targetY));
+        }
+        if (p.edgeMode !== undefined) {
+          el.setAttribute('edgeMode', p.edgeMode);
+        }
+        if (p.preserveAlpha !== undefined) {
+          el.setAttribute('preserveAlpha', String(p.preserveAlpha));
+        }
         break;
       }
       case 'lighting': {
-        const p = primitive as LightingPrimitive;
+        const p = primitive;
         const tagName = p.lightingType === 'diffuse' ? 'feDiffuseLighting' : 'feSpecularLighting';
         el = document.createElementNS('http://www.w3.org/2000/svg', tagName);
-        if (p.surfaceScale !== undefined) el.setAttribute('surfaceScale', String(p.surfaceScale));
-        if (p.lightingColor) el.setAttribute('lighting-color', p.lightingColor);
+        if (p.surfaceScale !== undefined) {
+          el.setAttribute('surfaceScale', String(p.surfaceScale));
+        }
+        if (p.lightingColor !== undefined && p.lightingColor.length > 0) {
+          el.setAttribute('lighting-color', p.lightingColor);
+        }
         if (p.lightingType === 'diffuse' && p.diffuseConstant !== undefined) {
           el.setAttribute('diffuseConstant', String(p.diffuseConstant));
         }
         if (p.lightingType === 'specular') {
-          if (p.specularConstant !== undefined) el.setAttribute('specularConstant', String(p.specularConstant));
-          if (p.specularExponent !== undefined) el.setAttribute('specularExponent', String(p.specularExponent));
+          if (p.specularConstant !== undefined) {
+            el.setAttribute('specularConstant', String(p.specularConstant));
+          }
+          if (p.specularExponent !== undefined) {
+            el.setAttribute('specularExponent', String(p.specularExponent));
+          }
         }
         el.appendChild(this._createLightSourceElement(p.light));
         break;
@@ -1568,8 +1673,12 @@ export class SVGRenderer {
     }
 
     // Apply common attributes
-    if (base.in) el.setAttribute('in', base.in);
-    if (base.result) el.setAttribute('result', base.result);
+    if (base.in !== undefined && base.in.length > 0) {
+      el.setAttribute('in', base.in);
+    }
+    if (base.result !== undefined && base.result.length > 0) {
+      el.setAttribute('result', base.result);
+    }
 
     return el;
   }
@@ -1581,7 +1690,7 @@ export class SVGRenderer {
     const el = document.createElementNS('http://www.w3.org/2000/svg', tagName);
     el.setAttribute('type', func.type);
 
-    if (func.tableValues) {
+    if (func.tableValues !== undefined) {
       el.setAttribute('tableValues', func.tableValues.join(' '));
     }
     if (func.slope !== undefined) {
@@ -1827,7 +1936,7 @@ export class SVGRenderer {
 
     // Apply filter
     const filterAttr = this._resolveFilterAttribute(element, context);
-    if (filterAttr) {
+    if (filterAttr !== null && filterAttr.length > 0) {
       svgElement.setAttribute('filter', filterAttr);
     }
   }

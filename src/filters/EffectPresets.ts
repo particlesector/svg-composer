@@ -396,13 +396,13 @@ export const presets = {
   /**
    * Neon glow effect
    */
-  neonGlow: (color: string = '#00ff00'): GlowEffect =>
+  neonGlow: (color = '#00ff00'): GlowEffect =>
     glow({ radius: 12, color, opacity: 0.8 }),
 
   /**
    * Soft inner glow
    */
-  innerGlow: (color: string = '#ffffff'): GlowEffect =>
+  innerGlow: (color = '#ffffff'): GlowEffect =>
     glow({ radius: 6, color, opacity: 0.6, inner: true }),
 
   /**

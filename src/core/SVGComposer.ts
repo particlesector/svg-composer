@@ -1497,7 +1497,7 @@ export class SVGComposer extends EditorEventEmitter {
     }
 
     if (!element.filters || filterIndex < 0 || filterIndex >= element.filters.length) {
-      throw new Error(`Filter index out of bounds: ${filterIndex}`);
+      throw new Error(`Filter index out of bounds: ${String(filterIndex)}`);
     }
 
     const newFilters = element.filters.filter((_, i) => i !== filterIndex);

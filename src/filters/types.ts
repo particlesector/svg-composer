@@ -43,15 +43,10 @@ export type FilterPrimitiveType =
 
 /**
  * Standard filter input sources
+ * Can be a standard SVG filter input ('SourceGraphic', 'SourceAlpha', etc.)
+ * or a result name from another primitive
  */
-export type FilterInput =
-  | 'SourceGraphic'
-  | 'SourceAlpha'
-  | 'BackgroundImage'
-  | 'BackgroundAlpha'
-  | 'FillPaint'
-  | 'StrokePaint'
-  | string; // or a result name from another primitive
+export type FilterInput = string;
 
 // ============================================================
 // Individual Filter Primitives

@@ -35,13 +35,6 @@ export class FilterManager {
   /** Map of effect preset keys to generated filter IDs (for caching) */
   private readonly _presetCache = new Map<string, string>();
 
-  /**
-   * Creates a new FilterManager instance
-   */
-  constructor() {
-    // Initialize with empty state
-  }
-
   // ============================================================
   // Filter Management
   // ============================================================
@@ -169,7 +162,7 @@ export class FilterManager {
 
     // Check cache first
     const cached = this._presetCache.get(cacheKey);
-    if (cached && this._filters.has(cached)) {
+    if (cached !== undefined && cached.length > 0 && this._filters.has(cached)) {
       return cached;
     }
 
@@ -233,37 +226,38 @@ export class FilterManager {
       case 'blur': {
         const padding = Math.ceil(preset.radius * 3);
         return {
-          x: `-${padding}%`,
-          y: `-${padding}%`,
-          width: `${100 + padding * 2}%`,
-          height: `${100 + padding * 2}%`,
+          x: `-${String(padding)}%`,
+          y: `-${String(padding)}%`,
+          width: `${String(100 + padding * 2)}%`,
+          height: `${String(100 + padding * 2)}%`,
         };
       }
       case 'dropShadow': {
-        const padding = Math.ceil(preset.blur * 3) + Math.max(Math.abs(preset.offsetX), Math.abs(preset.offsetY));
+        const maxOffset = Math.max(Math.abs(preset.offsetX), Math.abs(preset.offsetY));
+        const padding = Math.ceil(preset.blur * 3) + maxOffset;
         return {
-          x: `-${padding}%`,
-          y: `-${padding}%`,
-          width: `${100 + padding * 2}%`,
-          height: `${100 + padding * 2}%`,
+          x: `-${String(padding)}%`,
+          y: `-${String(padding)}%`,
+          width: `${String(100 + padding * 2)}%`,
+          height: `${String(100 + padding * 2)}%`,
         };
       }
       case 'glow': {
         const padding = Math.ceil(preset.radius * 3);
         return {
-          x: `-${padding}%`,
-          y: `-${padding}%`,
-          width: `${100 + padding * 2}%`,
-          height: `${100 + padding * 2}%`,
+          x: `-${String(padding)}%`,
+          y: `-${String(padding)}%`,
+          width: `${String(100 + padding * 2)}%`,
+          height: `${String(100 + padding * 2)}%`,
         };
       }
       case 'outline': {
         const padding = Math.ceil(preset.width * 2);
         return {
-          x: `-${padding}%`,
-          y: `-${padding}%`,
-          width: `${100 + padding * 2}%`,
-          height: `${100 + padding * 2}%`,
+          x: `-${String(padding)}%`,
+          y: `-${String(padding)}%`,
+          width: `${String(100 + padding * 2)}%`,
+          height: `${String(100 + padding * 2)}%`,
         };
       }
       default:
@@ -896,12 +890,16 @@ export class FilterManager {
     }
 
     // Handle rgb() format
-    const rgbMatch = color.match(/rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/);
-    if (rgbMatch && rgbMatch[1] && rgbMatch[2] && rgbMatch[3]) {
+    const rgbRegex = /rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/;
+    const rgbMatch = rgbRegex.exec(color);
+    const r = rgbMatch?.[1];
+    const g = rgbMatch?.[2];
+    const b = rgbMatch?.[3];
+    if (r !== undefined && g !== undefined && b !== undefined) {
       return {
-        r: parseInt(rgbMatch[1], 10),
-        g: parseInt(rgbMatch[2], 10),
-        b: parseInt(rgbMatch[3], 10),
+        r: parseInt(r, 10),
+        g: parseInt(g, 10),
+        b: parseInt(b, 10),
       };
     }
 

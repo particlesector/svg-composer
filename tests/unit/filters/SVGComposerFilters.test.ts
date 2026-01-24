@@ -6,8 +6,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SVGComposer } from '../../../src/core/SVGComposer.js';
 import { blur, dropShadow, grayscale } from '../../../src/filters/EffectPresets.js';
 import type { Transform } from '../../../src/core/types.js';
-import type { BaseElement, ImageElement } from '../../../src/elements/types.js';
-import type { EffectPreset, FilterDefinition, GaussianBlurPrimitive } from '../../../src/filters/types.js';
+import type { ImageElement } from '../../../src/elements/types.js';
+import type { GaussianBlurPrimitive } from '../../../src/filters/types.js';
 
 // Helper to create test transforms
 function createTestTransform(overrides?: Partial<Transform>): Transform {
@@ -206,16 +206,16 @@ describe('SVGComposer Filters', () => {
 
     it('should throw error for non-existent element', () => {
       const filterId = editor.addFilter({ primitives: [] });
-      expect(() => editor.applyFilter('non-existent', filterId)).toThrow(
-        'Element not found: non-existent',
-      );
+      expect(() => {
+        editor.applyFilter('non-existent', filterId);
+      }).toThrow('Element not found: non-existent');
     });
 
     it('should throw error for non-existent filter', () => {
       const elementId = editor.addElement(createTestImageElement());
-      expect(() => editor.applyFilter(elementId, 'non-existent')).toThrow(
-        'Filter not found: non-existent',
-      );
+      expect(() => {
+        editor.applyFilter(elementId, 'non-existent');
+      }).toThrow('Filter not found: non-existent');
     });
   });
 
@@ -235,9 +235,9 @@ describe('SVGComposer Filters', () => {
     });
 
     it('should throw error for non-existent element', () => {
-      expect(() => editor.clearFilters('non-existent')).toThrow(
-        'Element not found: non-existent',
-      );
+      expect(() => {
+        editor.clearFilters('non-existent');
+      }).toThrow('Element not found: non-existent');
     });
 
     it('should do nothing if element has no filters', () => {
@@ -266,27 +266,27 @@ describe('SVGComposer Filters', () => {
     });
 
     it('should throw error for non-existent element', () => {
-      expect(() => editor.removeFilterFromElement('non-existent', 0)).toThrow(
-        'Element not found: non-existent',
-      );
+      expect(() => {
+        editor.removeFilterFromElement('non-existent', 0);
+      }).toThrow('Element not found: non-existent');
     });
 
     it('should throw error for out of bounds index', () => {
       const elementId = editor.addElement(createTestImageElement());
       editor.addEffect(elementId, blur(5));
 
-      expect(() => editor.removeFilterFromElement(elementId, 5)).toThrow(
-        'Filter index out of bounds: 5',
-      );
+      expect(() => {
+        editor.removeFilterFromElement(elementId, 5);
+      }).toThrow('Filter index out of bounds: 5');
     });
 
     it('should throw error for negative index', () => {
       const elementId = editor.addElement(createTestImageElement());
       editor.addEffect(elementId, blur(5));
 
-      expect(() => editor.removeFilterFromElement(elementId, -1)).toThrow(
-        'Filter index out of bounds: -1',
-      );
+      expect(() => {
+        editor.removeFilterFromElement(elementId, -1);
+      }).toThrow('Filter index out of bounds: -1');
     });
 
     it('should clear filters property when last filter is removed', () => {
