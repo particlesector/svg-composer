@@ -11,11 +11,8 @@ import {
   glow,
   grayscale,
   sepia,
-  saturate,
-  hueRotate,
   brightness,
   contrast,
-  invert,
   outline,
   vintage,
 } from '../../../src/filters/EffectPresets.js';

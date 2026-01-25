@@ -6,7 +6,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { FilterManager } from '../../../src/filters/FilterManager.js';
 import type {
-  FilterDefinition,
   ElementFilter,
   GaussianBlurPrimitive,
   ColorMatrixPrimitive,
@@ -17,7 +16,6 @@ import type {
   BlendPrimitive,
   TurbulencePrimitive,
   MorphologyPrimitive,
-  OffsetPrimitive,
 } from '../../../src/filters/types.js';
 
 describe('Composite Filter Chaining', () => {

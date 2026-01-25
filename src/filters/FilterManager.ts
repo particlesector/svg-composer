@@ -215,7 +215,11 @@ export class FilterManager {
     }
 
     if (elementFilters.length === 1) {
-      return this.resolveElementFilter(elementFilters[0]!);
+      const first = elementFilters[0];
+      if (first === undefined) {
+        throw new Error('Cannot create composite filter from empty filter list');
+      }
+      return this.resolveElementFilter(first);
     }
 
     // Check composite cache
@@ -240,7 +244,11 @@ export class FilterManager {
     }
 
     if (filterDefs.length === 1) {
-      return filterDefs[0]!.id;
+      const onlyDef = filterDefs[0];
+      if (onlyDef === undefined) {
+        throw new Error('No valid filter definitions found for composite filter');
+      }
+      return onlyDef.id;
     }
 
     // Chain all filter primitives together
@@ -273,7 +281,10 @@ export class FilterManager {
     const filterCount = filterDefs.length;
 
     for (let i = 0; i < filterCount; i++) {
-      const filterDef = filterDefs[i]!;
+      const filterDef = filterDefs[i];
+      if (filterDef === undefined) {
+        continue;
+      }
       const isLast = i === filterCount - 1;
       const chainInputName = i > 0 ? `_chain${String(i - 1)}` : null;
       const chainOutputName = `_chain${String(i)}`;
@@ -292,11 +303,8 @@ export class FilterManager {
 
       // Step 3: Set chain output on last primitive (for non-last filters)
       if (!isLast && primitives.length > 0) {
-        const lastPrimitive = primitives[primitives.length - 1]!;
-        if (lastPrimitive.type === 'merge') {
-          // For merge primitives, set result on the merge itself
-          (lastPrimitive as MergePrimitive).result = chainOutputName;
-        } else {
+        const lastPrimitive = primitives[primitives.length - 1];
+        if (lastPrimitive !== undefined) {
           (lastPrimitive as { result?: string }).result = chainOutputName;
         }
       }
@@ -351,7 +359,14 @@ export class FilterManager {
     return { ...p };
   }
 
-  private static readonly _SOURCE_NAMES = new Set(['SourceGraphic', 'SourceAlpha', 'BackgroundImage', 'BackgroundAlpha', 'FillPaint', 'StrokePaint']);
+  private static readonly _SOURCE_NAMES = new Set([
+    'SourceGraphic',
+    'SourceAlpha',
+    'BackgroundImage',
+    'BackgroundAlpha',
+    'FillPaint',
+    'StrokePaint',
+  ]);
 
   /**
    * Checks if a name is a built-in SVG filter input source
