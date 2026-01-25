@@ -77,6 +77,11 @@ export type {
 
 // FilterManager
 export { FilterManager } from './FilterManager.js';
+export type { FilterManagerOptions } from './FilterManager.js';
+
+// LRU Cache
+export { LRUCache } from '../utils/LRUCache.js';
+export type { LRUCacheOptions, CacheStats } from '../utils/LRUCache.js';
 
 // Effect preset utilities
 export {
