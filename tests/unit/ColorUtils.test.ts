@@ -432,10 +432,18 @@ describe('ColorUtils', () => {
       expect(names).toContain('rebeccapurple');
     });
 
-    it('should exclude duplicate grey spelling', () => {
+    it('should exclude duplicate grey spelling variants', () => {
       const names = getNamedColorNames();
+      // Should contain 'gray' variants
       expect(names).toContain('gray');
+      expect(names).toContain('darkgray');
+      expect(names).toContain('lightgray');
+      // Should NOT contain 'grey' variants (duplicates)
       expect(names).not.toContain('grey');
+      expect(names).not.toContain('darkgrey');
+      expect(names).not.toContain('lightgrey');
+      expect(names).not.toContain('slategrey');
+      expect(names).not.toContain('dimgrey');
     });
   });
 

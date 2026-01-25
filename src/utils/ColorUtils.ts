@@ -524,7 +524,6 @@ function parseHex(hex: string): RGBColor | null {
  */
 function parseRgb(color: string): RGBColor | null {
   // Match rgb() or rgba() with various syntaxes
-   
   const rgbRegex =
     /^rgba?\(\s*(\d+%?)\s*[,\s]\s*(\d+%?)\s*[,\s]\s*(\d+%?)(?:\s*[,/]\s*(\d*\.?\d+%?))?\s*\)$/i;
   const match = rgbRegex.exec(color);
@@ -901,5 +900,15 @@ export function normalizeToHex(color: string): string | null {
  * @returns Array of color names
  */
 export function getNamedColorNames(): string[] {
-  return Object.keys(CSS_NAMED_COLORS).filter((name) => name !== 'grey'); // Exclude duplicate 'grey'
+  // Exclude all 'grey' spelling variants (duplicates of 'gray' variants)
+  const greyVariants = new Set([
+    'grey',
+    'darkgrey',
+    'darkslategrey',
+    'dimgrey',
+    'lightgrey',
+    'lightslategrey',
+    'slategrey',
+  ]);
+  return Object.keys(CSS_NAMED_COLORS).filter((name) => !greyVariants.has(name));
 }
