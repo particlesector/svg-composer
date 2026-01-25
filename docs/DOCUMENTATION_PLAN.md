@@ -4,10 +4,11 @@ This document outlines the plan for improving SVG Composer's documentation, incl
 
 ## Overview
 
-The documentation improvements are divided into **two main tasks**:
+The documentation improvements are divided into **three main tasks**:
 
 1. **Task 1: JSDoc Comments & Type Documentation** - Improve inline code documentation
 2. **Task 2: Usage Examples & Tutorials** - Expand README with more examples and tutorials
+3. **Task 3: Update Demo Application** - Modernize `examples/demo.html` to showcase all features
 
 ---
 
@@ -260,31 +261,156 @@ examples/
 
 ---
 
+## Task 3: Update Demo Application
+
+### Current State
+
+The `examples/demo.html` file is a basic interactive demo that only showcases:
+- ✅ Tool switching (Select, Pan)
+- ✅ Adding shapes (Rectangle, Circle)
+- ✅ Adding Text
+- ✅ Selection/deletion
+- ✅ Transform display (position, scale, rotation)
+- ✅ Basic event listeners
+
+### Missing Features
+
+The demo is **significantly outdated** and doesn't showcase many library capabilities:
+
+| Feature | Priority | Description |
+|---------|----------|-------------|
+| Undo/Redo buttons | High | Show history functionality with `undo()`/`redo()` |
+| Filter/Effect controls | High | Dropdown or buttons for 17 effect presets |
+| Alignment toolbar | High | Align left/center/right, distribute buttons |
+| Export buttons | High | Export to SVG, export to JSON, copy to clipboard |
+| Import JSON | Medium | Load from JSON textarea or file |
+| Z-order controls | Medium | Bring to front, send to back buttons |
+| Ellipse shape button | Medium | Add ellipse alongside rect/circle |
+| Guides toggle | Medium | Enable/disable snapping with visual config |
+| Opacity slider | Medium | Adjust selected element opacity |
+| Lock/Unlock toggle | Medium | Lock elements to prevent editing |
+| Image upload | Lower | File input to add images (with placeholder) |
+| Group/Ungroup | Lower | Group selected elements together |
+| Clip path demo | Lower | Show circular/rectangular clip paths |
+| Color pickers | Lower | Fill and stroke color selection |
+
+### Proposed Demo Layout
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  SVG Composer Demo                                          │
+├─────────────────────────────────────────────────────────────┤
+│ [Select] [Pan] │ [Rect] [Circle] [Ellipse] [Text] │ [Undo] [Redo] │
+│ [Align ▼] [Distribute ▼] │ [↑ Front] [↓ Back] │ [Delete]      │
+├──────────────────────────────────────┬──────────────────────┤
+│                                      │ Properties Panel     │
+│                                      │ ─────────────────    │
+│           Canvas Area                │ Selected: rect-1     │
+│                                      │ Position: (100, 100) │
+│                                      │ Scale: (1.0, 1.0)    │
+│                                      │ Rotation: 0°         │
+│                                      │ Opacity: [====] 100% │
+│                                      │ [🔓 Locked]          │
+│                                      │ ─────────────────    │
+│                                      │ Effects              │
+│                                      │ [None ▼]             │
+│                                      │ ─────────────────    │
+│                                      │ Export               │
+│                                      │ [SVG] [JSON] [Copy]  │
+├──────────────────────────────────────┴──────────────────────┤
+│ Status: Ready │ Elements: 5 │ Snapping: On                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Implementation Approach
+
+#### 3.1 Toolbar Enhancements
+- Add undo/redo buttons with disabled state when unavailable
+- Add alignment dropdown menu
+- Add z-order buttons
+- Add ellipse shape button
+
+#### 3.2 Properties Panel
+- Show selected element details
+- Add opacity slider
+- Add lock/unlock toggle
+- Add effect preset dropdown
+
+#### 3.3 Export Panel
+- "Export SVG" button - downloads .svg file
+- "Export JSON" button - downloads .json file
+- "Copy SVG" button - copies to clipboard
+- Optional: "Import JSON" textarea
+
+#### 3.4 Status Bar
+- Show element count
+- Show snapping enabled/disabled
+- Show current tool
+
+#### 3.5 Keyboard Shortcuts Display
+- Update help section with all keyboard shortcuts
+- Add shortcut hints to buttons (tooltips)
+
+### Files to Modify
+
+- `examples/demo.html` - Complete overhaul
+
+### Estimated Effort
+
+This is a **medium-sized task** (~400-600 lines of changes):
+- Toolbar additions: ~50 lines
+- Properties panel: ~100 lines
+- Export functionality: ~50 lines
+- Event wiring: ~100 lines
+- Styling updates: ~100 lines
+
+**Recommendation:** Can be done as a single focused task, or split into:
+1. **3a: Core UI** - Undo/redo, alignment, z-order, export
+2. **3b: Properties Panel** - Opacity, lock, effects
+
+---
+
 ## Implementation Order
 
-### Phase 1: JSDoc Core API (Recommended First)
+### Phase 1: Update Demo Application (Quick Win)
+1. Update `examples/demo.html` with undo/redo, alignment, z-order
+2. Add properties panel with opacity, lock, effects
+3. Add export functionality (SVG, JSON, clipboard)
+
+*Rationale: The demo is the first thing users see. Updating it showcases all features immediately.*
+
+### Phase 2: JSDoc Core API
 1. Add comprehensive JSDoc to `SVGComposer.ts` public methods
 2. Document `types.ts` interfaces thoroughly
 3. Improve `EventEmitter.ts` documentation
 
-### Phase 2: README Examples & Tutorials
+### Phase 3: README Examples & Tutorials
 1. Add "Tutorials" section with 2-3 tutorials
 2. Add framework integration examples (Vue, vanilla JS)
 3. Add "Patterns" or "Recipes" section
 
-### Phase 3: JSDoc Supporting Modules
+### Phase 4: JSDoc Supporting Modules
 1. Filters module documentation
 2. Interaction module documentation
 3. Rendering module documentation
 4. Utils module documentation
 
-### Phase 4: Standalone Examples (Optional)
-1. Create example directory structure
-2. Build interactive demo applications
+### Phase 5: Additional Examples (Optional)
+1. Create additional example HTML files
+2. Build more complex demo applications
 
 ---
 
 ## Success Criteria
+
+### Demo Application
+- [ ] Undo/redo buttons working
+- [ ] All alignment operations accessible
+- [ ] Z-order controls (front/back) working
+- [ ] Effect presets dropdown functional
+- [ ] Export to SVG/JSON working
+- [ ] Properties panel shows element details
+- [ ] Opacity and lock controls functional
 
 ### JSDoc Documentation
 - [ ] All public methods have `@param`, `@returns`, and `@throws` tags
@@ -303,6 +429,7 @@ examples/
 ## Files to Modify
 
 ### Primary Files
+- `examples/demo.html` - Complete demo overhaul
 - `src/core/SVGComposer.ts` - Main API documentation
 - `src/core/types.ts` - Core type documentation
 - `README.md` - Examples and tutorials
