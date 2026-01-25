@@ -9,6 +9,7 @@ import type {
   EffectPreset,
   GaussianBlurPrimitive,
   DropShadowPrimitive,
+  ColorMatrixPrimitive,
 } from '../../../src/filters/types.js';
 
 describe('FilterManager', () => {
@@ -484,6 +485,227 @@ describe('FilterManager', () => {
       const filter = filterManager.effectToFilter(effect);
 
       expect(filter.primitives.length).toBeGreaterThanOrEqual(4);
+    });
+  });
+
+  // ============================================================
+  // Constructor Options
+  // ============================================================
+
+  describe('constructor options', () => {
+    it('should accept default options (no arguments)', () => {
+      const fm = new FilterManager();
+      const stats = fm.presetCacheStats();
+      expect(stats.capacity).toBe(128);
+    });
+
+    it('should accept custom preset cache size', () => {
+      const fm = new FilterManager({ presetCacheSize: 16 });
+      const stats = fm.presetCacheStats();
+      expect(stats.capacity).toBe(16);
+    });
+
+    it('should accept custom composite cache size', () => {
+      const fm = new FilterManager({ compositeCacheSize: 8 });
+      const stats = fm.compositeCacheStats();
+      expect(stats.capacity).toBe(8);
+    });
+
+    it('should accept both options at once', () => {
+      const fm = new FilterManager({
+        presetCacheSize: 32,
+        compositeCacheSize: 16,
+      });
+      expect(fm.presetCacheStats().capacity).toBe(32);
+      expect(fm.compositeCacheStats().capacity).toBe(16);
+    });
+  });
+
+  // ============================================================
+  // LRU Cache Eviction
+  // ============================================================
+
+  describe('LRU cache eviction', () => {
+    it('should evict least recently used preset and clean up filter', () => {
+      const fm = new FilterManager({ presetCacheSize: 2 });
+
+      // Create 2 presets (fills cache)
+      const id1 = fm.getOrCreatePresetFilter({
+        type: 'blur',
+        radius: 1,
+      });
+      const id2 = fm.getOrCreatePresetFilter({
+        type: 'blur',
+        radius: 2,
+      });
+
+      // Both filters should exist
+      expect(fm.getFilter(id1)).toBeDefined();
+      expect(fm.getFilter(id2)).toBeDefined();
+
+      // Create 3rd preset — should evict id1 (LRU)
+      const id3 = fm.getOrCreatePresetFilter({
+        type: 'blur',
+        radius: 3,
+      });
+
+      expect(fm.getFilter(id1)).toBeUndefined(); // evicted
+      expect(fm.getFilter(id2)).toBeDefined();
+      expect(fm.getFilter(id3)).toBeDefined();
+    });
+
+    it('should not evict recently accessed preset', () => {
+      const fm = new FilterManager({ presetCacheSize: 2 });
+
+      const id1 = fm.getOrCreatePresetFilter({
+        type: 'blur',
+        radius: 1,
+      });
+      const id2 = fm.getOrCreatePresetFilter({
+        type: 'blur',
+        radius: 2,
+      });
+
+      // Access id1 again (moves to MRU)
+      fm.getOrCreatePresetFilter({ type: 'blur', radius: 1 });
+
+      // Add 3rd — should evict id2 (now LRU), not id1
+      fm.getOrCreatePresetFilter({ type: 'blur', radius: 3 });
+
+      expect(fm.getFilter(id1)).toBeDefined(); // recently accessed
+      expect(fm.getFilter(id2)).toBeUndefined(); // evicted
+    });
+
+    it('should re-create evicted preset on next access', () => {
+      const fm = new FilterManager({ presetCacheSize: 1 });
+
+      const id1 = fm.getOrCreatePresetFilter({
+        type: 'blur',
+        radius: 5,
+      });
+      // Evict by adding another
+      fm.getOrCreatePresetFilter({ type: 'blur', radius: 10 });
+      expect(fm.getFilter(id1)).toBeUndefined();
+
+      // Re-request same preset — creates new filter with new ID
+      const id1b = fm.getOrCreatePresetFilter({
+        type: 'blur',
+        radius: 5,
+      });
+      expect(id1b).not.toBe(id1); // new ID
+      expect(fm.getFilter(id1b)).toBeDefined();
+    });
+
+    it('should evict composite cache entries and clean up', () => {
+      const fm = new FilterManager({ compositeCacheSize: 1 });
+
+      const baseId = fm.addFilter({
+        primitives: [
+          {
+            type: 'gaussianBlur',
+            stdDeviation: 5,
+          } as GaussianBlurPrimitive,
+        ],
+      });
+      const baseId2 = fm.addFilter({
+        primitives: [
+          {
+            type: 'colorMatrix',
+            matrixType: 'saturate',
+            values: 0,
+          } as ColorMatrixPrimitive,
+        ],
+      });
+      const baseId3 = fm.addFilter({
+        primitives: [
+          {
+            type: 'colorMatrix',
+            matrixType: 'hueRotate',
+            values: 90,
+          } as ColorMatrixPrimitive,
+        ],
+      });
+
+      // Create first composite
+      const comp1 = fm.createCompositeFilter([
+        { type: 'custom', filterId: baseId },
+        { type: 'custom', filterId: baseId2 },
+      ]);
+      expect(fm.getFilter(comp1)).toBeDefined();
+
+      // Create second composite (evicts first)
+      fm.createCompositeFilter([
+        { type: 'custom', filterId: baseId },
+        { type: 'custom', filterId: baseId3 },
+      ]);
+
+      expect(fm.getFilter(comp1)).toBeUndefined(); // evicted
+      // Base filters should still exist
+      expect(fm.getFilter(baseId)).toBeDefined();
+      expect(fm.getFilter(baseId2)).toBeDefined();
+      expect(fm.getFilter(baseId3)).toBeDefined();
+    });
+
+    it('should handle removeFilter cleaning up cache entries', () => {
+      const fm = new FilterManager({ presetCacheSize: 10 });
+
+      const id = fm.getOrCreatePresetFilter({
+        type: 'blur',
+        radius: 5,
+      });
+
+      // Remove the filter manually
+      expect(fm.removeFilter(id)).toBe(true);
+      expect(fm.getFilter(id)).toBeUndefined();
+
+      // Re-creating the same preset should generate a new ID
+      const id2 = fm.getOrCreatePresetFilter({
+        type: 'blur',
+        radius: 5,
+      });
+      expect(id2).not.toBe(id);
+    });
+  });
+
+  // ============================================================
+  // Cache Statistics
+  // ============================================================
+
+  describe('cache statistics', () => {
+    it('should track preset cache hits and misses', () => {
+      const fm = new FilterManager();
+
+      // First call = creates new (miss in cache)
+      fm.getOrCreatePresetFilter({ type: 'blur', radius: 5 });
+      // Second call = returns cached (hit in cache)
+      fm.getOrCreatePresetFilter({ type: 'blur', radius: 5 });
+
+      const stats = fm.presetCacheStats();
+      expect(stats.hits).toBe(1);
+      expect(stats.misses).toBe(1);
+      expect(stats.hitRate).toBe(0.5);
+    });
+
+    it('should report cache size and capacity', () => {
+      const fm = new FilterManager({ presetCacheSize: 32 });
+      fm.getOrCreatePresetFilter({ type: 'blur', radius: 5 });
+
+      const stats = fm.presetCacheStats();
+      expect(stats.size).toBe(1);
+      expect(stats.capacity).toBe(32);
+    });
+
+    it('should report composite cache stats', () => {
+      const fm = new FilterManager({ compositeCacheSize: 16 });
+      const stats = fm.compositeCacheStats();
+      expect(stats.capacity).toBe(16);
+      expect(stats.size).toBe(0);
+    });
+
+    it('should show zero hitRate when no lookups', () => {
+      const fm = new FilterManager();
+      expect(fm.presetCacheStats().hitRate).toBe(0);
+      expect(fm.compositeCacheStats().hitRate).toBe(0);
     });
   });
 });

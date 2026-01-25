@@ -131,10 +131,15 @@ export type {
   EffectPreset,
   EffectType,
   ElementFilter,
+  // Filter config
+  FilterManagerOptions,
+  LRUCacheOptions,
+  CacheStats,
 } from './filters/index.js';
 
 export {
   FilterManager,
+  LRUCache,
   // Effect preset utilities
   blur,
   dropShadow,

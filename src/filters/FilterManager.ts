@@ -4,6 +4,8 @@
  * Manages filter definitions and converts effect presets to SVG filter primitives.
  */
 
+import { LRUCache } from '../utils/LRUCache.js';
+import type { CacheStats } from '../utils/LRUCache.js';
 import { generateId } from '../utils/IdGenerator.js';
 import type {
   FilterDefinition,
@@ -26,17 +28,68 @@ import type {
 } from './types.js';
 
 /**
- * Manages filter definitions and effect preset conversion
+ * Configuration options for FilterManager
+ */
+export interface FilterManagerOptions {
+  /** Maximum number of entries in the preset filter cache (default: 128) */
+  presetCacheSize?: number;
+  /** Maximum number of entries in the composite filter cache (default: 64) */
+  compositeCacheSize?: number;
+}
+
+/** Default preset cache size */
+const DEFAULT_PRESET_CACHE_SIZE = 128;
+
+/** Default composite cache size */
+const DEFAULT_COMPOSITE_CACHE_SIZE = 64;
+
+/**
+ * Manages filter definitions and effect preset conversion.
+ *
+ * Uses LRU caches for preset and composite filters to limit memory usage.
+ * When a cache entry is evicted, its corresponding filter definition is
+ * automatically cleaned up.
  */
 export class FilterManager {
   /** Map of filter IDs to filter definitions */
   private readonly _filters = new Map<string, FilterDefinition>();
 
-  /** Map of effect preset keys to generated filter IDs (for caching) */
-  private readonly _presetCache = new Map<string, string>();
+  /** LRU cache of effect preset keys to generated filter IDs */
+  private readonly _presetCache: LRUCache<string, string>;
 
-  /** Map of composite filter keys to generated filter IDs (for caching) */
-  private readonly _compositeCache = new Map<string, string>();
+  /** LRU cache of composite filter keys to generated filter IDs */
+  private readonly _compositeCache: LRUCache<string, string>;
+
+  /**
+   * Creates a new FilterManager instance
+   *
+   * @param options - Optional configuration for cache sizes
+   *
+   * @example
+   * ```typescript
+   * const fm = new FilterManager({ presetCacheSize: 256 });
+   * ```
+   */
+  constructor(options: FilterManagerOptions = {}) {
+    const presetSize =
+      options.presetCacheSize ?? DEFAULT_PRESET_CACHE_SIZE;
+    const compositeSize =
+      options.compositeCacheSize ?? DEFAULT_COMPOSITE_CACHE_SIZE;
+
+    this._presetCache = new LRUCache<string, string>({
+      maxSize: presetSize,
+      onEvict: (_key: string, filterId: string): void => {
+        this._filters.delete(filterId);
+      },
+    });
+
+    this._compositeCache = new LRUCache<string, string>({
+      maxSize: compositeSize,
+      onEvict: (_key: string, filterId: string): void => {
+        this._filters.delete(filterId);
+      },
+    });
+  }
 
   // ============================================================
   // Filter Management
@@ -155,6 +208,42 @@ export class FilterManager {
     for (const [id, filter] of filters) {
       this._filters.set(id, filter);
     }
+  }
+
+  // ============================================================
+  // Cache Statistics
+  // ============================================================
+
+  /**
+   * Returns statistics for the preset filter cache
+   *
+   * @returns Cache performance statistics including size, capacity,
+   *   hits, misses, and hit rate
+   *
+   * @example
+   * ```typescript
+   * const stats = filterManager.presetCacheStats();
+   * console.log(`Hit rate: ${(stats.hitRate * 100).toFixed(1)}%`);
+   * ```
+   */
+  presetCacheStats(): CacheStats {
+    return this._presetCache.stats();
+  }
+
+  /**
+   * Returns statistics for the composite filter cache
+   *
+   * @returns Cache performance statistics including size, capacity,
+   *   hits, misses, and hit rate
+   *
+   * @example
+   * ```typescript
+   * const stats = filterManager.compositeCacheStats();
+   * console.log(`Entries: ${stats.size}/${stats.capacity}`);
+   * ```
+   */
+  compositeCacheStats(): CacheStats {
+    return this._compositeCache.stats();
   }
 
   // ============================================================
