@@ -7,6 +7,7 @@
 import { LRUCache } from '../utils/LRUCache.js';
 import type { CacheStats } from '../utils/LRUCache.js';
 import { generateId } from '../utils/IdGenerator.js';
+import { parseColorToRgb } from '../utils/ColorUtils.js';
 import type {
   FilterDefinition,
   FilterPrimitive,
@@ -1298,71 +1299,16 @@ export class FilterManager {
 
   /**
    * Parses a color string to RGB values
+   *
+   * Supports all CSS color formats:
+   * - Hex colors: #RGB, #RRGGBB, #RGBA, #RRGGBBAA
+   * - RGB colors: rgb(r, g, b), rgba(r, g, b, a)
+   * - HSL colors: hsl(h, s%, l%), hsla(h, s%, l%, a)
+   * - OKLCH colors: oklch(L% C H), oklch(L% C H / a)
+   * - Named colors: all 147 CSS named colors
    */
   private _parseColor(color: string): { r: number; g: number; b: number } {
-    // Handle hex colors
-    if (color.startsWith('#')) {
-      const hex = color.slice(1);
-      if (hex.length === 3) {
-        // Short hex (#RGB)
-        const r = hex[0];
-        const g = hex[1];
-        const b = hex[2];
-        if (r !== undefined && g !== undefined && b !== undefined) {
-          return {
-            r: parseInt(r + r, 16),
-            g: parseInt(g + g, 16),
-            b: parseInt(b + b, 16),
-          };
-        }
-      } else if (hex.length === 6) {
-        // Full hex (#RRGGBB)
-        return {
-          r: parseInt(hex.slice(0, 2), 16),
-          g: parseInt(hex.slice(2, 4), 16),
-          b: parseInt(hex.slice(4, 6), 16),
-        };
-      }
-    }
-
-    // Handle named colors (basic ones)
-    const namedColors: Record<string, { r: number; g: number; b: number }> = {
-      black: { r: 0, g: 0, b: 0 },
-      white: { r: 255, g: 255, b: 255 },
-      red: { r: 255, g: 0, b: 0 },
-      green: { r: 0, g: 128, b: 0 },
-      blue: { r: 0, g: 0, b: 255 },
-      yellow: { r: 255, g: 255, b: 0 },
-      cyan: { r: 0, g: 255, b: 255 },
-      magenta: { r: 255, g: 0, b: 255 },
-      orange: { r: 255, g: 165, b: 0 },
-      purple: { r: 128, g: 0, b: 128 },
-      pink: { r: 255, g: 192, b: 203 },
-      brown: { r: 139, g: 69, b: 19 },
-      gray: { r: 128, g: 128, b: 128 },
-      grey: { r: 128, g: 128, b: 128 },
-    };
-
-    const named = namedColors[color.toLowerCase()];
-    if (named) {
-      return named;
-    }
-
-    // Handle rgb() format
-    const rgbRegex = /rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/;
-    const rgbMatch = rgbRegex.exec(color);
-    const r = rgbMatch?.[1];
-    const g = rgbMatch?.[2];
-    const b = rgbMatch?.[3];
-    if (r !== undefined && g !== undefined && b !== undefined) {
-      return {
-        r: parseInt(r, 10),
-        g: parseInt(g, 10),
-        b: parseInt(b, 10),
-      };
-    }
-
-    // Default to black if parsing fails
-    return { r: 0, g: 0, b: 0 };
+    const rgb = parseColorToRgb(color);
+    return { r: rgb.r, g: rgb.g, b: rgb.b };
   }
 }
