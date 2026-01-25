@@ -35,6 +35,9 @@ export class FilterManager {
   /** Map of effect preset keys to generated filter IDs (for caching) */
   private readonly _presetCache = new Map<string, string>();
 
+  /** Map of composite filter keys to generated filter IDs (for caching) */
+  private readonly _compositeCache = new Map<string, string>();
+
   // ============================================================
   // Filter Management
   // ============================================================
@@ -94,6 +97,13 @@ export class FilterManager {
         break;
       }
     }
+    // Also remove from composite cache if present
+    for (const [key, cachedId] of this._compositeCache) {
+      if (cachedId === id) {
+        this._compositeCache.delete(key);
+        break;
+      }
+    }
     return this._filters.delete(id);
   }
 
@@ -125,6 +135,7 @@ export class FilterManager {
   clearFilters(): void {
     this._filters.clear();
     this._presetCache.clear();
+    this._compositeCache.clear();
   }
 
   /**
@@ -140,6 +151,7 @@ export class FilterManager {
   restore(filters: Map<string, FilterDefinition>): void {
     this._filters.clear();
     this._presetCache.clear();
+    this._compositeCache.clear();
     for (const [id, filter] of filters) {
       this._filters.set(id, filter);
     }
@@ -185,6 +197,327 @@ export class FilterManager {
       return elementFilter.filterId;
     }
     return this.getOrCreatePresetFilter(elementFilter.effect);
+  }
+
+  /**
+   * Creates a composite filter that chains multiple element filters together.
+   * Each filter's output feeds into the next filter's input, producing a
+   * single SVG filter definition with all primitives properly connected.
+   *
+   * Uses caching to avoid creating duplicate composite filters.
+   *
+   * Element filters that reference non-existent filter IDs are silently
+   * skipped. If all filters are invalid, an error is thrown. If only one
+   * valid filter remains after skipping, its ID is returned directly
+   * without creating a composite.
+   *
+   * @param elementFilters - Array of element filters to chain (must be non-empty)
+   * @returns Filter ID of the composite filter (or the single resolved filter)
+   * @throws Error if the array is empty or no valid filter definitions are found
+   */
+  createCompositeFilter(elementFilters: ElementFilter[]): string {
+    if (elementFilters.length === 0) {
+      throw new Error('Cannot create composite filter from empty filter list');
+    }
+
+    if (elementFilters.length === 1) {
+      const first = elementFilters[0];
+      if (first === undefined) {
+        throw new Error('Cannot create composite filter from empty filter list');
+      }
+      return this.resolveElementFilter(first);
+    }
+
+    // Check composite cache
+    const cacheKey = this._getCompositeCacheKey(elementFilters);
+    const cached = this._compositeCache.get(cacheKey);
+    if (cached !== undefined && this._filters.has(cached)) {
+      return cached;
+    }
+
+    // Resolve each element filter to its filter definition
+    const filterDefs: FilterDefinition[] = [];
+    for (const ef of elementFilters) {
+      const filterId = this.resolveElementFilter(ef);
+      const filterDef = this._filters.get(filterId);
+      if (filterDef) {
+        filterDefs.push(filterDef);
+      }
+    }
+
+    if (filterDefs.length === 0) {
+      throw new Error('No valid filter definitions found for composite filter');
+    }
+
+    if (filterDefs.length === 1) {
+      const onlyDef = filterDefs[0];
+      if (onlyDef === undefined) {
+        throw new Error('No valid filter definitions found for composite filter');
+      }
+      return onlyDef.id;
+    }
+
+    // Chain all filter primitives together
+    const chainedPrimitives = this._chainFilterPrimitives(filterDefs);
+
+    // Compute the union filter region
+    const region = this._computeUnionRegion(filterDefs);
+
+    // Create the composite filter definition
+    const id = `filter-composite-${generateId()}`;
+    const compositeFilter: FilterDefinition = {
+      id,
+      primitives: chainedPrimitives,
+      ...region,
+      colorInterpolationFilters: 'sRGB',
+    };
+
+    this._filters.set(id, compositeFilter);
+    this._compositeCache.set(cacheKey, id);
+
+    return id;
+  }
+
+  /**
+   * Chains primitives from multiple filters, rewriting in/result references
+   * so each filter's output feeds into the next filter's input.
+   */
+  private _chainFilterPrimitives(filterDefs: FilterDefinition[]): FilterPrimitive[] {
+    const allPrimitives: FilterPrimitive[] = [];
+    const filterCount = filterDefs.length;
+
+    for (let i = 0; i < filterCount; i++) {
+      const filterDef = filterDefs[i];
+      if (filterDef === undefined) {
+        continue;
+      }
+      const isLast = i === filterCount - 1;
+      const chainInputName = i > 0 ? `_chain${String(i - 1)}` : null;
+      const chainOutputName = `_chain${String(i)}`;
+      const prefix = `_f${String(i)}_`;
+
+      // Deep clone primitives to avoid mutating originals
+      const primitives = this._clonePrimitives(filterDef.primitives);
+
+      // Step 1: Prefix all internal result names to avoid collisions between filters
+      this._prefixInternalNames(primitives, prefix);
+
+      // Step 2: Replace SourceGraphic references with previous chain output
+      if (chainInputName !== null) {
+        this._replaceSourceGraphic(primitives, chainInputName);
+      }
+
+      // Step 3: Set chain output on last primitive (for non-last filters)
+      if (!isLast && primitives.length > 0) {
+        const lastPrimitive = primitives[primitives.length - 1];
+        if (lastPrimitive !== undefined) {
+          lastPrimitive.result = chainOutputName;
+        }
+      }
+
+      allPrimitives.push(...primitives);
+    }
+
+    return allPrimitives;
+  }
+
+  /**
+   * Deep clones an array of filter primitives
+   */
+  private _clonePrimitives(primitives: FilterPrimitive[]): FilterPrimitive[] {
+    return primitives.map((p) => this._clonePrimitive(p));
+  }
+
+  /**
+   * Deep clones a single filter primitive
+   */
+  private _clonePrimitive(p: FilterPrimitive): FilterPrimitive {
+    if (p.type === 'merge') {
+      return {
+        ...p,
+        nodes: p.nodes.map((n) => ({ ...n })),
+      };
+    }
+    if (p.type === 'componentTransfer') {
+      const clone: ComponentTransferPrimitive = { ...p };
+      if (p.funcR) {
+        clone.funcR = { ...p.funcR };
+      }
+      if (p.funcG) {
+        clone.funcG = { ...p.funcG };
+      }
+      if (p.funcB) {
+        clone.funcB = { ...p.funcB };
+      }
+      if (p.funcA) {
+        clone.funcA = { ...p.funcA };
+      }
+      return clone;
+    }
+    if (p.type === 'convolveMatrix') {
+      return {
+        ...p,
+        kernelMatrix: [...p.kernelMatrix],
+        order: [...p.order] as [number, number],
+      };
+    }
+    // For other primitives, shallow clone is sufficient
+    return { ...p };
+  }
+
+  private static readonly _SOURCE_NAMES = new Set([
+    'SourceGraphic',
+    'SourceAlpha',
+    'BackgroundImage',
+    'BackgroundAlpha',
+    'FillPaint',
+    'StrokePaint',
+  ]);
+
+  /**
+   * Checks if a name is a built-in SVG filter input source
+   */
+  private _isBuiltinSource(name: string): boolean {
+    return FilterManager._SOURCE_NAMES.has(name);
+  }
+
+  /**
+   * Prefixes all internal (non-builtin) result and in/in2 names in primitives
+   * to avoid collisions when combining filters.
+   */
+  private _prefixInternalNames(primitives: FilterPrimitive[], prefix: string): void {
+    // Collect all internal result names first
+    const internalNames = new Set<string>();
+    for (const p of primitives) {
+      if (p.result !== undefined && p.result.length > 0 && !this._isBuiltinSource(p.result)) {
+        internalNames.add(p.result);
+      }
+    }
+
+    // Now rewrite all references
+    for (const p of primitives) {
+      // Rewrite result
+      if (p.result !== undefined && p.result.length > 0 && internalNames.has(p.result)) {
+        p.result = prefix + p.result;
+      }
+
+      // Rewrite in
+      if (p.in !== undefined && p.in.length > 0 && internalNames.has(p.in)) {
+        p.in = prefix + p.in;
+      }
+
+      // Rewrite in2 for composite, blend, displacement
+      const withIn2 = p as { in2?: string };
+      if (withIn2.in2 !== undefined && withIn2.in2.length > 0 && internalNames.has(withIn2.in2)) {
+        withIn2.in2 = prefix + withIn2.in2;
+      }
+
+      // Rewrite merge node in references
+      if (p.type === 'merge') {
+        for (const node of p.nodes) {
+          if (node.in.length > 0 && internalNames.has(node.in)) {
+            node.in = prefix + node.in;
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Replaces SourceGraphic references with a named input from the previous chain.
+   * SourceAlpha is kept as-is since it refers to the original element's alpha channel.
+   */
+  private _replaceSourceGraphic(primitives: FilterPrimitive[], chainInput: string): void {
+    for (const p of primitives) {
+      // Replace in
+      if (p.in === 'SourceGraphic') {
+        p.in = chainInput;
+      }
+
+      // Replace in2 for composite, blend, displacement
+      const withIn2 = p as { in2?: string };
+      if (withIn2.in2 === 'SourceGraphic') {
+        withIn2.in2 = chainInput;
+      }
+
+      // Replace merge node references
+      if (p.type === 'merge') {
+        for (const node of p.nodes) {
+          if (node.in === 'SourceGraphic') {
+            node.in = chainInput;
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Computes the union of filter regions from multiple filter definitions.
+   * Calculates the bounding box that encompasses all individual filter regions.
+   */
+  private _computeUnionRegion(
+    filterDefs: FilterDefinition[],
+  ): Pick<FilterDefinition, 'x' | 'y' | 'width' | 'height'> {
+    let minX = 0;
+    let minY = 0;
+    let maxRight = 100;
+    let maxBottom = 100;
+
+    for (const def of filterDefs) {
+      const x = this._parsePercentage(def.x, 0);
+      const y = this._parsePercentage(def.y, 0);
+      const w = this._parsePercentage(def.width, 100);
+      const h = this._parsePercentage(def.height, 100);
+
+      const right = x + w;
+      const bottom = y + h;
+
+      if (x < minX) {
+        minX = x;
+      }
+      if (y < minY) {
+        minY = y;
+      }
+      if (right > maxRight) {
+        maxRight = right;
+      }
+      if (bottom > maxBottom) {
+        maxBottom = bottom;
+      }
+    }
+
+    return {
+      x: `${String(minX)}%`,
+      y: `${String(minY)}%`,
+      width: `${String(maxRight - minX)}%`,
+      height: `${String(maxBottom - minY)}%`,
+    };
+  }
+
+  /**
+   * Parses a percentage string or number to a numeric value
+   */
+  private _parsePercentage(value: string | number | undefined, defaultValue: number): number {
+    if (value === undefined) {
+      return defaultValue;
+    }
+    if (typeof value === 'number') {
+      return value;
+    }
+    const match = /^(-?\d+(?:\.\d+)?)%$/.exec(value);
+    if (match?.[1] !== undefined) {
+      return parseFloat(match[1]);
+    }
+    return defaultValue;
+  }
+
+  /**
+   * Creates a deterministic cache key for a composite filter.
+   * Uses resolved filter IDs to avoid JSON property ordering sensitivity.
+   */
+  private _getCompositeCacheKey(elementFilters: ElementFilter[]): string {
+    const ids = elementFilters.map((ef) => this.resolveElementFilter(ef));
+    return `composite:${ids.join('+')}`;
   }
 
   /**
