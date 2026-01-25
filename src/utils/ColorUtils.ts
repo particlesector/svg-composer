@@ -468,7 +468,7 @@ function parseHex(hex: string): RGBColor | null {
     const r = value[0];
     const g = value[1];
     const b = value[2];
-    if (r && g && b) {
+    if (r !== undefined && g !== undefined && b !== undefined) {
       return {
         r: parseInt(r + r, 16),
         g: parseInt(g + g, 16),
@@ -481,7 +481,7 @@ function parseHex(hex: string): RGBColor | null {
     const g = value[1];
     const b = value[2];
     const a = value[3];
-    if (r && g && b && a) {
+    if (r !== undefined && g !== undefined && b !== undefined && a !== undefined) {
       return {
         r: parseInt(r + r, 16),
         g: parseInt(g + g, 16),
@@ -524,8 +524,9 @@ function parseHex(hex: string): RGBColor | null {
  */
 function parseRgb(color: string): RGBColor | null {
   // Match rgb() or rgba() with various syntaxes
+   
   const rgbRegex =
-    /^rgba?\(\s*(\d+%?)\s*[,\s]\s*(\d+%?)\s*[,\s]\s*(\d+%?)(?:\s*[,\/]\s*(\d*\.?\d+%?))?\s*\)$/i;
+    /^rgba?\(\s*(\d+%?)\s*[,\s]\s*(\d+%?)\s*[,\s]\s*(\d+%?)(?:\s*[,/]\s*(\d*\.?\d+%?))?\s*\)$/i;
   const match = rgbRegex.exec(color);
 
   if (!match) {
@@ -533,7 +534,9 @@ function parseRgb(color: string): RGBColor | null {
   }
 
   const parseValue = (val: string | undefined, isAlpha = false): number => {
-    if (!val) return isAlpha ? 1 : 0;
+    if (val === undefined || val === '') {
+      return isAlpha ? 1 : 0;
+    }
     if (val.endsWith('%')) {
       const percent = parseFloat(val);
       return isAlpha ? percent / 100 : Math.round((percent / 100) * 255);
@@ -575,8 +578,11 @@ function parseRgb(color: string): RGBColor | null {
 function parseHsl(color: string): RGBColor | null {
   // Match hsl() or hsla() with various syntaxes
   // Note: hue can be negative, so we allow an optional minus sign
-  const hslRegex =
-    /^hsla?\(\s*(-?\d*\.?\d+)(deg|grad|rad|turn)?\s*[,\s]\s*(\d*\.?\d+)%\s*[,\s]\s*(\d*\.?\d+)%(?:\s*[,\/]\s*(\d*\.?\d+%?))?\s*\)$/i;
+  const hslRegex = new RegExp(
+    '^hsla?\\(\\s*(-?\\d*\\.?\\d+)(deg|grad|rad|turn)?\\s*[,\\s]\\s*' +
+      '(\\d*\\.?\\d+)%\\s*[,\\s]\\s*(\\d*\\.?\\d+)%(?:\\s*[,/]\\s*(\\d*\\.?\\d+%?))?\\s*\\)$',
+    'i',
+  );
   const match = hslRegex.exec(color);
 
   if (!match) {
@@ -584,7 +590,7 @@ function parseHsl(color: string): RGBColor | null {
   }
 
   // Parse hue with unit support
-  let h = parseFloat(match[1] || '0');
+  let h = parseFloat(match[1] ?? '0');
   const hueUnit = match[2]?.toLowerCase();
 
   if (hueUnit === 'grad') {
@@ -596,8 +602,8 @@ function parseHsl(color: string): RGBColor | null {
   }
   // 'deg' or no unit is already in degrees
 
-  const s = parseFloat(match[3] || '0');
-  const l = parseFloat(match[4] || '0');
+  const s = parseFloat(match[3] ?? '0');
+  const l = parseFloat(match[4] ?? '0');
 
   // Parse alpha
   let a: number | undefined;
@@ -635,8 +641,11 @@ function parseHsl(color: string): RGBColor | null {
  */
 function parseOklch(color: string): RGBColor | null {
   // Match oklch() with various syntaxes
-  const oklchRegex =
-    /^oklch\(\s*(\d*\.?\d+)(%?)\s+(\d*\.?\d+)\s+(\d*\.?\d+)(deg|grad|rad|turn)?(?:\s*\/\s*(\d*\.?\d+%?))?\s*\)$/i;
+  const oklchRegex = new RegExp(
+    '^oklch\\(\\s*(\\d*\\.?\\d+)(%?)\\s+(\\d*\\.?\\d+)\\s+(\\d*\\.?\\d+)' +
+      '(deg|grad|rad|turn)?(?:\\s*/\\s*(\\d*\\.?\\d+%?))?\\s*\\)$',
+    'i',
+  );
   const match = oklchRegex.exec(color);
 
   if (!match) {
@@ -644,17 +653,17 @@ function parseOklch(color: string): RGBColor | null {
   }
 
   // Parse lightness (can be percentage or 0-1)
-  let l = parseFloat(match[1] || '0');
+  let l = parseFloat(match[1] ?? '0');
   if (match[2] !== '%') {
     // If not percentage, it's 0-1, convert to percentage
     l = l * 100;
   }
 
   // Parse chroma (typically 0-0.4)
-  const c = parseFloat(match[3] || '0');
+  const c = parseFloat(match[3] ?? '0');
 
   // Parse hue with unit support
-  let h = parseFloat(match[4] || '0');
+  let h = parseFloat(match[4] ?? '0');
   const hueUnit = match[5]?.toLowerCase();
 
   if (hueUnit === 'grad') {
@@ -835,10 +844,10 @@ export function rgbToString(color: RGBColor): string {
   const b = clamp(Math.round(color.b), 0, 255);
 
   if (color.a !== undefined && color.a < 1) {
-    return `rgba(${r}, ${g}, ${b}, ${color.a})`;
+    return `rgba(${String(r)}, ${String(g)}, ${String(b)}, ${String(color.a)})`;
   }
 
-  return `rgb(${r}, ${g}, ${b})`;
+  return `rgb(${String(r)}, ${String(g)}, ${String(b)})`;
 }
 
 /**

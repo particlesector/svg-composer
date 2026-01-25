@@ -57,12 +57,7 @@ export {
   CSS_NAMED_COLORS,
 } from './utils/ColorUtils.js';
 
-export type {
-  RGBColor,
-  HSLColor,
-  OKLCHColor,
-  ColorParseResult,
-} from './utils/ColorUtils.js';
+export type { RGBColor, HSLColor, OKLCHColor, ColorParseResult } from './utils/ColorUtils.js';
 
 // Internal classes (for advanced usage)
 export { State, DEFAULT_OPTIONS } from './core/State.js';
