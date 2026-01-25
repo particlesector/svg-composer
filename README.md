@@ -65,15 +65,15 @@ This is a spec-driven project. The table below shows the current implementation 
 | Guides & Snapping        | Implemented | Snap to guides, grid, elements, and canvas edges                                        |
 | Filters & Effects        | Implemented | SVG filters, shadows, blur, color effects, multiple filter chaining, LRU cache eviction |
 | Alignment & Distribution | Implemented | Align left/right/center, distribute evenly                                              |
+| Color Parsing            | Implemented | Full CSS color support: hex, rgb/rgba, hsl/hsla, oklch, 147 named colors                |
 
 ### Future Improvements
 
 The following enhancements are planned for future development:
 
-| Area    | Improvement            | Description                                    |
-| ------- | ---------------------- | ---------------------------------------------- |
-| Filters | Enhanced color parsing | Support hsl(), oklch(), full CSS named colors  |
-| Testing | Integration tests      | Validate filter rendering in actual SVG output |
+| Area    | Improvement       | Description                                    |
+| ------- | ----------------- | ---------------------------------------------- |
+| Testing | Integration tests | Validate filter rendering in actual SVG output |
 
 ---
 

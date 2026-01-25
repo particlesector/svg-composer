@@ -41,6 +41,29 @@ export type {
 // Utilities (export when implemented)
 export { generateId } from './utils/IdGenerator.js';
 
+// Color utilities
+export {
+  parseColor,
+  parseColorToRgb,
+  isValidColor,
+  normalizeToHex,
+  hslToRgb,
+  rgbToHsl,
+  oklchToRgb,
+  rgbToOklch,
+  rgbToHex,
+  rgbToString,
+  getNamedColorNames,
+  CSS_NAMED_COLORS,
+} from './utils/ColorUtils.js';
+
+export type {
+  RGBColor,
+  HSLColor,
+  OKLCHColor,
+  ColorParseResult,
+} from './utils/ColorUtils.js';
+
 // Internal classes (for advanced usage)
 export { State, DEFAULT_OPTIONS } from './core/State.js';
 export { History } from './core/History.js';
