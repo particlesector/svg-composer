@@ -428,7 +428,6 @@ describe('Transform Rendering Integration', () => {
 
       editor.resetTransform(elementId);
 
-      const svg = editor.toSVG();
       const element = editor.getElement(elementId);
 
       expect(element?.transform.x).toBe(0);

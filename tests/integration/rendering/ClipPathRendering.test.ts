@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { SVGComposer } from '../../../src/core/SVGComposer.js';
 import type { Transform } from '../../../src/core/types.js';
-import type { ImageElement, ClipPath } from '../../../src/elements/types.js';
+import type { ImageElement } from '../../../src/elements/types.js';
 
 // Helper to create test transforms
 function createTestTransform(overrides?: Partial<Transform>): Transform {
@@ -259,7 +259,8 @@ describe('Clip Path Rendering Integration', () => {
       svg = editor.toSVG();
       // Element should no longer have clip-path attribute
       // Note: The clipPath definition might still be in defs
-      const imageMatch = svg.match(/<image[^>]*>/);
+      const imageRegex = /<image[^>]*>/;
+      const imageMatch = imageRegex.exec(svg);
       expect(imageMatch).not.toBeNull();
       expect(imageMatch![0]).not.toContain('clip-path="url(#');
     });

@@ -109,7 +109,7 @@ describe('Editor Workflow Integration', () => {
   describe('Complete Editing Workflow', () => {
     it('should support a complete photo card editing workflow', () => {
       // 1. Add background image
-      const bgId = editor.addElement(
+      editor.addElement(
         createTestImageElement({
           src: 'background.jpg',
           width: 1200,
@@ -149,7 +149,7 @@ describe('Editor Workflow Integration', () => {
       );
 
       // 4. Add title text
-      const titleId = editor.addElement(
+      editor.addElement(
         createTestTextElement({
           content: 'Summer Memories',
           fontSize: 48,
@@ -162,7 +162,7 @@ describe('Editor Workflow Integration', () => {
       );
 
       // 5. Add decorative shape
-      const shapeId = editor.addElement({
+      editor.addElement({
         type: 'shape',
         shapeType: 'rect',
         width: 800,
@@ -195,7 +195,7 @@ describe('Editor Workflow Integration', () => {
       const parsed = JSON.parse(json);
 
       // Elements is an object keyed by ID, not an array
-      expect(Object.keys(parsed.elements).length).toBe(4);
+      expect(Object.keys(parsed.elements as Record<string, unknown>).length).toBe(4);
     });
 
     it('should support a logo design workflow', () => {
@@ -322,7 +322,7 @@ describe('Editor Workflow Integration', () => {
       expect(editor.getAllElements().length).toBe(1);
 
       // Add element 2
-      const id2 = editor.addElement(createTestRect(200, 100, 50, 50));
+      editor.addElement(createTestRect(200, 100, 50, 50));
       expect(editor.getAllElements().length).toBe(2);
 
       // Move element 1
@@ -615,8 +615,8 @@ describe('Editor Workflow Integration', () => {
     it('should export and restore state via JSON', () => {
       // Create complex design
       const bgId = editor.addElement(createTestImageElement({ src: 'bg.jpg' }));
-      const textId = editor.addElement(createTestTextElement({ content: 'Test' }));
-      const shapeId = editor.addElement(createTestRect(500, 500, 100, 100));
+      editor.addElement(createTestTextElement({ content: 'Test' }));
+      editor.addElement(createTestRect(500, 500, 100, 100));
 
       editor.addEffect(bgId, grayscale());
       editor.addHorizontalGuide(600);
@@ -696,7 +696,7 @@ describe('Editor Workflow Integration', () => {
 
   describe('Lifecycle Workflow', () => {
     it('should properly destroy editor', () => {
-      const id = editor.addElement(createTestRect(100, 100, 50, 50));
+      editor.addElement(createTestRect(100, 100, 50, 50));
       expect(editor.getAllElements().length).toBe(1);
       expect(editor.isDestroyed).toBe(false);
 
@@ -733,16 +733,26 @@ describe('Editor Workflow Integration', () => {
 
   describe('Error Handling', () => {
     it('should throw on invalid element ID', () => {
-      expect(() => editor.removeElement('non-existent')).toThrow();
+      expect(() => {
+        editor.removeElement('non-existent');
+      }).toThrow();
     });
 
     it('should not throw on valid operations', () => {
       const id = editor.addElement(createTestRect(100, 100, 50, 50));
 
-      expect(() => editor.moveElement(id, 100, 100)).not.toThrow();
-      expect(() => editor.rotateElement(id, 45)).not.toThrow();
-      expect(() => editor.scaleElement(id, 2, 2)).not.toThrow();
-      expect(() => editor.removeElement(id)).not.toThrow();
+      expect(() => {
+        editor.moveElement(id, 100, 100);
+      }).not.toThrow();
+      expect(() => {
+        editor.rotateElement(id, 45);
+      }).not.toThrow();
+      expect(() => {
+        editor.scaleElement(id, 2, 2);
+      }).not.toThrow();
+      expect(() => {
+        editor.removeElement(id);
+      }).not.toThrow();
     });
   });
 });

@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { SVGComposer } from '../../src/core/SVGComposer.js';
 import type { Transform } from '../../src/core/types.js';
 import type { ImageElement, TextElement, ShapeElement } from '../../src/elements/types.js';
-import { blur, dropShadow, grayscale } from '../../src/filters/EffectPresets.js';
+import { blur, grayscale } from '../../src/filters/EffectPresets.js';
 
 // Helper to create test transforms
 function createTestTransform(overrides?: Partial<Transform>): Transform {
@@ -120,7 +120,9 @@ describe('Serialization Integration', () => {
 
       const json = editor.toJSON();
 
-      expect(() => JSON.parse(json)).not.toThrow();
+      expect(() => {
+        JSON.parse(json);
+      }).not.toThrow();
     });
 
     it('should serialize empty canvas', () => {
@@ -172,16 +174,21 @@ describe('Serialization Integration', () => {
       );
 
       const json = editor.toJSON();
-      const parsed = JSON.parse(json);
+      const parsed = JSON.parse(json) as {
+        elements?: Record<
+          string,
+          {
+            id: string;
+            type: string;
+            src?: string;
+            width?: number;
+            height?: number;
+          }
+        >;
+      };
 
       // Elements are stored as an object keyed by ID
-      const elements = Object.values(parsed.elements || {}) as Array<{
-        id: string;
-        type: string;
-        src?: string;
-        width?: number;
-        height?: number;
-      }>;
+      const elements = Object.values(parsed.elements ?? {});
       expect(elements.length).toBe(1);
 
       const element = elements[0];
@@ -248,9 +255,9 @@ describe('Serialization Integration', () => {
       editor.addElement(createTestShapeElement('circle'));
 
       const json = editor.toJSON();
-      const parsed = JSON.parse(json);
+      const parsed = JSON.parse(json) as { elements?: Record<string, unknown> };
 
-      const elements = Object.values(parsed.elements || {});
+      const elements = Object.values(parsed.elements ?? {});
       expect(elements.length).toBe(3);
     });
   });
@@ -623,7 +630,9 @@ describe('Serialization Integration', () => {
         guides: [],
       });
 
-      expect(() => editor.fromJSON(minimalJson)).not.toThrow();
+      expect(() => {
+        editor.fromJSON(minimalJson);
+      }).not.toThrow();
     });
 
     it('should clear existing state when loading JSON', () => {

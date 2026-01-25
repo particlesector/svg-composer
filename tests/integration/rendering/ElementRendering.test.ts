@@ -6,12 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { SVGComposer } from '../../../src/core/SVGComposer.js';
 import type { Transform } from '../../../src/core/types.js';
-import type {
-  ImageElement,
-  TextElement,
-  ShapeElement,
-  GroupElement,
-} from '../../../src/elements/types.js';
+import type { ImageElement, TextElement, ShapeElement } from '../../../src/elements/types.js';
 
 // Helper to create test transforms
 function createTestTransform(overrides?: Partial<Transform>): Transform {

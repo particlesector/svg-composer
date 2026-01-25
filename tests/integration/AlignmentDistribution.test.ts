@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { SVGComposer } from '../../src/core/SVGComposer.js';
 import type { Transform } from '../../src/core/types.js';
-import type { ImageElement, ShapeElement } from '../../src/elements/types.js';
+import type { ShapeElement } from '../../src/elements/types.js';
 
 // Helper to create test transforms
 function createTestTransform(overrides?: Partial<Transform>): Transform {
@@ -543,7 +543,9 @@ describe('Alignment & Distribution Integration', () => {
       const id1 = editor.addElement(createTestRect(100, 100, 50, 50));
 
       // Should not throw
-      expect(() => editor.alignLeft([id1])).not.toThrow();
+      expect(() => {
+        editor.alignLeft([id1]);
+      }).not.toThrow();
     });
 
     it('should handle distribution with two elements', () => {
@@ -551,7 +553,9 @@ describe('Alignment & Distribution Integration', () => {
       const id2 = editor.addElement(createTestRect(300, 100, 50, 50));
 
       // Distribution with 2 elements should work but may not change positions
-      expect(() => editor.distributeHorizontal([id1, id2])).not.toThrow();
+      expect(() => {
+        editor.distributeHorizontal([id1, id2]);
+      }).not.toThrow();
     });
 
     it('should handle alignment with overlapping elements', () => {
