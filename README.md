@@ -67,14 +67,6 @@ This is a spec-driven project. The table below shows the current implementation 
 | Alignment & Distribution | Implemented | Align left/right/center, distribute evenly                                              |
 | Color Parsing            | Implemented | Full CSS color support: hex, rgb/rgba, hsl/hsla, oklch, 147 named colors                |
 
-### Future Improvements
-
-The following enhancements are planned for future development:
-
-| Area    | Improvement       | Description                                    |
-| ------- | ----------------- | ---------------------------------------------- |
-| Testing | Integration tests | Validate filter rendering in actual SVG output |
-
 ---
 
 ## Installation
@@ -1094,6 +1086,26 @@ npm run test:coverage
 
 **Coverage Requirements:** All pull requests must maintain >80% test coverage.
 
+#### Test Organization
+
+The test suite includes both unit tests and integration tests:
+
+| Category          | Files | Description                                      |
+| ----------------- | ----- | ------------------------------------------------ |
+| Unit Tests        | 31    | Test individual modules in isolation             |
+| Integration Tests | 9     | Test complete workflows and SVG rendering output |
+
+**Integration tests cover:**
+
+- Element rendering (image, text, shape, group)
+- Transform rendering (translate, rotate, scale)
+- Clip path rendering (rect, circle, ellipse)
+- Filter rendering (blur, shadows, color effects)
+- JSON serialization/deserialization roundtrip
+- Guides and snapping
+- Alignment and distribution operations
+- Complete editor workflows
+
 ### Production Build
 
 ```bash
@@ -1143,15 +1155,23 @@ We welcome contributions! Please read this section before submitting a pull requ
 
 ### What to Contribute
 
-This is a spec-driven project. See the [Implementation Status](#implementation-status) section for current progress. Here are the highest priority areas:
+This is a spec-driven project. See the [Implementation Status](#implementation-status) section for current progress. Here are areas where contributions are welcome:
 
-#### High Priority
+#### Documentation
 
-- **Test Coverage** — Add integration tests and edge case coverage
+- **Examples** — Add more usage examples and tutorials
+- **API Documentation** — Improve JSDoc comments and type documentation
 
-#### Medium Priority
+#### Features
 
-- **Advanced Features** — Alignment tools, additional filter effects
+- **Additional Filter Effects** — New visual effects and presets
+- **Performance Optimizations** — Rendering and state management improvements
+- **Accessibility** — Improve keyboard navigation and screen reader support
+
+#### Testing
+
+- **Edge Cases** — Add tests for edge cases and error conditions
+- **Performance Tests** — Add benchmarks for large canvases
 
 Open an issue to discuss your approach before starting large features.
 
@@ -1299,19 +1319,52 @@ svg-composer/
 │   │   └── LRUCache.ts         # Generic LRU cache with eviction
 │   └── index.ts                # Public exports
 ├── tests/
+│   ├── setup.ts                   # Test setup (polyfills, cleanup)
 │   ├── unit/
 │   │   ├── SVGComposer.test.ts
 │   │   ├── State.test.ts
 │   │   ├── History.test.ts
+│   │   ├── EventEmitter.test.ts
 │   │   ├── LRUCache.test.ts
-│   │   ├── TransformUtils.test.ts
-│   │   └── filters/
-│   │       ├── FilterManager.test.ts
-│   │       ├── EffectPresets.test.ts
-│   │       └── SVGComposerFilters.test.ts
+│   │   ├── ColorUtils.test.ts
+│   │   ├── PathParser.test.ts
+│   │   ├── AlignmentUtils.test.ts
+│   │   ├── IdGenerator.test.ts
+│   │   ├── filters/
+│   │   │   ├── FilterManager.test.ts
+│   │   │   ├── EffectPresets.test.ts
+│   │   │   ├── CompositeFilter.test.ts
+│   │   │   ├── FilterSerialization.test.ts
+│   │   │   ├── FilterEdgeCases.test.ts
+│   │   │   └── SVGComposerFilters.test.ts
+│   │   ├── rendering/
+│   │   │   ├── SVGRenderer.test.ts
+│   │   │   └── SVGRendererFilters.test.ts
+│   │   └── interaction/
+│   │       ├── InteractionManager.test.ts
+│   │       ├── SelectTool.test.ts
+│   │       ├── PanTool.test.ts
+│   │       ├── AddImageTool.test.ts
+│   │       ├── AddTextTool.test.ts
+│   │       ├── AddShapeTool.test.ts
+│   │       ├── BaseTool.test.ts
+│   │       ├── HitTester.test.ts
+│   │       ├── CoordinateTransformer.test.ts
+│   │       ├── SnappingManager.test.ts
+│   │       ├── SelectionHandleRenderer.test.ts
+│   │       └── zoomUtils.test.ts
 │   └── integration/
-│       ├── Rendering.test.ts
-│       └── Interaction.test.ts
+│       ├── Serialization.test.ts
+│       ├── AlignmentDistribution.test.ts
+│       ├── EditorWorkflow.test.ts
+│       ├── filters/
+│       │   ├── FilterRendering.test.ts
+│       │   └── MultiFilterRendering.test.ts
+│       └── rendering/
+│           ├── ElementRendering.test.ts
+│           ├── TransformRendering.test.ts
+│           ├── ClipPathRendering.test.ts
+│           └── GuidesRendering.test.ts
 ├── examples/
 │   └── demo.html               # Interactive demo
 ├── package.json
