@@ -421,21 +421,21 @@
         <div class="toolbar-group">
           <span class="toolbar-group-label">Align</span>
           <div class="dropdown">
-            <button id="btn-align-dropdown">Align</button>
-            <div class="dropdown-content" id="align-menu">
-              <button id="btn-align-left">Align Left</button>
-              <button id="btn-align-center">Align Center</button>
-              <button id="btn-align-right">Align Right</button>
-              <button id="btn-align-top">Align Top</button>
-              <button id="btn-align-middle">Align Middle</button>
-              <button id="btn-align-bottom">Align Bottom</button>
+            <button id="btn-align-dropdown" aria-haspopup="true" aria-expanded="false" aria-controls="align-menu">Align</button>
+            <div class="dropdown-content" id="align-menu" role="menu" aria-label="Alignment options">
+              <button id="btn-align-left" role="menuitem">Align Left</button>
+              <button id="btn-align-center" role="menuitem">Align Center</button>
+              <button id="btn-align-right" role="menuitem">Align Right</button>
+              <button id="btn-align-top" role="menuitem">Align Top</button>
+              <button id="btn-align-middle" role="menuitem">Align Middle</button>
+              <button id="btn-align-bottom" role="menuitem">Align Bottom</button>
             </div>
           </div>
           <div class="dropdown">
-            <button id="btn-distribute-dropdown">Distribute</button>
-            <div class="dropdown-content" id="distribute-menu">
-              <button id="btn-distribute-h">Distribute Horizontal</button>
-              <button id="btn-distribute-v">Distribute Vertical</button>
+            <button id="btn-distribute-dropdown" aria-haspopup="true" aria-expanded="false" aria-controls="distribute-menu">Distribute</button>
+            <div class="dropdown-content" id="distribute-menu" role="menu" aria-label="Distribution options">
+              <button id="btn-distribute-h" role="menuitem">Distribute Horizontal</button>
+              <button id="btn-distribute-v" role="menuitem">Distribute Vertical</button>
             </div>
           </div>
         </div>
@@ -598,20 +598,32 @@
     const btnExportJson = document.getElementById('btn-export-json');
     const btnCopySvg = document.getElementById('btn-copy-svg');
 
-    // Dropdown handling
+    // Dropdown handling with ARIA support
     document.querySelectorAll('.dropdown > button').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const dropdown = btn.nextElementSibling;
+        const isExpanded = dropdown.classList.contains('show');
+
+        // Close all other dropdowns and reset their ARIA state
+        document.querySelectorAll('.dropdown > button').forEach(b => {
+          b.setAttribute('aria-expanded', 'false');
+        });
         document.querySelectorAll('.dropdown-content').forEach(d => {
           if (d !== dropdown) d.classList.remove('show');
         });
+
+        // Toggle current dropdown
         dropdown.classList.toggle('show');
+        btn.setAttribute('aria-expanded', !isExpanded);
       });
     });
 
     document.addEventListener('click', () => {
       document.querySelectorAll('.dropdown-content').forEach(d => d.classList.remove('show'));
+      document.querySelectorAll('.dropdown > button').forEach(btn => {
+        btn.setAttribute('aria-expanded', 'false');
+      });
     });
 
     // Utility functions
@@ -875,10 +887,24 @@
       updateElementCount(editor);
       updateHistoryButtons(editor);
 
+      // Track applied effects per element
+      const elementEffects = new Map();
+
+      // Update effect dropdown when selection changes
+      function updateEffectDropdown(selection) {
+        if (selection.length === 1) {
+          const appliedEffect = elementEffects.get(selection[0]);
+          effectSelect.value = appliedEffect || '';
+        } else {
+          effectSelect.value = '';
+        }
+      }
+
       // Event listeners
       editor.on('selection:changed', () => {
         updateSelectionCount(editor);
         updatePropertiesPanel(editor);
+        updateEffectDropdown(editor.getSelection());
       });
 
       editor.on('element:updated', () => {
@@ -1065,12 +1091,22 @@
             // Apply preset effect
             const preset = SVGComposer[presetName];
             if (typeof preset === 'function') {
-              const effect = preset();
-              editor.setEffect(id, effect);
+              try {
+                const effect = preset();
+                editor.setEffect(id, effect);
+                elementEffects.set(id, presetName);
+              } catch (err) {
+                console.error(`Failed to apply effect "${presetName}":`, err);
+                setStatus(`Failed to apply ${presetName}`, 'error');
+              }
+            } else {
+              console.warn(`Effect preset "${presetName}" not found on SVGComposer`);
+              setStatus(`Effect "${presetName}" not available`, 'error');
             }
           } else {
             // Remove effect
             editor.removeEffect(id);
+            elementEffects.delete(id);
           }
         }
         editor.render();
@@ -1092,10 +1128,25 @@
       btnCopySvg.addEventListener('click', async () => {
         const svg = editor.toSVG();
         try {
-          await navigator.clipboard.writeText(svg);
-          setStatus('SVG copied to clipboard', 'success');
+          // Try modern clipboard API first
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(svg);
+            setStatus('SVG copied to clipboard', 'success');
+          } else {
+            // Fallback for older browsers
+            const textarea = document.createElement('textarea');
+            textarea.value = svg;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            setStatus('SVG copied to clipboard', 'success');
+          }
         } catch (err) {
-          setStatus('Failed to copy', 'error');
+          console.error('Clipboard copy failed:', err);
+          setStatus('Failed to copy - check browser permissions', 'error');
         }
       });
 
