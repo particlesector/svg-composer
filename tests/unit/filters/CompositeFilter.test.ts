@@ -502,6 +502,150 @@ describe('Composite Filter Chaining', () => {
       expect(composite.width).toBe('120%');
       expect(composite.height).toBe('120%');
     });
+
+    it('should compute correct bounding box when offsets differ but widths are equal', () => {
+      // Filter A: x=-10%, width=130% → covers -10% to 120%
+      const id1 = filterManager.addFilter({
+        primitives: [{ type: 'gaussianBlur', stdDeviation: 5 } as GaussianBlurPrimitive],
+        x: '-10%',
+        y: '-10%',
+        width: '130%',
+        height: '130%',
+      });
+
+      // Filter B: x=-50%, width=130% → covers -50% to 80%
+      const id2 = filterManager.addFilter({
+        primitives: [{ type: 'gaussianBlur', stdDeviation: 3 } as GaussianBlurPrimitive],
+        x: '-50%',
+        y: '-50%',
+        width: '130%',
+        height: '130%',
+      });
+
+      const result = filterManager.createCompositeFilter([
+        { type: 'custom', filterId: id1 },
+        { type: 'custom', filterId: id2 },
+      ]);
+
+      const composite = filterManager.getFilter(result)!;
+      // Union: -50% to 120% → x=-50%, width=170%
+      expect(composite.x).toBe('-50%');
+      expect(composite.y).toBe('-50%');
+      expect(composite.width).toBe('170%');
+      expect(composite.height).toBe('170%');
+    });
+
+    it('should compute correct bounding box with asymmetric regions', () => {
+      // Filter with wide horizontal region
+      const id1 = filterManager.addFilter({
+        primitives: [{ type: 'gaussianBlur', stdDeviation: 5 } as GaussianBlurPrimitive],
+        x: '-30%',
+        y: '-5%',
+        width: '160%',
+        height: '110%',
+      });
+
+      // Filter with tall vertical region
+      const id2 = filterManager.addFilter({
+        primitives: [{ type: 'gaussianBlur', stdDeviation: 3 } as GaussianBlurPrimitive],
+        x: '-5%',
+        y: '-30%',
+        width: '110%',
+        height: '160%',
+      });
+
+      const result = filterManager.createCompositeFilter([
+        { type: 'custom', filterId: id1 },
+        { type: 'custom', filterId: id2 },
+      ]);
+
+      const composite = filterManager.getFilter(result)!;
+      // Horizontal: min(-30,-5)=-30, right=max(130,105)=130
+      // width=130-(-30)=160
+      // Vertical: min(-5,-30)=-30, bottom=max(105,130)=130
+      // height=130-(-30)=160
+      expect(composite.x).toBe('-30%');
+      expect(composite.y).toBe('-30%');
+      expect(composite.width).toBe('160%');
+      expect(composite.height).toBe('160%');
+    });
+  });
+
+  // ============================================================
+  // Edge Cases
+  // ============================================================
+
+  describe('edge cases', () => {
+    it('should silently skip non-existent filter IDs in composite chain', () => {
+      const validId = filterManager.addFilter({
+        primitives: [
+          { type: 'colorMatrix', matrixType: 'saturate', values: 0 } as ColorMatrixPrimitive,
+        ],
+      });
+
+      // One valid, one non-existent
+      const filters: ElementFilter[] = [
+        { type: 'custom', filterId: validId },
+        { type: 'custom', filterId: 'non-existent-filter' },
+      ];
+
+      // resolveElementFilter returns 'non-existent-filter' but _filters.get returns undefined
+      // So only the valid filter's definition is collected, resulting in single-filter shortcut
+      const result = filterManager.createCompositeFilter(filters);
+      // Should fall back to the single valid filter
+      expect(result).toBe(validId);
+    });
+
+    it('should throw when all filter IDs are non-existent', () => {
+      const filters: ElementFilter[] = [
+        { type: 'custom', filterId: 'fake-1' },
+        { type: 'custom', filterId: 'fake-2' },
+      ];
+
+      expect(() => filterManager.createCompositeFilter(filters)).toThrow(
+        'No valid filter definitions found for composite filter',
+      );
+    });
+
+    it('should handle a long chain of 10+ filters', () => {
+      const filterIds: string[] = [];
+      for (let i = 0; i < 12; i++) {
+        filterIds.push(
+          filterManager.addFilter({
+            primitives: [
+              {
+                type: 'colorMatrix',
+                matrixType: 'hueRotate',
+                in: 'SourceGraphic',
+                values: i * 30,
+              } as ColorMatrixPrimitive,
+            ],
+          }),
+        );
+      }
+
+      const elementFilters: ElementFilter[] = filterIds.map((id) => ({
+        type: 'custom' as const,
+        filterId: id,
+      }));
+
+      const result = filterManager.createCompositeFilter(elementFilters);
+      const composite = filterManager.getFilter(result)!;
+
+      // Should have all 12 primitives
+      expect(composite.primitives).toHaveLength(12);
+
+      // First primitive reads SourceGraphic
+      expect((composite.primitives[0] as ColorMatrixPrimitive).in).toBe('SourceGraphic');
+      expect(composite.primitives[0]!.result).toBe('_chain0');
+
+      // Middle primitive reads from previous chain
+      expect((composite.primitives[5] as ColorMatrixPrimitive).in).toBe('_chain4');
+      expect(composite.primitives[5]!.result).toBe('_chain5');
+
+      // Last primitive reads from previous chain, no forced result
+      expect((composite.primitives[11] as ColorMatrixPrimitive).in).toBe('_chain10');
+    });
   });
 
   // ============================================================

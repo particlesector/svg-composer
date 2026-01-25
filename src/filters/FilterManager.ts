@@ -225,7 +225,7 @@ export class FilterManager {
     // Check composite cache
     const cacheKey = this._getCompositeCacheKey(elementFilters);
     const cached = this._compositeCache.get(cacheKey);
-    if (cached !== undefined && cached.length > 0 && this._filters.has(cached)) {
+    if (cached !== undefined && this._filters.has(cached)) {
       return cached;
     }
 
@@ -305,7 +305,7 @@ export class FilterManager {
       if (!isLast && primitives.length > 0) {
         const lastPrimitive = primitives[primitives.length - 1];
         if (lastPrimitive !== undefined) {
-          (lastPrimitive as { result?: string }).result = chainOutputName;
+          lastPrimitive.result = chainOutputName;
         }
       }
 
@@ -392,12 +392,12 @@ export class FilterManager {
     for (const p of primitives) {
       // Rewrite result
       if (p.result !== undefined && p.result.length > 0 && internalNames.has(p.result)) {
-        (p as { result: string }).result = prefix + p.result;
+        p.result = prefix + p.result;
       }
 
       // Rewrite in
       if (p.in !== undefined && p.in.length > 0 && internalNames.has(p.in)) {
-        (p as { in: string }).in = prefix + p.in;
+        p.in = prefix + p.in;
       }
 
       // Rewrite in2 for composite, blend, displacement
@@ -425,7 +425,7 @@ export class FilterManager {
     for (const p of primitives) {
       // Replace in
       if (p.in === 'SourceGraphic') {
-        (p as { in: string }).in = chainInput;
+        p.in = chainInput;
       }
 
       // Replace in2 for composite, blend, displacement
@@ -447,15 +447,15 @@ export class FilterManager {
 
   /**
    * Computes the union of filter regions from multiple filter definitions.
-   * Uses the most generous (widest) bounds across all filters.
+   * Calculates the bounding box that encompasses all individual filter regions.
    */
   private _computeUnionRegion(
     filterDefs: FilterDefinition[],
   ): Pick<FilterDefinition, 'x' | 'y' | 'width' | 'height'> {
     let minX = 0;
     let minY = 0;
-    let maxWidth = 100;
-    let maxHeight = 100;
+    let maxRight = 100;
+    let maxBottom = 100;
 
     for (const def of filterDefs) {
       const x = this._parsePercentage(def.x, 0);
@@ -463,25 +463,28 @@ export class FilterManager {
       const w = this._parsePercentage(def.width, 100);
       const h = this._parsePercentage(def.height, 100);
 
+      const right = x + w;
+      const bottom = y + h;
+
       if (x < minX) {
         minX = x;
       }
       if (y < minY) {
         minY = y;
       }
-      if (w > maxWidth) {
-        maxWidth = w;
+      if (right > maxRight) {
+        maxRight = right;
       }
-      if (h > maxHeight) {
-        maxHeight = h;
+      if (bottom > maxBottom) {
+        maxBottom = bottom;
       }
     }
 
     return {
       x: `${String(minX)}%`,
       y: `${String(minY)}%`,
-      width: `${String(maxWidth)}%`,
-      height: `${String(maxHeight)}%`,
+      width: `${String(maxRight - minX)}%`,
+      height: `${String(maxBottom - minY)}%`,
     };
   }
 
@@ -503,10 +506,12 @@ export class FilterManager {
   }
 
   /**
-   * Creates a cache key for a composite filter
+   * Creates a deterministic cache key for a composite filter.
+   * Uses resolved filter IDs to avoid JSON property ordering sensitivity.
    */
   private _getCompositeCacheKey(elementFilters: ElementFilter[]): string {
-    return `composite:${JSON.stringify(elementFilters)}`;
+    const ids = elementFilters.map((ef) => this.resolveElementFilter(ef));
+    return `composite:${ids.join('+')}`;
   }
 
   /**
