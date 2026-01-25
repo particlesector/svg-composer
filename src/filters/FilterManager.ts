@@ -71,10 +71,8 @@ export class FilterManager {
    * ```
    */
   constructor(options: FilterManagerOptions = {}) {
-    const presetSize =
-      options.presetCacheSize ?? DEFAULT_PRESET_CACHE_SIZE;
-    const compositeSize =
-      options.compositeCacheSize ?? DEFAULT_COMPOSITE_CACHE_SIZE;
+    const presetSize = options.presetCacheSize ?? DEFAULT_PRESET_CACHE_SIZE;
+    const compositeSize = options.compositeCacheSize ?? DEFAULT_COMPOSITE_CACHE_SIZE;
 
     this._presetCache = new LRUCache<string, string>({
       maxSize: presetSize,

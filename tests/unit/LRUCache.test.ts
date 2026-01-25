@@ -19,15 +19,11 @@ describe('LRUCache', () => {
     });
 
     it('should throw on maxSize of 0', () => {
-      expect(() => new LRUCache({ maxSize: 0 })).toThrow(
-        'LRUCache maxSize must be at least 1',
-      );
+      expect(() => new LRUCache({ maxSize: 0 })).toThrow('LRUCache maxSize must be at least 1');
     });
 
     it('should throw on negative maxSize', () => {
-      expect(() => new LRUCache({ maxSize: -5 })).toThrow(
-        'LRUCache maxSize must be at least 1',
-      );
+      expect(() => new LRUCache({ maxSize: -5 })).toThrow('LRUCache maxSize must be at least 1');
     });
 
     it('should floor fractional maxSize', () => {
@@ -36,9 +32,7 @@ describe('LRUCache', () => {
     });
 
     it('should throw when fractional maxSize floors to 0', () => {
-      expect(() => new LRUCache({ maxSize: 0.5 })).toThrow(
-        'LRUCache maxSize must be at least 1',
-      );
+      expect(() => new LRUCache({ maxSize: 0.5 })).toThrow('LRUCache maxSize must be at least 1');
     });
 
     it('should accept maxSize of 1', () => {

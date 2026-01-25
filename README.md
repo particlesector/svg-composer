@@ -24,57 +24,56 @@ This is a spec-driven project. The table below shows the current implementation 
 
 ### Core Systems
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| State Management | Implemented | Immutable snapshots and restoration |
-| History System | Implemented | Full undo/redo with configurable limits |
-| Event System | Implemented | Comprehensive EventEmitter with typed events |
-| SVG Rendering | Implemented | DOM-based renderer with incremental updates |
+| Feature                   | Status      | Notes                                              |
+| ------------------------- | ----------- | -------------------------------------------------- |
+| State Management          | Implemented | Immutable snapshots and restoration                |
+| History System            | Implemented | Full undo/redo with configurable limits            |
+| Event System              | Implemented | Comprehensive EventEmitter with typed events       |
+| SVG Rendering             | Implemented | DOM-based renderer with incremental updates        |
 | Coordinate Transformation | Implemented | Screen-to-viewBox conversion with viewport support |
 
 ### Element Management
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Element CRUD | Implemented | Add, update, remove, get, query operations |
-| Image Elements | Implemented | Full support with clip paths |
-| Text Elements | Implemented | Font, alignment, and styling support |
-| Shape Elements | Implemented | Rect, circle, ellipse, path |
+| Feature        | Status      | Notes                                             |
+| -------------- | ----------- | ------------------------------------------------- |
+| Element CRUD   | Implemented | Add, update, remove, get, query operations        |
+| Image Elements | Implemented | Full support with clip paths                      |
+| Text Elements  | Implemented | Font, alignment, and styling support              |
+| Shape Elements | Implemented | Rect, circle, ellipse, path                       |
 | Group Elements | Implemented | Full support with `createGroup()` and `ungroup()` |
-| Clip Paths | Implemented | Rect, circle, ellipse clip paths |
+| Clip Paths     | Implemented | Rect, circle, ellipse clip paths                  |
 
 ### Transform & Manipulation
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Transform Operations | Implemented | Move, rotate, scale, reset |
-| Z-Order Management | Implemented | All z-order operations |
-| Bounding Box Queries | Implemented | Full support including path elements |
-| Export/Import | Implemented | SVG generation and JSON serialization |
+| Feature              | Status      | Notes                                 |
+| -------------------- | ----------- | ------------------------------------- |
+| Transform Operations | Implemented | Move, rotate, scale, reset            |
+| Z-Order Management   | Implemented | All z-order operations                |
+| Bounding Box Queries | Implemented | Full support including path elements  |
+| Export/Import        | Implemented | SVG generation and JSON serialization |
 
 ### Interaction Layer
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Tool System | Implemented | Select, Pan, Add Image/Text/Shape tools |
-| Hit Testing | Implemented | Element and handle detection |
-| Selection Handles | Implemented | Visual feedback with resize/rotate handles |
-| Keyboard Support | Implemented | Shift for multi-select, space for pan |
-| Viewport Management | Implemented | Pan and zoom support |
-| Touch/Multi-Touch | Implemented | Pointer events, pinch-zoom, two-finger pan |
-| Guides & Snapping | Implemented | Snap to guides, grid, elements, and canvas edges |
-| Filters & Effects | Implemented | SVG filters, shadows, blur, color effects, multiple filter chaining |
-| Alignment & Distribution | Implemented | Align left/right/center, distribute evenly |
+| Feature                  | Status      | Notes                                                                                   |
+| ------------------------ | ----------- | --------------------------------------------------------------------------------------- |
+| Tool System              | Implemented | Select, Pan, Add Image/Text/Shape tools                                                 |
+| Hit Testing              | Implemented | Element and handle detection                                                            |
+| Selection Handles        | Implemented | Visual feedback with resize/rotate handles                                              |
+| Keyboard Support         | Implemented | Shift for multi-select, space for pan                                                   |
+| Viewport Management      | Implemented | Pan and zoom support                                                                    |
+| Touch/Multi-Touch        | Implemented | Pointer events, pinch-zoom, two-finger pan                                              |
+| Guides & Snapping        | Implemented | Snap to guides, grid, elements, and canvas edges                                        |
+| Filters & Effects        | Implemented | SVG filters, shadows, blur, color effects, multiple filter chaining, LRU cache eviction |
+| Alignment & Distribution | Implemented | Align left/right/center, distribute evenly                                              |
 
 ### Future Improvements
 
 The following enhancements are planned for future development:
 
-| Area | Improvement | Description |
-|------|-------------|-------------|
-| Filters | Cache eviction | LRU cache for preset filters to limit memory |
-| Filters | Enhanced color parsing | Support hsl(), oklch(), full CSS named colors |
-| Testing | Integration tests | Validate filter rendering in actual SVG output |
+| Area    | Improvement            | Description                                    |
+| ------- | ---------------------- | ---------------------------------------------- |
+| Filters | Enhanced color parsing | Support hsl(), oklch(), full CSS named colors  |
+| Testing | Integration tests      | Validate filter rendering in actual SVG output |
 
 ---
 
@@ -92,7 +91,7 @@ import { SVGComposer } from 'svg-composer';
 // Mount editor to a DOM element
 const editor = new SVGComposer(document.getElementById('canvas'), {
   width: 1200,
-  height: 1200
+  height: 1200,
 });
 
 // Add an image
@@ -101,7 +100,7 @@ const imageId = editor.addElement({
   src: 'https://example.com/photo.jpg',
   width: 400,
   height: 300,
-  transform: { x: 100, y: 100, rotation: 0, scaleX: 1, scaleY: 1 }
+  transform: { x: 100, y: 100, rotation: 0, scaleX: 1, scaleY: 1 },
 });
 
 // Select and transform
@@ -120,16 +119,16 @@ const svgMarkup = editor.toSVG();
 
 ```typescript
 interface Point {
-  x: number;  // viewBox units
-  y: number;  // viewBox units
+  x: number; // viewBox units
+  y: number; // viewBox units
 }
 
 interface Transform {
-  x: number;        // position X in viewBox units
-  y: number;        // position Y in viewBox units
+  x: number; // position X in viewBox units
+  y: number; // position Y in viewBox units
   rotation: number; // degrees (0-360)
-  scaleX: number;   // scale factor (1.0 = 100%)
-  scaleY: number;   // scale factor (1.0 = 100%)
+  scaleX: number; // scale factor (1.0 = 100%)
+  scaleY: number; // scale factor (1.0 = 100%)
 }
 
 interface BoundingBox {
@@ -146,13 +145,13 @@ All elements extend `BaseElement`:
 
 ```typescript
 interface BaseElement {
-  id: string;                                      // UUID, auto-generated
+  id: string; // UUID, auto-generated
   type: 'image' | 'text' | 'shape' | 'group';
   transform: Transform;
-  opacity: number;                                 // 0.0 to 1.0
-  zIndex: number;                                  // stacking order
-  locked: boolean;                                 // prevent editing
-  visible: boolean;                                // show/hide
+  opacity: number; // 0.0 to 1.0
+  zIndex: number; // stacking order
+  locked: boolean; // prevent editing
+  visible: boolean; // show/hide
 }
 ```
 
@@ -161,10 +160,10 @@ interface BaseElement {
 ```typescript
 interface ImageElement extends BaseElement {
   type: 'image';
-  src: string;                    // asset URL
-  width: number;                  // original width in viewBox units
-  height: number;                 // original height in viewBox units
-  clipPath?: string;              // optional clip-path ID reference
+  src: string; // asset URL
+  width: number; // original width in viewBox units
+  height: number; // original height in viewBox units
+  clipPath?: string; // optional clip-path ID reference
 }
 ```
 
@@ -174,9 +173,9 @@ interface ImageElement extends BaseElement {
 interface TextElement extends BaseElement {
   type: 'text';
   content: string;
-  fontSize: number;               // viewBox units
-  fontFamily: string;             // CSS font family
-  fill: string;                   // CSS color string
+  fontSize: number; // viewBox units
+  fontFamily: string; // CSS font family
+  fill: string; // CSS color string
   textAnchor: 'start' | 'middle' | 'end';
 }
 ```
@@ -187,24 +186,24 @@ interface TextElement extends BaseElement {
 interface ShapeElement extends BaseElement {
   type: 'shape';
   shapeType: 'rect' | 'circle' | 'ellipse' | 'path';
-  fill: string;                   // CSS color string
-  stroke: string;                 // CSS color string
-  strokeWidth: number;            // viewBox units
-  
+  fill: string; // CSS color string
+  stroke: string; // CSS color string
+  strokeWidth: number; // viewBox units
+
   // Rectangle specific
   width?: number;
   height?: number;
-  rx?: number;                    // border radius
-  
+  rx?: number; // border radius
+
   // Circle specific
-  r?: number;                     // radius
-  
+  r?: number; // radius
+
   // Ellipse specific
-  rx?: number;                    // X radius
-  ry?: number;                    // Y radius
-  
+  rx?: number; // X radius
+  ry?: number; // Y radius
+
   // Path specific
-  path?: string;                  // SVG path data
+  path?: string; // SVG path data
 }
 ```
 
@@ -213,7 +212,7 @@ interface ShapeElement extends BaseElement {
 ```typescript
 interface GroupElement extends BaseElement {
   type: 'group';
-  children: string[];             // array of element IDs
+  children: string[]; // array of element IDs
 }
 ```
 
@@ -221,12 +220,12 @@ interface GroupElement extends BaseElement {
 
 ```typescript
 interface CanvasState {
-  width: number;                          // viewBox width
-  height: number;                         // viewBox height
-  backgroundColor: string;                // CSS color
-  elements: Map<string, BaseElement>;     // all elements
-  selectedIds: Set<string>;               // current selection
-  guides: Guide[];                        // guide lines
+  width: number; // viewBox width
+  height: number; // viewBox height
+  backgroundColor: string; // CSS color
+  elements: Map<string, BaseElement>; // all elements
+  selectedIds: Set<string>; // current selection
+  guides: Guide[]; // guide lines
 }
 ```
 
@@ -234,12 +233,12 @@ interface CanvasState {
 
 ```typescript
 interface Guide {
-  id: string;                             // unique identifier
+  id: string; // unique identifier
   orientation: 'horizontal' | 'vertical'; // guide direction
-  position: number;                       // position in viewBox units
-  locked: boolean;                        // prevent movement
-  visible: boolean;                       // show/hide
-  color?: string;                         // custom color (CSS)
+  position: number; // position in viewBox units
+  locked: boolean; // prevent movement
+  visible: boolean; // show/hide
+  color?: string; // custom color (CSS)
 }
 ```
 
@@ -247,16 +246,16 @@ interface Guide {
 
 ```typescript
 interface SnappingConfig {
-  enabled: boolean;              // master toggle
-  snapDistance: number;          // threshold in viewBox units (default: 8)
-  snapToGuides: boolean;         // snap to guide lines
-  snapToGrid: boolean;           // snap to grid
-  gridSize: number;              // grid spacing (default: 10)
-  snapToElements: boolean;       // snap to element edges
+  enabled: boolean; // master toggle
+  snapDistance: number; // threshold in viewBox units (default: 8)
+  snapToGuides: boolean; // snap to guide lines
+  snapToGrid: boolean; // snap to grid
+  gridSize: number; // grid spacing (default: 10)
+  snapToElements: boolean; // snap to element edges
   snapToElementCenters: boolean; // snap to element centers
-  snapToCanvasEdges: boolean;    // snap to canvas boundaries
-  snapToCanvasCenter: boolean;   // snap to canvas center
-  showSnapIndicators: boolean;   // show visual snap lines
+  snapToCanvasEdges: boolean; // snap to canvas boundaries
+  snapToCanvasCenter: boolean; // snap to canvas center
+  showSnapIndicators: boolean; // show visual snap lines
 }
 ```
 
@@ -295,49 +294,49 @@ Effect presets provide a simple API for common visual effects:
 
 ```typescript
 type EffectType =
-  | 'blur'              // Gaussian blur
-  | 'dropShadow'        // Drop shadow
-  | 'innerShadow'       // Inner shadow
-  | 'glow'              // Outer/inner glow
-  | 'grayscale'         // Grayscale conversion
-  | 'sepia'             // Sepia tone
-  | 'saturate'          // Saturation adjustment
-  | 'hueRotate'         // Hue rotation
-  | 'brightness'        // Brightness adjustment
-  | 'contrast'          // Contrast adjustment
-  | 'invert'            // Color inversion
-  | 'sharpen'           // Sharpening
-  | 'emboss'            // Emboss/relief effect
-  | 'noise'             // Noise/grain
-  | 'outline'           // Stroke outline
-  | 'brightnessContrast'// Combined brightness/contrast
-  | 'vintage'           // Vintage photo effect
-  | 'duotone';          // Two-tone color mapping
+  | 'blur' // Gaussian blur
+  | 'dropShadow' // Drop shadow
+  | 'innerShadow' // Inner shadow
+  | 'glow' // Outer/inner glow
+  | 'grayscale' // Grayscale conversion
+  | 'sepia' // Sepia tone
+  | 'saturate' // Saturation adjustment
+  | 'hueRotate' // Hue rotation
+  | 'brightness' // Brightness adjustment
+  | 'contrast' // Contrast adjustment
+  | 'invert' // Color inversion
+  | 'sharpen' // Sharpening
+  | 'emboss' // Emboss/relief effect
+  | 'noise' // Noise/grain
+  | 'outline' // Stroke outline
+  | 'brightnessContrast' // Combined brightness/contrast
+  | 'vintage' // Vintage photo effect
+  | 'duotone'; // Two-tone color mapping
 
 // Example effect interfaces
 interface BlurEffect {
   type: 'blur';
-  radius: number;          // blur radius in viewBox units
+  radius: number; // blur radius in viewBox units
 }
 
 interface DropShadowEffect {
   type: 'dropShadow';
-  offsetX: number;         // horizontal offset
-  offsetY: number;         // vertical offset
-  blur: number;            // blur radius
-  color: string;           // CSS color
-  opacity?: number;        // 0-1
+  offsetX: number; // horizontal offset
+  offsetY: number; // vertical offset
+  blur: number; // blur radius
+  color: string; // CSS color
+  opacity?: number; // 0-1
 }
 
 interface GrayscaleEffect {
   type: 'grayscale';
-  amount?: number;         // 0-1, default 1 (full grayscale)
+  amount?: number; // 0-1, default 1 (full grayscale)
 }
 
 interface DuotoneEffect {
   type: 'duotone';
-  shadowColor: string;     // color for dark areas
-  highlightColor: string;  // color for light areas
+  shadowColor: string; // color for dark areas
+  highlightColor: string; // color for light areas
 }
 ```
 
@@ -347,25 +346,25 @@ For advanced effects, you can work directly with SVG filter primitives:
 
 ```typescript
 type FilterPrimitiveType =
-  | 'gaussianBlur'      // feGaussianBlur
-  | 'dropShadow'        // feDropShadow
-  | 'colorMatrix'       // feColorMatrix
+  | 'gaussianBlur' // feGaussianBlur
+  | 'dropShadow' // feDropShadow
+  | 'colorMatrix' // feColorMatrix
   | 'componentTransfer' // feComponentTransfer
-  | 'morphology'        // feMorphology (dilate/erode)
-  | 'turbulence'        // feTurbulence (noise)
-  | 'displacement'      // feDisplacementMap
-  | 'blend'             // feBlend
-  | 'composite'         // feComposite
-  | 'flood'             // feFlood
-  | 'merge'             // feMerge
-  | 'offset'            // feOffset
-  | 'convolveMatrix'    // feConvolveMatrix
-  | 'lighting';         // feDiffuseLighting/feSpecularLighting
+  | 'morphology' // feMorphology (dilate/erode)
+  | 'turbulence' // feTurbulence (noise)
+  | 'displacement' // feDisplacementMap
+  | 'blend' // feBlend
+  | 'composite' // feComposite
+  | 'flood' // feFlood
+  | 'merge' // feMerge
+  | 'offset' // feOffset
+  | 'convolveMatrix' // feConvolveMatrix
+  | 'lighting'; // feDiffuseLighting/feSpecularLighting
 
 interface FilterDefinition {
   id: string;
   primitives: FilterPrimitive[];
-  x?: string;           // filter region
+  x?: string; // filter region
   y?: string;
   width?: string;
   height?: string;
@@ -385,7 +384,7 @@ type EditorEvents = {
   'state:changed': { state: CanvasState };
   'history:changed': { canUndo: boolean; canRedo: boolean };
   'tool:changed': { tool: ToolType };
-  'error': { message: string; details?: unknown };
+  error: { message: string; details?: unknown };
 };
 
 type ToolType = 'select' | 'pan' | 'add-image' | 'add-text' | 'add-shape';
@@ -613,7 +612,7 @@ const imageId = editor.addElement({
   opacity: 1,
   zIndex: 1,
   locked: false,
-  visible: true
+  visible: true,
 });
 
 // Add text
@@ -628,7 +627,7 @@ const textId = editor.addElement({
   opacity: 1,
   zIndex: 2,
   locked: false,
-  visible: true
+  visible: true,
 });
 
 // Add a shape
@@ -645,7 +644,7 @@ const shapeId = editor.addElement({
   opacity: 0.8,
   zIndex: 0,
   locked: false,
-  visible: true
+  visible: true,
 });
 ```
 
@@ -696,7 +695,7 @@ editor.addClipPath(imageId, {
   type: 'circle',
   cx: 200,
   cy: 150,
-  r: 100
+  r: 100,
 });
 
 // Rectangular crop with rounded corners
@@ -706,7 +705,7 @@ editor.addClipPath(imageId, {
   y: 50,
   width: 300,
   height: 200,
-  rx: 20
+  rx: 20,
 });
 
 // Remove clip
@@ -724,38 +723,47 @@ import {
   glow,
   duotone,
   brightnessContrast,
-  presets
+  presets,
 } from 'svg-composer';
 
 // Add a simple blur effect
 editor.addEffect(imageId, blur(5));
 
 // Add a drop shadow
-editor.addEffect(imageId, dropShadow({
-  offsetX: 4,
-  offsetY: 4,
-  blur: 8,
-  color: 'rgba(0,0,0,0.5)'
-}));
+editor.addEffect(
+  imageId,
+  dropShadow({
+    offsetX: 4,
+    offsetY: 4,
+    blur: 8,
+    color: 'rgba(0,0,0,0.5)',
+  }),
+);
 
 // Apply grayscale
 editor.addEffect(imageId, grayscale(1));
 
 // Add a glow effect
-editor.addEffect(imageId, glow({
-  radius: 12,
-  color: '#00ff00',
-  opacity: 0.8
-}));
+editor.addEffect(
+  imageId,
+  glow({
+    radius: 12,
+    color: '#00ff00',
+    opacity: 0.8,
+  }),
+);
 
 // Create duotone effect
 editor.addEffect(imageId, duotone('#0d0221', '#ff00ff'));
 
 // Combine brightness and contrast
-editor.addEffect(imageId, brightnessContrast({
-  brightness: 1.2,
-  contrast: 1.4
-}));
+editor.addEffect(
+  imageId,
+  brightnessContrast({
+    brightness: 1.2,
+    contrast: 1.4,
+  }),
+);
 
 // Use built-in presets
 editor.addEffect(imageId, presets.cardShadow());
@@ -792,12 +800,9 @@ const filterId = editor.addFilter({
     { type: 'offset', dx: 5, dy: 5, in: 'blur', result: 'offsetBlur' },
     {
       type: 'merge',
-      nodes: [
-        { in: 'offsetBlur' },
-        { in: 'SourceGraphic' }
-      ]
-    }
-  ]
+      nodes: [{ in: 'offsetBlur' }, { in: 'SourceGraphic' }],
+    },
+  ],
 });
 
 // Apply custom filter to element
@@ -815,25 +820,25 @@ editor.removeFilter(filterId);
 
 ### Available Effect Presets
 
-| Preset | Description |
-|--------|-------------|
-| `presets.cardShadow()` | Soft shadow for cards |
+| Preset                     | Description                         |
+| -------------------------- | ----------------------------------- |
+| `presets.cardShadow()`     | Soft shadow for cards               |
 | `presets.floatingShadow()` | Strong shadow for floating elements |
-| `presets.textShadow()` | Subtle text shadow |
-| `presets.neonGlow(color)` | Neon glow effect |
-| `presets.innerGlow(color)` | Soft inner glow |
-| `presets.blackAndWhite()` | Full grayscale |
-| `presets.faded()` | Washed out look |
-| `presets.dramatic()` | High contrast |
-| `presets.warm()` | Warm color temperature |
-| `presets.cool()` | Cool color temperature |
-| `presets.vintagePhoto()` | Vintage photo effect |
-| `presets.nashville()` | Instagram-style filter |
-| `presets.backgroundBlur()` | Soft blur for backgrounds |
-| `presets.filmGrain()` | Film grain/noise effect |
-| `presets.cyberpunk()` | Cyberpunk duotone |
-| `presets.ocean()` | Ocean blue duotone |
-| `presets.sunset()` | Sunset orange duotone |
+| `presets.textShadow()`     | Subtle text shadow                  |
+| `presets.neonGlow(color)`  | Neon glow effect                    |
+| `presets.innerGlow(color)` | Soft inner glow                     |
+| `presets.blackAndWhite()`  | Full grayscale                      |
+| `presets.faded()`          | Washed out look                     |
+| `presets.dramatic()`       | High contrast                       |
+| `presets.warm()`           | Warm color temperature              |
+| `presets.cool()`           | Cool color temperature              |
+| `presets.vintagePhoto()`   | Vintage photo effect                |
+| `presets.nashville()`      | Instagram-style filter              |
+| `presets.backgroundBlur()` | Soft blur for backgrounds           |
+| `presets.filmGrain()`      | Film grain/noise effect             |
+| `presets.cyberpunk()`      | Cyberpunk duotone                   |
+| `presets.ocean()`          | Ocean blue duotone                  |
+| `presets.sunset()`         | Sunset orange duotone               |
 
 ### Working with Guides
 
@@ -869,15 +874,15 @@ editor.enableSnapping();
 
 // Configure snap behavior
 editor.setSnappingConfig({
-  snapDistance: 10,           // increase snap range
-  snapToGuides: true,         // snap to guide lines
-  snapToGrid: true,           // enable grid snapping
-  gridSize: 25,               // 25-unit grid
-  snapToElements: true,       // snap to element edges
+  snapDistance: 10, // increase snap range
+  snapToGuides: true, // snap to guide lines
+  snapToGrid: true, // enable grid snapping
+  gridSize: 25, // 25-unit grid
+  snapToElements: true, // snap to element edges
   snapToElementCenters: true, // snap to element centers
-  snapToCanvasEdges: true,    // snap to canvas boundaries
-  snapToCanvasCenter: true,   // snap to canvas center
-  showSnapIndicators: true    // show visual snap lines
+  snapToCanvasEdges: true, // snap to canvas boundaries
+  snapToCanvasCenter: true, // snap to canvas center
+  showSnapIndicators: true, // show visual snap lines
 });
 
 // Toggle snapping on/off
@@ -910,15 +915,15 @@ editor.alignTop([id1, id2, id3]);
 editor.alignRight([id1, id2, id3], { relativeTo: 'first' });
 
 // Distribute elements evenly (requires 3+ elements)
-editor.distributeHorizontal();      // by center points
-editor.distributeVertical();        // by center points
-editor.distributeHorizontalGaps();  // equal spacing between
-editor.distributeVerticalGaps();    // equal spacing between
+editor.distributeHorizontal(); // by center points
+editor.distributeVertical(); // by center points
+editor.distributeHorizontalGaps(); // equal spacing between
+editor.distributeVerticalGaps(); // equal spacing between
 
 // Distribute by edges
-editor.distributeLeft();   // align left edges evenly
-editor.distributeRight();  // align right edges evenly
-editor.distributeTop();    // align top edges evenly
+editor.distributeLeft(); // align left edges evenly
+editor.distributeRight(); // align right edges evenly
+editor.distributeTop(); // align top edges evenly
 editor.distributeBottom(); // align bottom edges evenly
 ```
 
@@ -1141,9 +1146,11 @@ We welcome contributions! Please read this section before submitting a pull requ
 This is a spec-driven project. See the [Implementation Status](#implementation-status) section for current progress. Here are the highest priority areas:
 
 #### High Priority
+
 - **Test Coverage** — Add integration tests and edge case coverage
 
 #### Medium Priority
+
 - **Advanced Features** — Alignment tools, additional filter effects
 
 Open an issue to discuss your approach before starting large features.
@@ -1195,13 +1202,13 @@ Run `npm run lint` to check and `npm run lint:fix` to auto-fix.
 - JSDoc comments on all public APIs
 - Include `@param`, `@returns`, and `@example` where helpful
 
-```typescript
+````typescript
 /**
  * Adds an element to the canvas.
- * 
+ *
  * @param element - Element properties (id will be auto-generated)
  * @returns The generated element ID
- * 
+ *
  * @example
  * ```typescript
  * const id = editor.addElement({
@@ -1212,7 +1219,7 @@ Run `npm run lint` to check and `npm run lint:fix` to auto-fix.
  * ```
  */
 addElement(element: Omit<BaseElement, 'id'>): string;
-```
+````
 
 ### Testing
 
@@ -1288,13 +1295,15 @@ svg-composer/
 │   ├── utils/
 │   │   ├── BoundingBox.ts      # Bounding box utilities
 │   │   ├── GeometryUtils.ts    # Math helpers
-│   │   └── IdGenerator.ts      # UUID generation
+│   │   ├── IdGenerator.ts      # UUID generation
+│   │   └── LRUCache.ts         # Generic LRU cache with eviction
 │   └── index.ts                # Public exports
 ├── tests/
 │   ├── unit/
 │   │   ├── SVGComposer.test.ts
 │   │   ├── State.test.ts
 │   │   ├── History.test.ts
+│   │   ├── LRUCache.test.ts
 │   │   ├── TransformUtils.test.ts
 │   │   └── filters/
 │   │       ├── FilterManager.test.ts
