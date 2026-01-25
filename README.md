@@ -63,7 +63,7 @@ This is a spec-driven project. The table below shows the current implementation 
 | Viewport Management | Implemented | Pan and zoom support |
 | Touch/Multi-Touch | Implemented | Pointer events, pinch-zoom, two-finger pan |
 | Guides & Snapping | Implemented | Snap to guides, grid, elements, and canvas edges |
-| Filters & Effects | Implemented | SVG filters, shadows, blur, color effects |
+| Filters & Effects | Implemented | SVG filters, shadows, blur, color effects, multiple filter chaining |
 | Alignment & Distribution | Implemented | Align left/right/center, distribute evenly |
 
 ### Future Improvements
@@ -72,7 +72,6 @@ The following enhancements are planned for future development:
 
 | Area | Improvement | Description |
 |------|-------------|-------------|
-| Filters | Multiple filter support | Chain multiple effects into composite filters |
 | Filters | Cache eviction | LRU cache for preset filters to limit memory |
 | Filters | Enhanced color parsing | Support hsl(), oklch(), full CSS named colors |
 | Testing | Integration tests | Validate filter rendering in actual SVG output |

@@ -1555,6 +1555,7 @@ export class SVGComposer extends EditorEventEmitter {
       (id) => this._state.getElement(id),
       (filter) => this._filterManager.resolveElementFilter(filter),
       (id) => this._filterManager.getFilter(id),
+      (filters) => this._filterManager.createCompositeFilter(filters),
     );
   }
 
@@ -2335,6 +2336,7 @@ export class SVGComposer extends EditorEventEmitter {
       viewportState,
       (filter) => this._filterManager.resolveElementFilter(filter),
       (id) => this._filterManager.getFilter(id),
+      (filters) => this._filterManager.createCompositeFilter(filters),
     );
 
     // Initialize interaction manager on first render (after SVG is in DOM)

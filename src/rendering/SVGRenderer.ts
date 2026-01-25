@@ -137,6 +137,7 @@ export class SVGRenderer {
     getElement: ElementGetter,
     resolveFilter?: (filter: ElementFilter) => string,
     getFilter?: (id: string) => FilterDefinition | undefined,
+    resolveCompositeFilter?: (filters: ElementFilter[]) => string,
   ): string {
     const elements = Array.from(state.elements.values())
       .filter((el) => el.visible)
@@ -153,6 +154,9 @@ export class SVGRenderer {
     }
     if (getFilter) {
       context.getFilter = getFilter;
+    }
+    if (resolveCompositeFilter) {
+      context.resolveCompositeFilter = resolveCompositeFilter;
     }
 
     // Render all elements and collect clip paths and filters
@@ -234,6 +238,7 @@ export class SVGRenderer {
     viewportState?: ViewportState,
     resolveFilter?: (filter: ElementFilter) => string,
     getFilter?: (id: string) => FilterDefinition | undefined,
+    resolveCompositeFilter?: (filters: ElementFilter[]) => string,
   ): void {
     // Initialize if not already done
     if (this._rootSvg?.parentElement !== container) {
@@ -291,10 +296,10 @@ export class SVGRenderer {
     for (const element of topLevelElements) {
       if (this._elementMap.has(element.id)) {
         // Element exists, update it
-        this.updateElement(element, getElement, resolveFilter, getFilter);
+        this.updateElement(element, getElement, resolveFilter, getFilter, resolveCompositeFilter);
       } else {
         // Element is new, add it
-        this.addElement(element, getElement, resolveFilter, getFilter);
+        this.addElement(element, getElement, resolveFilter, getFilter, resolveCompositeFilter);
       }
     }
 
@@ -316,6 +321,7 @@ export class SVGRenderer {
     getElement: ElementGetter,
     resolveFilter?: (filter: ElementFilter) => string,
     getFilter?: (id: string) => FilterDefinition | undefined,
+    resolveCompositeFilter?: (filters: ElementFilter[]) => string,
   ): void {
     if (!this._contentGroup) {
       return;
@@ -331,6 +337,9 @@ export class SVGRenderer {
     }
     if (getFilter) {
       context.getFilter = getFilter;
+    }
+    if (resolveCompositeFilter) {
+      context.resolveCompositeFilter = resolveCompositeFilter;
     }
 
     const svgElement = this._createDOMElement(element, context);
@@ -366,6 +375,7 @@ export class SVGRenderer {
     getElement: ElementGetter,
     resolveFilter?: (filter: ElementFilter) => string,
     getFilter?: (id: string) => FilterDefinition | undefined,
+    resolveCompositeFilter?: (filters: ElementFilter[]) => string,
   ): void {
     if (!this._contentGroup) {
       return;
@@ -374,7 +384,7 @@ export class SVGRenderer {
     const existingEntry = this._elementMap.get(element.id);
     if (!existingEntry) {
       // Element doesn't exist, add it
-      this.addElement(element, getElement, resolveFilter, getFilter);
+      this.addElement(element, getElement, resolveFilter, getFilter, resolveCompositeFilter);
       return;
     }
 
@@ -394,7 +404,7 @@ export class SVGRenderer {
       if (needsRecreate) {
         // Remove old group and add new one
         this.removeElement(element.id);
-        this.addElement(element, getElement, resolveFilter, getFilter);
+        this.addElement(element, getElement, resolveFilter, getFilter, resolveCompositeFilter);
         return;
       }
     }
@@ -409,6 +419,9 @@ export class SVGRenderer {
     }
     if (getFilter) {
       context.getFilter = getFilter;
+    }
+    if (resolveCompositeFilter) {
+      context.resolveCompositeFilter = resolveCompositeFilter;
     }
 
     // Update attributes using diffing
@@ -990,22 +1003,33 @@ export class SVGRenderer {
   // ============================================================
 
   /**
-   * Collects the filter attribute for SVG string generation
+   * Collects the filter attribute for SVG string generation.
+   * Supports multiple filters by creating a composite filter that chains them.
    */
   private _collectFilterAttr(element: BaseElement, context: RenderContext): string {
     if (!element.filters || element.filters.length === 0) {
       return '';
     }
 
-    // For now, we only support single filter; combine multiple into one would require
-    // creating a composite filter which is complex. Support the first filter for simplicity.
+    // Multiple filters: create a composite filter that chains all effects
+    if (element.filters.length > 1 && context.resolveCompositeFilter) {
+      const compositeId = context.resolveCompositeFilter(element.filters);
+      const filterDef = context.getFilter?.(compositeId);
+      if (filterDef) {
+        if (!context.filters.has(filterDef.id)) {
+          context.filters.set(filterDef.id, filterDef);
+        }
+        return ` filter="url(#${filterDef.id})"`;
+      }
+    }
+
+    // Single filter (or fallback if composite resolver not available)
     const firstFilter = element.filters[0];
     if (!firstFilter) {
       return '';
     }
 
     if (firstFilter.type === 'custom') {
-      // Custom filter - look up by ID
       const filterDef = context.getFilter?.(firstFilter.filterId);
       if (filterDef) {
         if (!context.filters.has(filterDef.id)) {
@@ -1016,7 +1040,6 @@ export class SVGRenderer {
       return '';
     }
 
-    // Preset filter - resolve to filter definition
     if (context.resolveFilter) {
       const filterId = context.resolveFilter(firstFilter);
       const filterDef = context.getFilter?.(filterId);
@@ -1039,6 +1062,19 @@ export class SVGRenderer {
       return null;
     }
 
+    // Multiple filters: create a composite filter that chains all effects
+    if (element.filters.length > 1 && context.resolveCompositeFilter) {
+      const compositeId = context.resolveCompositeFilter(element.filters);
+      const filterDef = context.getFilter?.(compositeId);
+      if (filterDef) {
+        if (!context.filters.has(filterDef.id)) {
+          context.filters.set(filterDef.id, filterDef);
+        }
+        return `url(#${filterDef.id})`;
+      }
+    }
+
+    // Single filter (or fallback if composite resolver not available)
     const firstFilter = element.filters[0];
     if (!firstFilter) {
       return null;

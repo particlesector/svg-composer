@@ -48,6 +48,8 @@ export interface RenderContext {
   getElement: (id: string) => BaseElement | undefined;
   /** Function to resolve an element filter to a filter ID */
   resolveFilter?: (filter: import('../filters/types.js').ElementFilter) => string;
+  /** Function to resolve multiple element filters into a single composite filter ID */
+  resolveCompositeFilter?: (filters: import('../filters/types.js').ElementFilter[]) => string;
   /** Function to get a filter by ID */
   getFilter?: (id: string) => FilterDefinition | undefined;
 }
