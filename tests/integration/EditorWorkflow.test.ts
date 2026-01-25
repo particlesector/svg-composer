@@ -3,7 +3,7 @@
  * Validates end-to-end editing scenarios
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { SVGComposer } from '../../src/core/SVGComposer.js';
 import type { Transform } from '../../src/core/types.js';
 import type { ImageElement, TextElement, ShapeElement } from '../../src/elements/types.js';
@@ -644,6 +644,7 @@ describe('Editor Workflow Integration', () => {
       expect(svg2).toContain('<filter');
       expect(svg2).toContain('feColorMatrix');
 
+      editor2.destroy();
       document.body.removeChild(container2);
     });
   });

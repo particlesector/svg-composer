@@ -333,6 +333,7 @@ describe('Serialization Integration', () => {
       const elements = editor2.getAllElements();
       expect(elements.length).toBe(2);
 
+      editor2.destroy();
       document.body.removeChild(container2);
     });
 
@@ -351,6 +352,7 @@ describe('Serialization Integration', () => {
       expect(editor2.getElement(id1)).toBeDefined();
       expect(editor2.getElement(id2)).toBeDefined();
 
+      editor2.destroy();
       document.body.removeChild(container2);
     });
 
@@ -395,6 +397,7 @@ describe('Serialization Integration', () => {
       expect(element.transform.rotation).toBe(30);
       expect(element.transform.scaleX).toBe(1.25);
 
+      editor2.destroy();
       document.body.removeChild(container2);
     });
 
@@ -426,6 +429,7 @@ describe('Serialization Integration', () => {
       // SVGs should be equivalent (minor whitespace differences OK)
       expect(svgAfter).toBe(svgBefore);
 
+      editor2.destroy();
       document.body.removeChild(container2);
     });
   });
@@ -469,6 +473,7 @@ describe('Serialization Integration', () => {
       expect(group).toBeDefined();
       expect(group?.type).toBe('group');
 
+      editor2.destroy();
       document.body.removeChild(container2);
     });
   });
@@ -506,6 +511,7 @@ describe('Serialization Integration', () => {
       expect(guide?.orientation).toBe('horizontal');
       expect(guide?.locked).toBe(true);
 
+      editor2.destroy();
       document.body.removeChild(container2);
     });
   });
@@ -555,6 +561,7 @@ describe('Serialization Integration', () => {
       const svg = editor2.toSVG();
       expect(svg).toContain('<clipPath');
 
+      editor2.destroy();
       document.body.removeChild(container2);
     });
   });
@@ -595,6 +602,7 @@ describe('Serialization Integration', () => {
       expect(svgBefore).toContain('<filter');
       expect(svgAfter).toContain('<filter');
 
+      editor2.destroy();
       document.body.removeChild(container2);
     });
   });
@@ -672,6 +680,7 @@ describe('Serialization Integration', () => {
 
       expect(textElement.content).toBe('Special: <>&"\' ñ 日本語 🎉');
 
+      editor2.destroy();
       document.body.removeChild(container2);
     });
 

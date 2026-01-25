@@ -386,6 +386,7 @@ describe('Guides Rendering Integration', () => {
       expect(vGuide?.position).toBe(200);
       expect(vGuide?.visible).toBe(false);
 
+      editor2.destroy();
       document.body.removeChild(container2);
     });
   });
