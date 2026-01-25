@@ -672,18 +672,40 @@ describe('FilterManager', () => {
   // ============================================================
 
   describe('cache statistics', () => {
-    it('should track preset cache hits and misses', () => {
+    it('should track preset cache hits on repeated access', () => {
       const fm = new FilterManager();
 
-      // First call = creates new (miss in cache)
+      // First call = creates new (no cache lookup, uses has() which doesn't track stats)
       fm.getOrCreatePresetFilter({ type: 'blur', radius: 5 });
-      // Second call = returns cached (hit in cache)
+      // Second call = returns cached (hit via get())
+      fm.getOrCreatePresetFilter({ type: 'blur', radius: 5 });
+      // Third call = another hit
       fm.getOrCreatePresetFilter({ type: 'blur', radius: 5 });
 
       const stats = fm.presetCacheStats();
-      expect(stats.hits).toBe(1);
-      expect(stats.misses).toBe(1);
-      expect(stats.hitRate).toBe(0.5);
+      expect(stats.hits).toBe(2);
+      expect(stats.misses).toBe(0);
+      expect(stats.hitRate).toBe(1);
+    });
+
+    it('should not inflate stats when cache entry was cleaned up', () => {
+      const fm = new FilterManager({ presetCacheSize: 10 });
+
+      // Create a filter
+      const id = fm.getOrCreatePresetFilter({ type: 'blur', radius: 5 });
+
+      // Remove the filter - this also removes the cache entry
+      fm.removeFilter(id);
+
+      // Access the same preset again - cache entry was cleaned up by removeFilter
+      // so has() returns false, no get() is called, and we create a new filter
+      fm.getOrCreatePresetFilter({ type: 'blur', radius: 5 });
+
+      const stats = fm.presetCacheStats();
+      // No hits because has() returned false both times (first time: empty cache,
+      // second time: cache was cleaned up by removeFilter)
+      expect(stats.hits).toBe(0);
+      expect(stats.misses).toBe(0);
     });
 
     it('should report cache size and capacity', () => {

@@ -259,10 +259,12 @@ export class FilterManager {
     // Create a cache key from the preset
     const cacheKey = this._getPresetCacheKey(preset);
 
-    // Check cache first
-    const cached = this._presetCache.get(cacheKey);
-    if (cached !== undefined && cached.length > 0 && this._filters.has(cached)) {
-      return cached;
+    // Check cache first - use has() to avoid inflating stats on stale entries
+    if (this._presetCache.has(cacheKey)) {
+      const cached = this._presetCache.get(cacheKey);
+      if (cached !== undefined && this._filters.has(cached)) {
+        return cached;
+      }
     }
 
     // Create new filter from preset
@@ -315,11 +317,13 @@ export class FilterManager {
       return this.resolveElementFilter(first);
     }
 
-    // Check composite cache
+    // Check composite cache - use has() to avoid inflating stats on stale entries
     const cacheKey = this._getCompositeCacheKey(elementFilters);
-    const cached = this._compositeCache.get(cacheKey);
-    if (cached !== undefined && this._filters.has(cached)) {
-      return cached;
+    if (this._compositeCache.has(cacheKey)) {
+      const cached = this._compositeCache.get(cacheKey);
+      if (cached !== undefined && this._filters.has(cached)) {
+        return cached;
+      }
     }
 
     // Resolve each element filter to its filter definition
