@@ -206,8 +206,14 @@ export class FilterManager {
    *
    * Uses caching to avoid creating duplicate composite filters.
    *
-   * @param elementFilters - Array of element filters to chain (must have length >= 2)
-   * @returns Filter ID of the composite filter
+   * Element filters that reference non-existent filter IDs are silently
+   * skipped. If all filters are invalid, an error is thrown. If only one
+   * valid filter remains after skipping, its ID is returned directly
+   * without creating a composite.
+   *
+   * @param elementFilters - Array of element filters to chain (must be non-empty)
+   * @returns Filter ID of the composite filter (or the single resolved filter)
+   * @throws Error if the array is empty or no valid filter definitions are found
    */
   createCompositeFilter(elementFilters: ElementFilter[]): string {
     if (elementFilters.length === 0) {
