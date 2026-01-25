@@ -552,17 +552,11 @@ describe('Element Rendering Integration', () => {
     });
 
     it('should render nested groups', () => {
-      const inner1 = editor.addElement(
-        createTestImageElement({ src: 'inner1.jpg' }),
-      );
-      const inner2 = editor.addElement(
-        createTestImageElement({ src: 'inner2.jpg' }),
-      );
+      const inner1 = editor.addElement(createTestImageElement({ src: 'inner1.jpg' }));
+      const inner2 = editor.addElement(createTestImageElement({ src: 'inner2.jpg' }));
       const innerGroupId = editor.createGroup([inner1, inner2]);
 
-      const outer1 = editor.addElement(
-        createTestTextElement({ content: 'Outer Text' }),
-      );
+      const outer1 = editor.addElement(createTestTextElement({ content: 'Outer Text' }));
       editor.createGroup([innerGroupId, outer1]);
 
       const svg = editor.toSVG();
@@ -596,15 +590,9 @@ describe('Element Rendering Integration', () => {
     });
 
     it('should maintain z-order across different element types', () => {
-      editor.addElement(
-        createTestImageElement({ src: 'back.jpg', zIndex: 0 }),
-      );
-      editor.addElement(
-        createTestShapeElement('rect', { zIndex: 1 }),
-      );
-      editor.addElement(
-        createTestTextElement({ content: 'Front', zIndex: 2 }),
-      );
+      editor.addElement(createTestImageElement({ src: 'back.jpg', zIndex: 0 }));
+      editor.addElement(createTestShapeElement('rect', { zIndex: 1 }));
+      editor.addElement(createTestTextElement({ content: 'Front', zIndex: 2 }));
 
       const svg = editor.toSVG();
 
@@ -618,12 +606,8 @@ describe('Element Rendering Integration', () => {
     });
 
     it('should render only visible elements', () => {
-      editor.addElement(
-        createTestImageElement({ src: 'visible.jpg', visible: true }),
-      );
-      editor.addElement(
-        createTestImageElement({ src: 'hidden.jpg', visible: false }),
-      );
+      editor.addElement(createTestImageElement({ src: 'visible.jpg', visible: true }));
+      editor.addElement(createTestImageElement({ src: 'hidden.jpg', visible: false }));
 
       const svg = editor.toSVG();
 

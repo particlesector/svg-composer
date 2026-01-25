@@ -6,16 +6,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { SVGComposer } from '../../src/core/SVGComposer.js';
 import type { Transform } from '../../src/core/types.js';
-import type {
-  ImageElement,
-  TextElement,
-  ShapeElement,
-} from '../../src/elements/types.js';
-import {
-  blur,
-  dropShadow,
-  grayscale,
-} from '../../src/filters/EffectPresets.js';
+import type { ImageElement, TextElement, ShapeElement } from '../../src/elements/types.js';
+import { blur, dropShadow, grayscale } from '../../src/filters/EffectPresets.js';
 
 // Helper to create test transforms
 function createTestTransform(overrides?: Partial<Transform>): Transform {
@@ -146,12 +138,15 @@ describe('Editor Workflow Integration', () => {
       });
 
       // 3. Add drop shadow effect
-      editor.addEffect(photoId, dropShadow({
-        offsetX: 5,
-        offsetY: 5,
-        blur: 15,
-        color: 'rgba(0,0,0,0.5)',
-      }));
+      editor.addEffect(
+        photoId,
+        dropShadow({
+          offsetX: 5,
+          offsetY: 5,
+          blur: 15,
+          color: 'rgba(0,0,0,0.5)',
+        }),
+      );
 
       // 4. Add title text
       const titleId = editor.addElement(
@@ -306,11 +301,7 @@ describe('Editor Workflow Integration', () => {
         .map((id) => editor.getElement(id)?.transform.x ?? 0)
         .sort((a, b) => a - b);
 
-      const gaps = [
-        xValues[1] - xValues[0],
-        xValues[2] - xValues[1],
-        xValues[3] - xValues[2],
-      ];
+      const gaps = [xValues[1] - xValues[0], xValues[2] - xValues[1], xValues[3] - xValues[2]];
 
       expect(gaps[0]).toBeCloseTo(gaps[1], 1);
       expect(gaps[1]).toBeCloseTo(gaps[2], 1);
@@ -494,10 +485,7 @@ describe('Editor Workflow Integration', () => {
       editor.addEffect(imageId, grayscale());
 
       // Add drop shadow
-      editor.addEffect(
-        imageId,
-        dropShadow({ offsetX: 5, offsetY: 5, blur: 10, color: '#000000' }),
-      );
+      editor.addEffect(imageId, dropShadow({ offsetX: 5, offsetY: 5, blur: 10, color: '#000000' }));
 
       // Verify filters are applied
       expect(editor.hasFilters(imageId)).toBe(true);
@@ -584,12 +572,15 @@ describe('Editor Workflow Integration', () => {
         r: 140,
       });
 
-      editor.addEffect(photoId, dropShadow({
-        offsetX: 0,
-        offsetY: 10,
-        blur: 30,
-        color: 'rgba(0,0,0,0.3)',
-      }));
+      editor.addEffect(
+        photoId,
+        dropShadow({
+          offsetX: 0,
+          offsetY: 10,
+          blur: 30,
+          color: 'rgba(0,0,0,0.3)',
+        }),
+      );
 
       editor.addElement(
         createTestTextElement({
@@ -624,9 +615,7 @@ describe('Editor Workflow Integration', () => {
     it('should export and restore state via JSON', () => {
       // Create complex design
       const bgId = editor.addElement(createTestImageElement({ src: 'bg.jpg' }));
-      const textId = editor.addElement(
-        createTestTextElement({ content: 'Test' }),
-      );
+      const textId = editor.addElement(createTestTextElement({ content: 'Test' }));
       const shapeId = editor.addElement(createTestRect(500, 500, 100, 100));
 
       editor.addEffect(bgId, grayscale());

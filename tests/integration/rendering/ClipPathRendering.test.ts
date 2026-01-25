@@ -300,9 +300,7 @@ describe('Clip Path Rendering Integration', () => {
 
   describe('Multiple Elements with Clip Paths', () => {
     it('should support different clip paths on different elements', () => {
-      const element1 = editor.addElement(
-        createTestImageElement({ src: 'img1.jpg' }),
-      );
+      const element1 = editor.addElement(createTestImageElement({ src: 'img1.jpg' }));
       const element2 = editor.addElement(
         createTestImageElement({
           src: 'img2.jpg',
@@ -339,12 +337,8 @@ describe('Clip Path Rendering Integration', () => {
     });
 
     it('should render element without clip path alongside clipped element', () => {
-      const element1 = editor.addElement(
-        createTestImageElement({ src: 'clipped.jpg' }),
-      );
-      editor.addElement(
-        createTestImageElement({ src: 'unclipped.jpg' }),
-      );
+      const element1 = editor.addElement(createTestImageElement({ src: 'clipped.jpg' }));
+      editor.addElement(createTestImageElement({ src: 'unclipped.jpg' }));
 
       editor.addClipPath(element1, {
         type: 'circle',

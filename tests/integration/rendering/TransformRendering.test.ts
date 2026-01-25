@@ -496,12 +496,8 @@ describe('Transform Rendering Integration', () => {
     });
 
     it('should rotate group affecting all children', () => {
-      const child1 = editor.addElement(
-        createTestImageElement({ src: 'img1.jpg' }),
-      );
-      const child2 = editor.addElement(
-        createTestImageElement({ src: 'img2.jpg' }),
-      );
+      const child1 = editor.addElement(createTestImageElement({ src: 'img1.jpg' }));
+      const child2 = editor.addElement(createTestImageElement({ src: 'img2.jpg' }));
       const groupId = editor.createGroup([child1, child2]);
 
       editor.rotateElement(groupId, 45);

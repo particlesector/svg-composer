@@ -6,11 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { SVGComposer } from '../../src/core/SVGComposer.js';
 import type { Transform } from '../../src/core/types.js';
-import type {
-  ImageElement,
-  TextElement,
-  ShapeElement,
-} from '../../src/elements/types.js';
+import type { ImageElement, TextElement, ShapeElement } from '../../src/elements/types.js';
 import { blur, dropShadow, grayscale } from '../../src/filters/EffectPresets.js';
 
 // Helper to create test transforms
@@ -179,7 +175,13 @@ describe('Serialization Integration', () => {
       const parsed = JSON.parse(json);
 
       // Elements are stored as an object keyed by ID
-      const elements = Object.values(parsed.elements || {}) as Array<{ id: string; type: string; src?: string; width?: number; height?: number }>;
+      const elements = Object.values(parsed.elements || {}) as Array<{
+        id: string;
+        type: string;
+        src?: string;
+        width?: number;
+        height?: number;
+      }>;
       expect(elements.length).toBe(1);
 
       const element = elements[0];
