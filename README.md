@@ -20,6 +20,22 @@ A zero-dependency, TypeScript-based SVG canvas editor library for building visua
 - **Alignment & Distribution** — Align and distribute elements with precision
 - **Touch Support** — Pointer events, pinch-zoom, two-finger pan
 
+### Capabilities
+
+**Elements:** Image, Text, Shape (rect, circle, ellipse, path), Group with full CRUD operations
+
+**Transforms:** Move, rotate, scale, reset, with center-origin calculations
+
+**Rendering:** DOM-based SVG renderer with incremental updates, clip paths, filters
+
+**Interaction:** Select, Pan, Add tools with hit testing, selection handles, keyboard shortcuts
+
+**Effects:** 17+ filter presets (blur, shadow, glow, grayscale, sepia, vintage, duotone, etc.)
+
+**Layout:** Alignment (7 modes), distribution (8 modes), guides, grid/element/canvas snapping
+
+**State:** Immutable snapshots, undo/redo history, JSON serialization, event system
+
 ---
 
 ## Installation
@@ -2248,7 +2264,7 @@ We welcome contributions! Please read this section before submitting a pull requ
 
 ### What to Contribute
 
-Here are areas where contributions are welcome:
+All planned features have been implemented. Here are areas where contributions are welcome:
 
 #### Documentation
 
