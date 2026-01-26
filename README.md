@@ -15,57 +15,26 @@ A zero-dependency, TypeScript-based SVG canvas editor library for building visua
 - **Resolution Independent** — ViewBox coordinate system for precise, scalable editing
 - **Undo/Redo** — Built-in history with immutable state snapshots
 - **Event-Driven** — Extensible architecture through comprehensive event system
+- **Filters & Effects** — SVG filters, shadows, blur, color effects with LRU cache
+- **Guides & Snapping** — Snap to guides, grid, elements, and canvas edges
+- **Alignment & Distribution** — Align and distribute elements with precision
+- **Touch Support** — Pointer events, pinch-zoom, two-finger pan
 
----
+### Capabilities
 
-## Implementation Status
+**Elements:** Image, Text, Shape (rect, circle, ellipse, path), Group with full CRUD operations
 
-This is a spec-driven project. The table below shows the current implementation status of all features.
+**Transforms:** Move, rotate, scale, reset, with center-origin calculations
 
-### Core Systems
+**Rendering:** DOM-based SVG renderer with incremental updates, clip paths, filters
 
-| Feature                   | Status      | Notes                                              |
-| ------------------------- | ----------- | -------------------------------------------------- |
-| State Management          | Implemented | Immutable snapshots and restoration                |
-| History System            | Implemented | Full undo/redo with configurable limits            |
-| Event System              | Implemented | Comprehensive EventEmitter with typed events       |
-| SVG Rendering             | Implemented | DOM-based renderer with incremental updates        |
-| Coordinate Transformation | Implemented | Screen-to-viewBox conversion with viewport support |
+**Interaction:** Select, Pan, Add tools with hit testing, selection handles, keyboard shortcuts
 
-### Element Management
+**Effects:** 17+ filter presets (blur, shadow, glow, grayscale, sepia, vintage, duotone, etc.)
 
-| Feature        | Status      | Notes                                             |
-| -------------- | ----------- | ------------------------------------------------- |
-| Element CRUD   | Implemented | Add, update, remove, get, query operations        |
-| Image Elements | Implemented | Full support with clip paths                      |
-| Text Elements  | Implemented | Font, alignment, and styling support              |
-| Shape Elements | Implemented | Rect, circle, ellipse, path                       |
-| Group Elements | Implemented | Full support with `createGroup()` and `ungroup()` |
-| Clip Paths     | Implemented | Rect, circle, ellipse clip paths                  |
+**Layout:** Alignment (7 modes), distribution (8 modes), guides, grid/element/canvas snapping
 
-### Transform & Manipulation
-
-| Feature              | Status      | Notes                                 |
-| -------------------- | ----------- | ------------------------------------- |
-| Transform Operations | Implemented | Move, rotate, scale, reset            |
-| Z-Order Management   | Implemented | All z-order operations                |
-| Bounding Box Queries | Implemented | Full support including path elements  |
-| Export/Import        | Implemented | SVG generation and JSON serialization |
-
-### Interaction Layer
-
-| Feature                  | Status      | Notes                                                                                   |
-| ------------------------ | ----------- | --------------------------------------------------------------------------------------- |
-| Tool System              | Implemented | Select, Pan, Add Image/Text/Shape tools                                                 |
-| Hit Testing              | Implemented | Element and handle detection                                                            |
-| Selection Handles        | Implemented | Visual feedback with resize/rotate handles                                              |
-| Keyboard Support         | Implemented | Shift for multi-select, space for pan                                                   |
-| Viewport Management      | Implemented | Pan and zoom support                                                                    |
-| Touch/Multi-Touch        | Implemented | Pointer events, pinch-zoom, two-finger pan                                              |
-| Guides & Snapping        | Implemented | Snap to guides, grid, elements, and canvas edges                                        |
-| Filters & Effects        | Implemented | SVG filters, shadows, blur, color effects, multiple filter chaining, LRU cache eviction |
-| Alignment & Distribution | Implemented | Align left/right/center, distribute evenly                                              |
-| Color Parsing            | Implemented | Full CSS color support: hex, rgb/rgba, hsl/hsla, oklch, 147 named colors                |
+**State:** Immutable snapshots, undo/redo history, JSON serialization, event system
 
 ---
 
@@ -2295,7 +2264,7 @@ We welcome contributions! Please read this section before submitting a pull requ
 
 ### What to Contribute
 
-This is a spec-driven project. See the [Implementation Status](#implementation-status) section for current progress. Here are areas where contributions are welcome:
+All planned features have been implemented. Here are areas where contributions are welcome:
 
 #### Documentation
 
@@ -2431,32 +2400,44 @@ svg-composer/
 │   │   ├── SVGComposer.ts      # Main editor class
 │   │   ├── State.ts            # CanvasState management
 │   │   ├── History.ts          # Undo/redo system
-│   │   └── EventEmitter.ts     # Event system
+│   │   ├── EventEmitter.ts     # Event system
+│   │   └── types.ts            # Core type definitions
 │   ├── elements/
-│   │   ├── BaseElement.ts      # Element interfaces
-│   │   ├── ImageElement.ts     # Image-specific logic
-│   │   ├── TextElement.ts      # Text-specific logic
-│   │   ├── ShapeElement.ts     # Shape-specific logic
-│   │   └── GroupElement.ts     # Group logic
+│   │   └── types.ts            # Element type definitions
 │   ├── filters/
 │   │   ├── types.ts            # Filter type definitions
 │   │   ├── FilterManager.ts    # Filter definition management
 │   │   ├── EffectPresets.ts    # Effect preset utilities
 │   │   └── index.ts            # Filter module exports
 │   ├── rendering/
-│   │   ├── SVGRenderer.ts      # State to SVG DOM
-│   │   ├── TransformUtils.ts   # Transform math
-│   │   └── ClipPathManager.ts  # Clipping system
+│   │   ├── SVGRenderer.ts      # State to SVG DOM (transforms, clip paths)
+│   │   ├── types.ts            # Rendering types
+│   │   └── index.ts            # Module exports
 │   ├── interaction/
-│   │   ├── InteractionManager.ts   # Input handling
-│   │   ├── SelectionTool.ts        # Selection logic
-│   │   ├── TransformHandles.ts     # Resize/rotate handles
-│   │   └── Tools.ts                # Tool definitions
+│   │   ├── InteractionManager.ts      # Input handling
+│   │   ├── SelectionHandleRenderer.ts # Resize/rotate handles
+│   │   ├── HitTester.ts               # Hit testing
+│   │   ├── CoordinateTransformer.ts   # Coordinate conversion
+│   │   ├── SnappingManager.ts         # Snapping system
+│   │   ├── types.ts                   # Interaction types
+│   │   ├── index.ts                   # Module exports
+│   │   ├── tools/
+│   │   │   ├── BaseTool.ts            # Base tool class
+│   │   │   ├── SelectTool.ts          # Selection tool
+│   │   │   ├── PanTool.ts             # Pan tool
+│   │   │   ├── AddImageTool.ts        # Add image tool
+│   │   │   ├── AddTextTool.ts         # Add text tool
+│   │   │   ├── AddShapeTool.ts        # Add shape tool
+│   │   │   └── index.ts
+│   │   └── utils/
+│   │       ├── zoomUtils.ts           # Zoom utilities
+│   │       └── index.ts
 │   ├── utils/
-│   │   ├── BoundingBox.ts      # Bounding box utilities
-│   │   ├── GeometryUtils.ts    # Math helpers
+│   │   ├── AlignmentUtils.ts   # Alignment and distribution
+│   │   ├── ColorUtils.ts       # Color parsing and conversion
 │   │   ├── IdGenerator.ts      # UUID generation
-│   │   └── LRUCache.ts         # Generic LRU cache with eviction
+│   │   ├── LRUCache.ts         # Generic LRU cache with eviction
+│   │   └── PathParser.ts       # SVG path parsing and bounds
 │   └── index.ts                # Public exports
 ├── tests/
 │   ├── setup.ts                   # Test setup (polyfills, cleanup)
@@ -2527,7 +2508,7 @@ svg-composer/
 
 ## License
 
-MIT © [Your Name]
+MIT © ParticleSector
 
 See [LICENSE](LICENSE) for details.
 
