@@ -16,156 +16,356 @@
       background: #1a1a2e;
       color: #eee;
       min-height: 100vh;
-      padding: 20px;
+      display: flex;
+      flex-direction: column;
     }
 
     header {
       text-align: center;
-      margin-bottom: 20px;
+      padding: 16px 20px;
+      background: #16213e;
+      border-bottom: 1px solid #333;
     }
 
     header h1 {
-      font-size: 2rem;
-      margin-bottom: 0.5rem;
+      font-size: 1.5rem;
+      margin-bottom: 0.25rem;
     }
 
     header p {
       color: #888;
+      font-size: 0.875rem;
     }
 
-    .container {
-      max-width: 1400px;
+    .main-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      gap: 16px;
+      max-width: 1600px;
       margin: 0 auto;
-      display: grid;
-      grid-template-columns: 1fr 300px;
-      gap: 20px;
+      width: 100%;
     }
 
-    .canvas-wrapper {
+    /* Toolbar Styles */
+    .toolbar-container {
       background: #16213e;
       border-radius: 8px;
-      padding: 20px;
+      padding: 12px;
     }
 
-    .toolbar {
+    .toolbar-row {
       display: flex;
       gap: 8px;
-      margin-bottom: 16px;
       flex-wrap: wrap;
+      align-items: center;
     }
 
-    .toolbar button {
-      padding: 8px 16px;
+    .toolbar-row + .toolbar-row {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #333;
+    }
+
+    .toolbar-group {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .toolbar-group-label {
+      font-size: 0.7rem;
+      color: #666;
+      text-transform: uppercase;
+      margin-right: 4px;
+    }
+
+    .separator {
+      width: 1px;
+      height: 28px;
+      background: #333;
+      margin: 0 8px;
+    }
+
+    button {
+      padding: 6px 12px;
       border: none;
       border-radius: 4px;
       background: #1a1a2e;
       color: #eee;
       cursor: pointer;
-      font-size: 0.875rem;
-      transition: background 0.2s;
+      font-size: 0.8rem;
+      transition: background 0.2s, opacity 0.2s;
+      white-space: nowrap;
     }
 
-    .toolbar button:hover {
+    button:hover:not(:disabled) {
       background: #2a2a4e;
     }
 
-    .toolbar button.active {
+    button.active {
       background: #4a4aff;
     }
 
-    .toolbar .separator {
-      width: 1px;
-      background: #333;
-      margin: 0 8px;
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    button.danger {
+      background: #6b2a2a;
+    }
+
+    button.danger:hover:not(:disabled) {
+      background: #8b3a3a;
+    }
+
+    /* Dropdown styles */
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background: #1a1a2e;
+      border: 1px solid #333;
+      border-radius: 4px;
+      min-width: 140px;
+      z-index: 100;
+      margin-top: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .dropdown-content.show {
+      display: block;
+    }
+
+    .dropdown-content button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      border-radius: 0;
+      padding: 8px 12px;
+    }
+
+    .dropdown-content button:first-child {
+      border-radius: 4px 4px 0 0;
+    }
+
+    .dropdown-content button:last-child {
+      border-radius: 0 0 4px 4px;
+    }
+
+    /* Content area */
+    .content {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 16px;
+      min-height: 0;
+    }
+
+    .canvas-wrapper {
+      background: #16213e;
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      min-height: 500px;
     }
 
     #canvas {
-      width: 100%;
-      aspect-ratio: 1;
+      flex: 1;
       background: #fff;
       border-radius: 4px;
       cursor: default;
+      min-height: 400px;
     }
 
+    /* Sidebar */
     .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .panel {
       background: #16213e;
       border-radius: 8px;
-      padding: 20px;
+      padding: 16px;
     }
 
-    .sidebar h2 {
-      font-size: 1rem;
-      margin-bottom: 1rem;
+    .panel h3 {
+      font-size: 0.75rem;
+      margin-bottom: 12px;
       color: #888;
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
 
-    .status {
-      padding: 12px;
-      background: #1a1a2e;
-      border-radius: 4px;
+    /* Properties Panel */
+    .property-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 0.8rem;
+    }
+
+    .property-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .property-label {
+      width: 70px;
+      color: #888;
+      flex-shrink: 0;
+    }
+
+    .property-value {
+      flex: 1;
       font-family: monospace;
-      font-size: 0.875rem;
-      margin-bottom: 20px;
     }
 
-    .status.error {
-      background: #3d1a1a;
-      color: #ff6b6b;
+    /* Slider */
+    input[type="range"] {
+      width: 100%;
+      height: 4px;
+      background: #333;
+      border-radius: 2px;
+      outline: none;
+      -webkit-appearance: none;
     }
 
-    .status.success {
-      background: #1a3d1a;
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      background: #4a4aff;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    /* Select dropdown */
+    select {
+      width: 100%;
+      padding: 6px 8px;
+      background: #1a1a2e;
+      border: 1px solid #333;
+      border-radius: 4px;
+      color: #eee;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+
+    select:focus {
+      outline: none;
+      border-color: #4a4aff;
+    }
+
+    /* Checkbox */
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+
+    .checkbox-row input {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    /* Export buttons */
+    .export-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .export-buttons button {
+      flex: 1;
+      min-width: 70px;
+    }
+
+    /* Status bar */
+    .status-bar {
+      background: #16213e;
+      border-radius: 8px;
+      padding: 10px 16px;
+      display: flex;
+      gap: 24px;
+      font-size: 0.8rem;
+      align-items: center;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-item .label {
+      color: #888;
+    }
+
+    .status-item.success .value {
       color: #6bff6b;
     }
 
-    .selection-info {
-      padding: 12px;
-      background: #1a1a2e;
-      border-radius: 4px;
-      font-family: monospace;
+    .status-item.error .value {
+      color: #ff6b6b;
+    }
+
+    /* Info panel */
+    .info-content {
       font-size: 0.8rem;
-      margin-bottom: 20px;
-      line-height: 1.6;
-    }
-
-    .selection-info .label {
       color: #888;
+      line-height: 1.5;
     }
 
-    .info {
-      color: #888;
-      font-size: 0.875rem;
-      line-height: 1.6;
+    .info-content ul {
+      margin: 8px 0 8px 16px;
     }
 
-    .info code {
-      background: #1a1a2e;
-      padding: 2px 6px;
-      border-radius: 3px;
-      font-size: 0.8rem;
-    }
-
-    .info ul {
-      margin: 10px 0 10px 20px;
-    }
-
-    .info li {
+    .info-content li {
       margin: 4px 0;
     }
 
     kbd {
       background: #333;
-      padding: 2px 6px;
+      padding: 2px 5px;
       border-radius: 3px;
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       font-family: monospace;
     }
 
+    .no-selection {
+      color: #666;
+      font-style: italic;
+      font-size: 0.8rem;
+    }
+
+    /* Responsive */
     @media (max-width: 900px) {
-      .container {
+      .content {
         grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+
+      .panel {
+        flex: 1;
+        min-width: 200px;
       }
     }
   </style>
@@ -176,56 +376,182 @@
     <p>A zero-dependency TypeScript SVG canvas editor</p>
   </header>
 
-  <div class="container">
-    <div class="canvas-wrapper">
-      <div class="toolbar">
-        <button id="btn-select" class="active">Select</button>
-        <button id="btn-pan">Pan</button>
+  <div class="main-container">
+    <!-- Toolbar -->
+    <div class="toolbar-container">
+      <div class="toolbar-row">
+        <!-- Tools -->
+        <div class="toolbar-group">
+          <span class="toolbar-group-label">Tools</span>
+          <button id="btn-select" class="active" title="Select tool (V)">Select</button>
+          <button id="btn-pan" title="Pan tool (H)">Pan</button>
+        </div>
+
         <div class="separator"></div>
-        <button id="btn-add-rect">Add Rectangle</button>
-        <button id="btn-add-circle">Add Circle</button>
-        <button id="btn-add-text">Add Text</button>
+
+        <!-- Add Elements -->
+        <div class="toolbar-group">
+          <span class="toolbar-group-label">Add</span>
+          <button id="btn-add-rect" title="Add rectangle">Rect</button>
+          <button id="btn-add-circle" title="Add circle">Circle</button>
+          <button id="btn-add-ellipse" title="Add ellipse">Ellipse</button>
+          <button id="btn-add-text" title="Add text">Text</button>
+        </div>
+
         <div class="separator"></div>
-        <button id="btn-clear">Clear Selection</button>
-        <button id="btn-delete">Delete Selected</button>
+
+        <!-- History -->
+        <div class="toolbar-group">
+          <span class="toolbar-group-label">History</span>
+          <button id="btn-undo" disabled title="Undo (Ctrl+Z)">Undo</button>
+          <button id="btn-redo" disabled title="Redo (Ctrl+Y)">Redo</button>
+        </div>
+
+        <div class="separator"></div>
+
+        <!-- Selection Actions -->
+        <div class="toolbar-group">
+          <button id="btn-clear" title="Clear selection (Esc)">Deselect</button>
+          <button id="btn-delete" class="danger" title="Delete selected (Del)">Delete</button>
+        </div>
       </div>
-      <div id="canvas"></div>
+
+      <div class="toolbar-row">
+        <!-- Alignment -->
+        <div class="toolbar-group">
+          <span class="toolbar-group-label">Align</span>
+          <div class="dropdown">
+            <button id="btn-align-dropdown" aria-haspopup="true" aria-expanded="false" aria-controls="align-menu">Align</button>
+            <div class="dropdown-content" id="align-menu" role="menu" aria-label="Alignment options">
+              <button id="btn-align-left" role="menuitem">Align Left</button>
+              <button id="btn-align-center" role="menuitem">Align Center</button>
+              <button id="btn-align-right" role="menuitem">Align Right</button>
+              <button id="btn-align-top" role="menuitem">Align Top</button>
+              <button id="btn-align-middle" role="menuitem">Align Middle</button>
+              <button id="btn-align-bottom" role="menuitem">Align Bottom</button>
+            </div>
+          </div>
+          <div class="dropdown">
+            <button id="btn-distribute-dropdown" aria-haspopup="true" aria-expanded="false" aria-controls="distribute-menu">Distribute</button>
+            <div class="dropdown-content" id="distribute-menu" role="menu" aria-label="Distribution options">
+              <button id="btn-distribute-h" role="menuitem">Distribute Horizontal</button>
+              <button id="btn-distribute-v" role="menuitem">Distribute Vertical</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="separator"></div>
+
+        <!-- Z-Order -->
+        <div class="toolbar-group">
+          <span class="toolbar-group-label">Order</span>
+          <button id="btn-bring-front" title="Bring to front">Front</button>
+          <button id="btn-send-back" title="Send to back">Back</button>
+        </div>
+
+        <div class="separator"></div>
+
+        <!-- Snapping -->
+        <div class="toolbar-group">
+          <label class="checkbox-row">
+            <input type="checkbox" id="chk-snapping" checked>
+            <span>Snapping</span>
+          </label>
+        </div>
+      </div>
     </div>
 
-    <div class="sidebar">
-      <h2>Status</h2>
-      <div id="status" class="status">Initializing...</div>
-
-      <h2>Selection</h2>
-      <div id="selection-info" class="selection-info">
-        <div><span class="label">Selected:</span> None</div>
+    <!-- Main Content -->
+    <div class="content">
+      <div class="canvas-wrapper">
+        <div id="canvas"></div>
       </div>
 
-      <h2>Controls</h2>
-      <div class="info">
-        <p><strong>Select Tool:</strong></p>
-        <ul>
-          <li>Click to select an element</li>
-          <li><kbd>Shift</kbd> + click for multi-select</li>
-          <li>Drag to move selected elements</li>
-          <li>Drag handles to resize</li>
-          <li>Drag rotation handle to rotate</li>
-          <li><kbd>Shift</kbd> while rotating snaps to 15&deg;</li>
-          <li><kbd>Space</kbd> + drag to pan temporarily</li>
-          <li><kbd>Escape</kbd> to clear selection</li>
-          <li><kbd>Delete</kbd> to remove selected</li>
-        </ul>
-        <br>
-        <p><strong>Pan Tool:</strong></p>
-        <ul>
-          <li>Drag to pan the canvas</li>
-          <li>Scroll to zoom in/out</li>
-        </ul>
-        <br>
-        <p>
-          Check the console for detailed output.<br>
-          <code>window.editor</code> is available for debugging.
-        </p>
+      <div class="sidebar">
+        <!-- Properties Panel -->
+        <div class="panel" id="properties-panel">
+          <h3>Properties</h3>
+          <div id="properties-content">
+            <p class="no-selection">No element selected</p>
+          </div>
+        </div>
+
+        <!-- Effects Panel -->
+        <div class="panel">
+          <h3>Effects</h3>
+          <div class="property-row">
+            <select id="effect-select" disabled>
+              <option value="">None</option>
+              <option value="blur">Blur</option>
+              <option value="dropShadow">Drop Shadow</option>
+              <option value="innerShadow">Inner Shadow</option>
+              <option value="glow">Glow</option>
+              <option value="outline">Outline</option>
+              <option value="grayscale">Grayscale</option>
+              <option value="sepia">Sepia</option>
+              <option value="saturate">Saturate</option>
+              <option value="hueRotate">Hue Rotate</option>
+              <option value="invert">Invert</option>
+              <option value="brightness">Brightness</option>
+              <option value="contrast">Contrast</option>
+              <option value="sharpen">Sharpen</option>
+              <option value="emboss">Emboss</option>
+              <option value="noise">Noise</option>
+              <option value="vintage">Vintage</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Export Panel -->
+        <div class="panel">
+          <h3>Export</h3>
+          <div class="export-buttons">
+            <button id="btn-export-svg" title="Download as SVG">SVG</button>
+            <button id="btn-export-json" title="Download as JSON">JSON</button>
+            <button id="btn-copy-svg" title="Copy SVG to clipboard">Copy</button>
+          </div>
+        </div>
+
+        <!-- Help Panel -->
+        <div class="panel">
+          <h3>Keyboard Shortcuts</h3>
+          <div class="info-content">
+            <ul>
+              <li><kbd>V</kbd> Select tool</li>
+              <li><kbd>H</kbd> Pan tool</li>
+              <li><kbd>Del</kbd> Delete selected</li>
+              <li><kbd>Esc</kbd> Clear selection</li>
+              <li><kbd>Ctrl+Z</kbd> Undo</li>
+              <li><kbd>Ctrl+Y</kbd> Redo</li>
+              <li><kbd>Shift</kbd>+click Multi-select</li>
+              <li><kbd>Shift</kbd>+rotate Snap 15°</li>
+              <li><kbd>Space</kbd>+drag Pan</li>
+            </ul>
+            <p style="margin-top: 12px;">
+              <code style="background: #1a1a2e; padding: 2px 6px; border-radius: 3px; font-size: 0.75rem;">window.editor</code> for console debugging
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <div class="status-item" id="status-message">
+        <span class="label">Status:</span>
+        <span class="value">Initializing...</span>
+      </div>
+      <div class="status-item">
+        <span class="label">Elements:</span>
+        <span class="value" id="element-count">0</span>
+      </div>
+      <div class="status-item">
+        <span class="label">Selected:</span>
+        <span class="value" id="selection-count">0</span>
+      </div>
+      <div class="status-item">
+        <span class="label">Tool:</span>
+        <span class="value" id="current-tool">select</span>
       </div>
     </div>
   </div>
@@ -233,44 +559,194 @@
   <!-- Load the UMD bundle -->
   <script src="../dist/svg-composer.js"></script>
   <script>
-    const statusEl = document.getElementById('status');
-    const selectionInfoEl = document.getElementById('selection-info');
+    // DOM Elements
+    const statusMessage = document.querySelector('#status-message .value');
+    const statusItem = document.getElementById('status-message');
+    const elementCount = document.getElementById('element-count');
+    const selectionCount = document.getElementById('selection-count');
+    const currentToolEl = document.getElementById('current-tool');
+    const propertiesContent = document.getElementById('properties-content');
+    const effectSelect = document.getElementById('effect-select');
 
+    // Buttons
+    const btnSelect = document.getElementById('btn-select');
+    const btnPan = document.getElementById('btn-pan');
+    const btnAddRect = document.getElementById('btn-add-rect');
+    const btnAddCircle = document.getElementById('btn-add-circle');
+    const btnAddEllipse = document.getElementById('btn-add-ellipse');
+    const btnAddText = document.getElementById('btn-add-text');
+    const btnUndo = document.getElementById('btn-undo');
+    const btnRedo = document.getElementById('btn-redo');
+    const btnClear = document.getElementById('btn-clear');
+    const btnDelete = document.getElementById('btn-delete');
+    const btnBringFront = document.getElementById('btn-bring-front');
+    const btnSendBack = document.getElementById('btn-send-back');
+    const chkSnapping = document.getElementById('chk-snapping');
+
+    // Alignment buttons
+    const btnAlignLeft = document.getElementById('btn-align-left');
+    const btnAlignCenter = document.getElementById('btn-align-center');
+    const btnAlignRight = document.getElementById('btn-align-right');
+    const btnAlignTop = document.getElementById('btn-align-top');
+    const btnAlignMiddle = document.getElementById('btn-align-middle');
+    const btnAlignBottom = document.getElementById('btn-align-bottom');
+    const btnDistributeH = document.getElementById('btn-distribute-h');
+    const btnDistributeV = document.getElementById('btn-distribute-v');
+
+    // Export buttons
+    const btnExportSvg = document.getElementById('btn-export-svg');
+    const btnExportJson = document.getElementById('btn-export-json');
+    const btnCopySvg = document.getElementById('btn-copy-svg');
+
+    // Dropdown handling with ARIA support
+    document.querySelectorAll('.dropdown > button').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const dropdown = btn.nextElementSibling;
+        const isExpanded = dropdown.classList.contains('show');
+
+        // Close all other dropdowns and reset their ARIA state
+        document.querySelectorAll('.dropdown > button').forEach(b => {
+          b.setAttribute('aria-expanded', 'false');
+        });
+        document.querySelectorAll('.dropdown-content').forEach(d => {
+          if (d !== dropdown) d.classList.remove('show');
+        });
+
+        // Toggle current dropdown
+        dropdown.classList.toggle('show');
+        btn.setAttribute('aria-expanded', !isExpanded);
+      });
+    });
+
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.dropdown-content').forEach(d => d.classList.remove('show'));
+      document.querySelectorAll('.dropdown > button').forEach(btn => {
+        btn.setAttribute('aria-expanded', 'false');
+      });
+    });
+
+    // Utility functions
     function setStatus(message, type = 'info') {
-      statusEl.textContent = message;
-      statusEl.className = 'status ' + type;
+      statusMessage.textContent = message;
+      statusItem.className = 'status-item ' + type;
     }
 
-    function updateSelectionInfo(editor) {
+    function updateElementCount(editor) {
+      const elements = editor.getAllElements();
+      elementCount.textContent = elements.length;
+    }
+
+    function updateSelectionCount(editor) {
       const selection = editor.getSelection();
+      selectionCount.textContent = selection.length;
+    }
+
+    function updateHistoryButtons(editor) {
+      btnUndo.disabled = !editor.canUndo();
+      btnRedo.disabled = !editor.canRedo();
+    }
+
+    function updateToolButtons(tool) {
+      btnSelect.classList.toggle('active', tool === 'select');
+      btnPan.classList.toggle('active', tool === 'pan');
+      currentToolEl.textContent = tool;
+    }
+
+    function updatePropertiesPanel(editor) {
+      const selection = editor.getSelection();
+
       if (selection.length === 0) {
-        selectionInfoEl.innerHTML = '<div><span class="label">Selected:</span> None</div>';
+        propertiesContent.innerHTML = '<p class="no-selection">No element selected</p>';
+        effectSelect.disabled = true;
+        effectSelect.value = '';
         return;
       }
 
-      let html = `<div><span class="label">Selected:</span> ${selection.length} element(s)</div>`;
+      effectSelect.disabled = false;
 
-      for (const id of selection) {
-        const element = editor.getElement(id);
-        if (element && element.transform) {
-          const t = element.transform;
-          const x = typeof t.x === 'number' ? Math.round(t.x) : 0;
-          const y = typeof t.y === 'number' ? Math.round(t.y) : 0;
-          const scaleX = typeof t.scaleX === 'number' ? t.scaleX.toFixed(2) : '1.00';
-          const scaleY = typeof t.scaleY === 'number' ? t.scaleY.toFixed(2) : '1.00';
-          const rotation = typeof t.rotation === 'number' ? Math.round(t.rotation) : 0;
+      let html = '';
 
-          html += `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #333;">`;
-          html += `<div><span class="label">ID:</span> ${element.id.substring(0, 8)}...</div>`;
-          html += `<div><span class="label">Type:</span> ${element.type}</div>`;
-          html += `<div><span class="label">Position:</span> (${x}, ${y})</div>`;
-          html += `<div><span class="label">Scale:</span> (${scaleX}, ${scaleY})</div>`;
-          html += `<div><span class="label">Rotation:</span> ${rotation}&deg;</div>`;
+      if (selection.length === 1) {
+        const element = editor.getElement(selection[0]);
+        if (element) {
+          const t = element.transform || {};
+          const x = Math.round(t.x || 0);
+          const y = Math.round(t.y || 0);
+          const scaleX = (t.scaleX || 1).toFixed(2);
+          const scaleY = (t.scaleY || 1).toFixed(2);
+          const rotation = Math.round(t.rotation || 0);
+          const opacity = Math.round((element.opacity ?? 1) * 100);
+
+          html += `<div class="property-row"><span class="property-label">ID</span><span class="property-value">${element.id.substring(0, 12)}...</span></div>`;
+          html += `<div class="property-row"><span class="property-label">Type</span><span class="property-value">${element.type}${element.shapeType ? ` (${element.shapeType})` : ''}</span></div>`;
+          html += `<div class="property-row"><span class="property-label">Position</span><span class="property-value">(${x}, ${y})</span></div>`;
+          html += `<div class="property-row"><span class="property-label">Scale</span><span class="property-value">(${scaleX}, ${scaleY})</span></div>`;
+          html += `<div class="property-row"><span class="property-label">Rotation</span><span class="property-value">${rotation}°</span></div>`;
+
+          // Opacity slider
+          html += `<div class="property-row" style="flex-direction: column; align-items: stretch;">`;
+          html += `<div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span class="property-label">Opacity</span><span class="property-value">${opacity}%</span></div>`;
+          html += `<input type="range" id="opacity-slider" min="0" max="100" value="${opacity}">`;
           html += `</div>`;
+
+          // Locked checkbox
+          html += `<div class="property-row">`;
+          html += `<label class="checkbox-row"><input type="checkbox" id="chk-locked" ${element.locked ? 'checked' : ''}><span>Locked</span></label>`;
+          html += `</div>`;
+
+          // Show current effect if any
+          if (element.effectId) {
+            effectSelect.value = ''; // Custom effect
+          } else {
+            effectSelect.value = '';
+          }
         }
+      } else {
+        html += `<div class="property-row"><span class="property-label">Selected</span><span class="property-value">${selection.length} elements</span></div>`;
+
+        // Opacity slider for multiple (average)
+        html += `<div class="property-row" style="flex-direction: column; align-items: stretch;">`;
+        html += `<div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span class="property-label">Opacity</span><span class="property-value" id="opacity-value">--</span></div>`;
+        html += `<input type="range" id="opacity-slider" min="0" max="100" value="100">`;
+        html += `</div>`;
       }
 
-      selectionInfoEl.innerHTML = html;
+      propertiesContent.innerHTML = html;
+
+      // Attach event listeners for property controls
+      const opacitySlider = document.getElementById('opacity-slider');
+      if (opacitySlider) {
+        opacitySlider.addEventListener('input', (e) => {
+          const opacity = parseInt(e.target.value) / 100;
+          const opacityDisplay = propertiesContent.querySelector('.property-value');
+          if (opacityDisplay && opacityDisplay.textContent.includes('%')) {
+            // Find the opacity value span and update it
+            const rows = propertiesContent.querySelectorAll('.property-row');
+            rows.forEach(row => {
+              const label = row.querySelector('.property-label');
+              if (label && label.textContent === 'Opacity') {
+                const valueSpan = row.querySelector('.property-value');
+                if (valueSpan) valueSpan.textContent = `${e.target.value}%`;
+              }
+            });
+          }
+          for (const id of selection) {
+            editor.updateElement(id, { opacity });
+          }
+          editor.render();
+        });
+      }
+
+      const chkLocked = document.getElementById('chk-locked');
+      if (chkLocked) {
+        chkLocked.addEventListener('change', (e) => {
+          for (const id of selection) {
+            editor.updateElement(id, { locked: e.target.checked });
+          }
+          editor.render();
+        });
+      }
     }
 
     // Helper to create default transform
@@ -283,6 +759,19 @@
         rotation: 0,
         ...overrides
       };
+    }
+
+    // Download helper
+    function downloadFile(content, filename, mimeType) {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
 
     try {
@@ -304,7 +793,7 @@
 
       let zIndexCounter = 0;
 
-      // Add some demo elements using addElement with full element structure
+      // Add demo elements
       const rect1 = editor.addElement({
         type: 'shape',
         transform: createTransform({ x: 100, y: 100 }),
@@ -319,7 +808,6 @@
         stroke: '#2a6cb0',
         strokeWidth: 2
       });
-      console.log('Added rectangle:', rect1);
 
       const rect2 = editor.addElement({
         type: 'shape',
@@ -336,7 +824,6 @@
         strokeWidth: 2,
         rx: 12
       });
-      console.log('Added rounded rectangle:', rect2);
 
       const circle = editor.addElement({
         type: 'shape',
@@ -351,7 +838,6 @@
         stroke: '#2ab05a',
         strokeWidth: 2
       });
-      console.log('Added circle:', circle);
 
       const ellipse = editor.addElement({
         type: 'shape',
@@ -367,7 +853,6 @@
         stroke: '#b0882a',
         strokeWidth: 2
       });
-      console.log('Added ellipse:', ellipse);
 
       const text1 = editor.addElement({
         type: 'text',
@@ -382,7 +867,6 @@
         fill: '#333',
         textAnchor: 'start'
       });
-      console.log('Added text:', text1);
 
       const text2 = editor.addElement({
         type: 'text',
@@ -397,53 +881,61 @@
         fill: '#666',
         textAnchor: 'start'
       });
-      console.log('Added text:', text2);
 
       // Initial render
       editor.render();
+      updateElementCount(editor);
+      updateHistoryButtons(editor);
 
-      // Listen for selection changes
-      editor.on('selection:changed', (data) => {
-        console.log('Selection changed:', data);
-        updateSelectionInfo(editor);
+      // Track applied effects per element
+      const elementEffects = new Map();
+
+      // Update effect dropdown when selection changes
+      function updateEffectDropdown(selection) {
+        if (selection.length === 1) {
+          const appliedEffect = elementEffects.get(selection[0]);
+          effectSelect.value = appliedEffect || '';
+        } else {
+          effectSelect.value = '';
+        }
+      }
+
+      // Event listeners
+      editor.on('selection:changed', () => {
+        updateSelectionCount(editor);
+        updatePropertiesPanel(editor);
+        updateEffectDropdown(editor.getSelection());
       });
 
-      // Listen for element updates
-      editor.on('element:updated', (data) => {
-        console.log('Element updated:', data);
-        updateSelectionInfo(editor);
+      editor.on('element:updated', () => {
+        updatePropertiesPanel(editor);
       });
 
-      // Listen for tool changes
+      editor.on('element:added', () => {
+        updateElementCount(editor);
+        updateHistoryButtons(editor);
+      });
+
+      editor.on('element:removed', () => {
+        updateElementCount(editor);
+        updateHistoryButtons(editor);
+      });
+
+      editor.on('history:changed', () => {
+        updateHistoryButtons(editor);
+      });
+
       editor.on('tool:changed', (data) => {
-        console.log('Tool changed:', data);
         updateToolButtons(data.tool);
       });
 
-      setStatus('Editor ready! Click on shapes to interact.', 'success');
+      setStatus('Ready', 'success');
 
-      // Tool button handlers
-      const btnSelect = document.getElementById('btn-select');
-      const btnPan = document.getElementById('btn-pan');
-      const btnAddRect = document.getElementById('btn-add-rect');
-      const btnAddCircle = document.getElementById('btn-add-circle');
-      const btnAddText = document.getElementById('btn-add-text');
-      const btnClear = document.getElementById('btn-clear');
-      const btnDelete = document.getElementById('btn-delete');
+      // Tool buttons
+      btnSelect.addEventListener('click', () => editor.setTool('select'));
+      btnPan.addEventListener('click', () => editor.setTool('pan'));
 
-      function updateToolButtons(tool) {
-        btnSelect.classList.toggle('active', tool === 'select');
-        btnPan.classList.toggle('active', tool === 'pan');
-      }
-
-      btnSelect.addEventListener('click', () => {
-        editor.setTool('select');
-      });
-
-      btnPan.addEventListener('click', () => {
-        editor.setTool('pan');
-      });
-
+      // Add element buttons
       let textCounter = 0;
 
       btnAddRect.addEventListener('click', () => {
@@ -466,7 +958,6 @@
         });
         editor.render();
         editor.select(id);
-        console.log('Added new rectangle:', id);
       });
 
       btnAddCircle.addEventListener('click', () => {
@@ -488,7 +979,28 @@
         });
         editor.render();
         editor.select(id);
-        console.log('Added new circle:', id);
+      });
+
+      btnAddEllipse.addEventListener('click', () => {
+        const id = editor.addElement({
+          type: 'shape',
+          transform: createTransform({
+            x: 200 + Math.random() * 400,
+            y: 200 + Math.random() * 400
+          }),
+          opacity: 1,
+          zIndex: zIndexCounter++,
+          locked: false,
+          visible: true,
+          shapeType: 'ellipse',
+          rx: 60 + Math.random() * 40,
+          ry: 30 + Math.random() * 30,
+          fill: `hsl(${Math.random() * 360}, 70%, 60%)`,
+          stroke: '#333',
+          strokeWidth: 1
+        });
+        editor.render();
+        editor.select(id);
       });
 
       btnAddText.addEventListener('click', () => {
@@ -511,12 +1023,23 @@
         });
         editor.render();
         editor.select(id);
-        console.log('Added new text:', id);
       });
 
-      btnClear.addEventListener('click', () => {
-        editor.clearSelection();
+      // History buttons
+      btnUndo.addEventListener('click', () => {
+        editor.undo();
+        editor.render();
+        updatePropertiesPanel(editor);
       });
+
+      btnRedo.addEventListener('click', () => {
+        editor.redo();
+        editor.render();
+        updatePropertiesPanel(editor);
+      });
+
+      // Selection buttons
+      btnClear.addEventListener('click', () => editor.clearSelection());
 
       btnDelete.addEventListener('click', () => {
         const selection = editor.getSelection();
@@ -526,9 +1049,147 @@
         editor.render();
       });
 
+      // Alignment buttons
+      btnAlignLeft.addEventListener('click', () => { editor.alignLeft(); editor.render(); });
+      btnAlignCenter.addEventListener('click', () => { editor.alignCenter(); editor.render(); });
+      btnAlignRight.addEventListener('click', () => { editor.alignRight(); editor.render(); });
+      btnAlignTop.addEventListener('click', () => { editor.alignTop(); editor.render(); });
+      btnAlignMiddle.addEventListener('click', () => { editor.alignMiddle(); editor.render(); });
+      btnAlignBottom.addEventListener('click', () => { editor.alignBottom(); editor.render(); });
+      btnDistributeH.addEventListener('click', () => { editor.distributeHorizontal(); editor.render(); });
+      btnDistributeV.addEventListener('click', () => { editor.distributeVertical(); editor.render(); });
+
+      // Z-order buttons
+      btnBringFront.addEventListener('click', () => {
+        const selection = editor.getSelection();
+        for (const id of selection) {
+          editor.bringToFront(id);
+        }
+        editor.render();
+      });
+
+      btnSendBack.addEventListener('click', () => {
+        const selection = editor.getSelection();
+        for (const id of selection) {
+          editor.sendToBack(id);
+        }
+        editor.render();
+      });
+
+      // Snapping toggle
+      chkSnapping.addEventListener('change', (e) => {
+        editor.setSnappingConfig({ enabled: e.target.checked });
+      });
+
+      // Effects dropdown
+      effectSelect.addEventListener('change', (e) => {
+        const selection = editor.getSelection();
+        const presetName = e.target.value;
+
+        for (const id of selection) {
+          if (presetName) {
+            // Apply preset effect
+            const preset = SVGComposer[presetName];
+            if (typeof preset === 'function') {
+              try {
+                const effect = preset();
+                editor.setEffect(id, effect);
+                elementEffects.set(id, presetName);
+              } catch (err) {
+                console.error(`Failed to apply effect "${presetName}":`, err);
+                setStatus(`Failed to apply ${presetName}`, 'error');
+              }
+            } else {
+              console.warn(`Effect preset "${presetName}" not found on SVGComposer`);
+              setStatus(`Effect "${presetName}" not available`, 'error');
+            }
+          } else {
+            // Remove effect
+            editor.removeEffect(id);
+            elementEffects.delete(id);
+          }
+        }
+        editor.render();
+      });
+
+      // Export buttons
+      btnExportSvg.addEventListener('click', () => {
+        const svg = editor.toSVG();
+        downloadFile(svg, 'canvas.svg', 'image/svg+xml');
+        setStatus('SVG downloaded', 'success');
+      });
+
+      btnExportJson.addEventListener('click', () => {
+        const json = JSON.stringify(editor.toJSON(), null, 2);
+        downloadFile(json, 'canvas.json', 'application/json');
+        setStatus('JSON downloaded', 'success');
+      });
+
+      btnCopySvg.addEventListener('click', async () => {
+        const svg = editor.toSVG();
+        try {
+          // Try modern clipboard API first
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(svg);
+            setStatus('SVG copied to clipboard', 'success');
+          } else {
+            // Fallback for older browsers
+            const textarea = document.createElement('textarea');
+            textarea.value = svg;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            setStatus('SVG copied to clipboard', 'success');
+          }
+        } catch (err) {
+          console.error('Clipboard copy failed:', err);
+          setStatus('Failed to copy - check browser permissions', 'error');
+        }
+      });
+
+      // Keyboard shortcuts
+      document.addEventListener('keydown', (e) => {
+        // Ignore if typing in an input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        if (e.key === 'v' || e.key === 'V') {
+          editor.setTool('select');
+        } else if (e.key === 'h' || e.key === 'H') {
+          editor.setTool('pan');
+        } else if (e.key === 'Delete' || e.key === 'Backspace') {
+          const selection = editor.getSelection();
+          for (const id of selection) {
+            editor.removeElement(id);
+          }
+          editor.render();
+        } else if (e.key === 'Escape') {
+          editor.clearSelection();
+        } else if (e.ctrlKey || e.metaKey) {
+          if (e.key === 'z') {
+            e.preventDefault();
+            editor.undo();
+            editor.render();
+            updatePropertiesPanel(editor);
+          } else if (e.key === 'y') {
+            e.preventDefault();
+            editor.redo();
+            editor.render();
+            updatePropertiesPanel(editor);
+          }
+        }
+      });
+
       // Make editor available globally for console debugging
       window.editor = editor;
       console.log('Editor available as window.editor');
+      console.log('Available effect presets:', [
+        'blur', 'dropShadow', 'innerShadow', 'glow', 'outline',
+        'grayscale', 'sepia', 'saturate', 'hueRotate', 'invert',
+        'brightness', 'contrast', 'sharpen', 'emboss', 'noise', 'vintage'
+      ]);
 
     } catch (error) {
       console.error('Failed to initialize:', error);
