@@ -41,7 +41,7 @@ A zero-dependency, TypeScript-based SVG canvas editor library for building visua
 ## Installation
 
 ```bash
-npm install svg-composer
+npm install github:particlesector/svg-composer
 ```
 
 ## Quick Start
