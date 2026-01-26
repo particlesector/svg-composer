@@ -180,7 +180,7 @@ The README has been significantly expanded with:
 | Tutorial 1 | ✅ Done | Building a Photo Editor (6 steps) |
 | Tutorial 2 | ✅ Done | Creating a Design Tool (6 steps) |
 | Tutorial 3 | ✅ Done | Interactive Canvas Features (5 steps) |
-| Patterns/Recipes | ✅ Done | 11 common solutions |
+| Patterns/Recipes | ✅ Done | 10 common solutions |
 
 **Tutorials Implemented:**
 - Photo Editor: Loading images, text overlays, effects, frames, export
@@ -350,7 +350,7 @@ examples/
 ### Phase 3: README Examples & Tutorials - COMPLETED ✅
 1. ✅ Add "Tutorials" section with 3 comprehensive tutorials
 2. ✅ Add framework integration examples (Vue 3, Vanilla JavaScript)
-3. ✅ Add "Patterns/Recipes" section with 11 common solutions
+3. ✅ Add "Patterns/Recipes" section with 10 common solutions
 
 ### Phase 4: JSDoc Supporting Modules
 1. Filters module documentation
@@ -386,8 +386,8 @@ examples/
 ### Usage Examples - COMPLETED ✅
 - [x] At least 2 comprehensive tutorials added (3 tutorials: Photo Editor, Design Tool, Interactive Canvas)
 - [x] At least 2 framework examples (beyond React) (Vue 3, Vanilla JavaScript)
-- [x] Common patterns/recipes section added (11 recipes)
-- [x] All code examples are tested and working
+- [x] Common patterns/recipes section added (10 recipes)
+- [x] All code examples use documented API methods (verified against codebase)
 
 ---
 
