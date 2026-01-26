@@ -124,10 +124,81 @@ export class SVGComposer extends EditorEventEmitter {
   // ============================================================
 
   /**
-   * Adds an element to the canvas
+   * Adds an element to the canvas.
+   *
+   * Creates a new element with an auto-generated ID and adds it to the canvas.
+   * This method automatically creates a history entry for undo/redo support.
    *
    * @param element - Element properties (id will be auto-generated)
    * @returns The generated element ID
+   *
+   * @see {@link removeElement} to remove an element
+   * @see {@link updateElement} to modify an existing element
+   *
+   * @example Add an image element
+   * ```typescript
+   * const imageId = editor.addElement({
+   *   type: 'image',
+   *   src: 'https://example.com/photo.jpg',
+   *   width: 400,
+   *   height: 300,
+   *   transform: { x: 100, y: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+   *   opacity: 1,
+   *   zIndex: 1,
+   *   locked: false,
+   *   visible: true
+   * });
+   * ```
+   *
+   * @example Add a text element
+   * ```typescript
+   * const textId = editor.addElement({
+   *   type: 'text',
+   *   content: 'Hello World',
+   *   fontSize: 48,
+   *   fontFamily: 'Arial',
+   *   fill: '#000000',
+   *   textAnchor: 'start',
+   *   transform: { x: 200, y: 200, rotation: 0, scaleX: 1, scaleY: 1 },
+   *   opacity: 1,
+   *   zIndex: 2,
+   *   locked: false,
+   *   visible: true
+   * });
+   * ```
+   *
+   * @example Add a shape element (rectangle)
+   * ```typescript
+   * const rectId = editor.addElement({
+   *   type: 'shape',
+   *   shapeType: 'rect',
+   *   width: 200,
+   *   height: 150,
+   *   fill: '#3498db',
+   *   stroke: '#2980b9',
+   *   strokeWidth: 2,
+   *   transform: { x: 50, y: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+   *   opacity: 1,
+   *   zIndex: 0,
+   *   locked: false,
+   *   visible: true
+   * });
+   * ```
+   *
+   * @example Add a circle shape
+   * ```typescript
+   * const circleId = editor.addElement({
+   *   type: 'shape',
+   *   shapeType: 'circle',
+   *   r: 50,
+   *   fill: '#e74c3c',
+   *   transform: { x: 300, y: 300, rotation: 0, scaleX: 1, scaleY: 1 },
+   *   opacity: 1,
+   *   zIndex: 3,
+   *   locked: false,
+   *   visible: true
+   * });
+   * ```
    */
   addElement(element: Omit<BaseElement, 'id'>): string {
     // Generate ID and create full element
@@ -152,10 +223,30 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Removes an element from the canvas
+   * Removes an element from the canvas.
+   *
+   * Removes the specified element and clears it from the selection if selected.
+   * Creates a history entry for undo/redo support.
    *
    * @param id - Element ID to remove
-   * @throws Error if element does not exist
+   * @throws {Error} If element with the specified ID does not exist
+   *
+   * @see {@link removeElements} to remove multiple elements
+   * @see {@link addElement} to add elements
+   * @see {@link clear} to remove all elements
+   *
+   * @example Remove a single element
+   * ```typescript
+   * editor.removeElement(imageId);
+   * ```
+   *
+   * @example Remove selected element
+   * ```typescript
+   * const selected = editor.getSelection();
+   * if (selected.length === 1) {
+   *   editor.removeElement(selected[0]);
+   * }
+   * ```
    */
   removeElement(id: string): void {
     // Verify element exists
@@ -180,9 +271,26 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Removes multiple elements from the canvas
+   * Removes multiple elements from the canvas.
    *
-   * @param ids - Array of element IDs to remove
+   * Efficiently removes multiple elements in a single operation,
+   * creating only one history entry for all removals.
+   *
+   * @param ids - Array of element IDs to remove (non-existent IDs are ignored)
+   *
+   * @see {@link removeElement} to remove a single element
+   * @see {@link clear} to remove all elements
+   *
+   * @example Remove all selected elements
+   * ```typescript
+   * const selected = editor.getSelection();
+   * editor.removeElements(selected);
+   * ```
+   *
+   * @example Remove specific elements
+   * ```typescript
+   * editor.removeElements([id1, id2, id3]);
+   * ```
    */
   removeElements(ids: string[]): void {
     // Filter to only existing elements
@@ -211,11 +319,46 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Updates an element's properties
+   * Updates an element's properties.
+   *
+   * Merges the provided updates with the existing element properties.
+   * Creates a history entry for undo/redo support.
    *
    * @param id - Element ID to update
-   * @param updates - Partial element properties to update
-   * @throws Error if element does not exist
+   * @param updates - Partial element properties to merge with existing
+   * @throws {Error} If element with the specified ID does not exist
+   *
+   * @see {@link updateElementSilent} for updates without history entry
+   * @see {@link replaceElement} to replace an element entirely
+   *
+   * @example Update element opacity
+   * ```typescript
+   * editor.updateElement(imageId, { opacity: 0.5 });
+   * ```
+   *
+   * @example Update element transform
+   * ```typescript
+   * const element = editor.getElement(imageId);
+   * editor.updateElement(imageId, {
+   *   transform: {
+   *     ...element.transform,
+   *     rotation: 45
+   *   }
+   * });
+   * ```
+   *
+   * @example Lock an element
+   * ```typescript
+   * editor.updateElement(imageId, { locked: true });
+   * ```
+   *
+   * @example Update text content
+   * ```typescript
+   * editor.updateElement(textId, {
+   *   content: 'New text content',
+   *   fill: '#ff0000'
+   * });
+   * ```
    */
   updateElement(id: string, updates: Partial<BaseElement>): void {
     // Verify element exists
@@ -246,12 +389,49 @@ export class SVGComposer extends EditorEventEmitter {
 
   /**
    * Updates an element's properties without creating a history entry.
-   * Use this for intermediate updates during drag/resize/rotate operations,
-   * then call pushHistory() when the operation completes.
+   *
+   * Use this for intermediate updates during drag/resize/rotate operations
+   * to avoid flooding the history stack. Call `pushHistory()` when the
+   * operation completes to create a single undo point.
    *
    * @param id - Element ID to update
    * @param updates - Partial element properties to update
-   * @throws Error if element does not exist
+   * @throws {Error} If element with the specified ID does not exist
+   *
+   * @see {@link pushHistory} to commit changes to history
+   * @see {@link updateElement} for updates with automatic history entry
+   *
+   * @example Drag operation pattern
+   * ```typescript
+   * // During drag (many rapid updates)
+   * function onDragMove(dx: number, dy: number) {
+   *   const element = editor.getElement(draggedId);
+   *   editor.updateElementSilent(draggedId, {
+   *     transform: {
+   *       ...element.transform,
+   *       x: element.transform.x + dx,
+   *       y: element.transform.y + dy
+   *     }
+   *   });
+   *   editor.render();
+   * }
+   *
+   * // On drag end (single history entry)
+   * function onDragEnd() {
+   *   editor.pushHistory();
+   * }
+   * ```
+   *
+   * @example Resize operation pattern
+   * ```typescript
+   * // During resize
+   * editor.updateElementSilent(elementId, {
+   *   transform: { ...transform, scaleX: newScaleX, scaleY: newScaleY }
+   * });
+   *
+   * // On resize end
+   * editor.pushHistory();
+   * ```
    */
   updateElementSilent(id: string, updates: Partial<BaseElement>): void {
     // Verify element exists
@@ -275,7 +455,26 @@ export class SVGComposer extends EditorEventEmitter {
 
   /**
    * Pushes the current state to history.
-   * Call this after a series of silent updates to create a single undo point.
+   *
+   * Creates a single history entry for the current state. Call this after
+   * a series of `updateElementSilent()` calls to create one undo point
+   * for the entire operation.
+   *
+   * @see {@link updateElementSilent} for updates without automatic history
+   * @see {@link undo} to revert to previous state
+   * @see {@link redo} to re-apply reverted changes
+   *
+   * @example Complete a drag operation
+   * ```typescript
+   * // Multiple silent updates during drag...
+   * editor.updateElementSilent(id, { transform: { ...t1 } });
+   * editor.updateElementSilent(id, { transform: { ...t2 } });
+   * editor.updateElementSilent(id, { transform: { ...t3 } });
+   *
+   * // Single history entry for the entire drag
+   * editor.pushHistory();
+   * // Now Ctrl+Z undoes the entire drag, not individual moves
+   * ```
    */
   pushHistory(): void {
     this._history.push(this._state.snapshot());
@@ -286,11 +485,30 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Replaces an element entirely
+   * Replaces an element entirely with new data.
+   *
+   * Unlike `updateElement()` which merges properties, this method completely
+   * replaces the element. The replacement element must have the same ID.
    *
    * @param id - Element ID to replace
-   * @param element - New element data
-   * @throws Error if element does not exist or replacement ID does not match
+   * @param element - Complete new element data (must have matching ID)
+   * @throws {Error} If element with the specified ID does not exist
+   * @throws {Error} If replacement element ID does not match the original
+   *
+   * @see {@link updateElement} for partial updates
+   *
+   * @example Replace an element completely
+   * ```typescript
+   * const original = editor.getElement(elementId);
+   * const replacement = {
+   *   ...original,
+   *   type: 'shape',
+   *   shapeType: 'circle',
+   *   r: 100,
+   *   fill: '#ff0000'
+   * };
+   * editor.replaceElement(elementId, replacement);
+   * ```
    */
   replaceElement(id: string, element: BaseElement): void {
     // Verify original element exists
@@ -320,39 +538,104 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Gets an element by ID
+   * Gets an element by ID.
    *
    * @param id - Element ID to find
    * @returns The element or undefined if not found
+   *
+   * @example Get and inspect an element
+   * ```typescript
+   * const element = editor.getElement(imageId);
+   * if (element) {
+   *   console.log('Type:', element.type);
+   *   console.log('Position:', element.transform.x, element.transform.y);
+   *   console.log('Opacity:', element.opacity);
+   * }
+   * ```
+   *
+   * @example Check if element exists
+   * ```typescript
+   * if (editor.getElement(id)) {
+   *   editor.select(id);
+   * }
+   * ```
    */
   getElement(id: string): BaseElement | undefined {
     return this._state.getElement(id);
   }
 
   /**
-   * Gets all elements
+   * Gets all elements on the canvas.
    *
-   * @returns Array of all elements
+   * @returns Array of all elements (not sorted by z-index)
+   *
+   * @example Count elements
+   * ```typescript
+   * const count = editor.getAllElements().length;
+   * console.log(`Canvas has ${count} elements`);
+   * ```
+   *
+   * @example Find elements by property
+   * ```typescript
+   * const locked = editor.getAllElements().filter(el => el.locked);
+   * const visible = editor.getAllElements().filter(el => el.visible);
+   * ```
    */
   getAllElements(): BaseElement[] {
     return this._state.getAllElements();
   }
 
   /**
-   * Gets elements by type
+   * Gets elements filtered by type.
    *
-   * @param type - Element type to filter by
-   * @returns Array of elements matching the type
+   * @param type - Element type to filter by ('image', 'text', 'shape', 'group')
+   * @returns Array of elements matching the specified type
+   *
+   * @example Get all images
+   * ```typescript
+   * const images = editor.getElementsByType('image');
+   * console.log(`Found ${images.length} images`);
+   * ```
+   *
+   * @example Get all text elements
+   * ```typescript
+   * const textElements = editor.getElementsByType('text');
+   * textElements.forEach(text => {
+   *   console.log('Text:', text.content);
+   * });
+   * ```
+   *
+   * @example Get all shapes
+   * ```typescript
+   * const shapes = editor.getElementsByType('shape');
+   * const circles = shapes.filter(s => s.shapeType === 'circle');
+   * ```
    */
   getElementsByType(type: BaseElement['type']): BaseElement[] {
     return this._state.getAllElements().filter((element) => element.type === type);
   }
 
   /**
-   * Gets elements within a bounding box
+   * Gets elements that intersect with a bounding box.
+   *
+   * Useful for implementing marquee selection or finding elements in a region.
    *
    * @param bounds - Bounding box to search within
    * @returns Array of elements that intersect with the bounds
+   *
+   * @example Marquee selection
+   * ```typescript
+   * // After user draws a selection rectangle
+   * const selectionRect = { x: 100, y: 100, width: 300, height: 200 };
+   * const elementsInRect = editor.getElementsInBounds(selectionRect);
+   * editor.select(elementsInRect.map(el => el.id));
+   * ```
+   *
+   * @example Find elements in viewport
+   * ```typescript
+   * const viewport = { x: 0, y: 0, width: 800, height: 600 };
+   * const visibleElements = editor.getElementsInBounds(viewport);
+   * ```
    */
   getElementsInBounds(bounds: BoundingBox): BaseElement[] {
     const elements = this._state.getAllElements();
@@ -523,15 +806,34 @@ export class SVGComposer extends EditorEventEmitter {
   // ============================================================
 
   /**
-   * Creates a group from the specified elements
+   * Creates a group from the specified elements.
    *
-   * @param elementIds - Array of element IDs to group
+   * Groups allow multiple elements to be treated as a single unit for
+   * selection, transformation, and z-ordering. The group inherits the
+   * highest z-index among its children plus one.
+   *
+   * @param elementIds - Array of element IDs to group (minimum 2)
    * @returns The generated group ID
-   * @throws Error if less than 2 elements provided or if any element doesn't exist
+   * @throws {Error} If less than 2 elements provided
+   * @throws {Error} If any element doesn't exist
+   * @throws {Error} If any element is locked
+   * @throws {Error} If any element is already in a group
    *
-   * @example
+   * @see {@link ungroup} to dissolve a group
+   *
+   * @example Group selected elements
+   * ```typescript
+   * const selected = editor.getSelection();
+   * if (selected.length >= 2) {
+   *   const groupId = editor.createGroup(selected);
+   *   console.log('Created group:', groupId);
+   * }
+   * ```
+   *
+   * @example Group specific elements
    * ```typescript
    * const groupId = editor.createGroup([imageId, textId, shapeId]);
+   * // The group is automatically selected after creation
    * ```
    */
   createGroup(elementIds: string[]): string {
@@ -606,16 +908,35 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Ungroups a group element, promoting its children to top-level elements
+   * Ungroups a group element, releasing its children as independent elements.
+   *
+   * The group element is removed and its children become top-level elements.
+   * The children are automatically selected after ungrouping.
    *
    * @param groupId - ID of the group to ungroup
    * @returns Array of the ungrouped child element IDs
-   * @throws Error if element doesn't exist, is not a group, or is locked
+   * @throws {Error} If element with the specified ID doesn't exist
+   * @throws {Error} If element is not a group
+   * @throws {Error} If group is locked
    *
-   * @example
+   * @see {@link createGroup} to create a group
+   *
+   * @example Ungroup and select children
    * ```typescript
    * const childIds = editor.ungroup(groupId);
-   * editor.select(childIds); // Select the former children
+   * // Children are automatically selected
+   * console.log('Ungrouped:', childIds.length, 'elements');
+   * ```
+   *
+   * @example Ungroup selected group
+   * ```typescript
+   * const selected = editor.getSelection();
+   * if (selected.length === 1) {
+   *   const element = editor.getElement(selected[0]);
+   *   if (element?.type === 'group') {
+   *     editor.ungroup(selected[0]);
+   *   }
+   * }
    * ```
    */
   ungroup(groupId: string): string[] {
@@ -665,9 +986,35 @@ export class SVGComposer extends EditorEventEmitter {
   // ============================================================
 
   /**
-   * Selects one or more elements (replaces current selection)
+   * Selects one or more elements, replacing the current selection.
    *
    * @param id - Element ID or array of IDs to select
+   *
+   * @see {@link addToSelection} to add to existing selection
+   * @see {@link removeFromSelection} to remove from selection
+   * @see {@link clearSelection} to deselect all
+   * @see {@link selectAll} to select all elements
+   *
+   * @example Select a single element
+   * ```typescript
+   * editor.select(imageId);
+   * ```
+   *
+   * @example Select multiple elements
+   * ```typescript
+   * editor.select([imageId, textId, shapeId]);
+   * ```
+   *
+   * @example Select element on click
+   * ```typescript
+   * editor.on('canvas:clicked', ({ element }) => {
+   *   if (element) {
+   *     editor.select(element.id);
+   *   } else {
+   *     editor.clearSelection();
+   *   }
+   * });
+   * ```
    */
   select(id: string | string[]): void {
     const ids = Array.isArray(id) ? id : [id];
@@ -676,9 +1023,26 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Adds elements to the current selection
+   * Adds elements to the current selection (multi-select).
    *
    * @param id - Element ID or array of IDs to add to selection
+   *
+   * @see {@link select} to replace selection
+   * @see {@link removeFromSelection} to remove from selection
+   *
+   * @example Add single element to selection (Shift+click pattern)
+   * ```typescript
+   * editor.on('canvas:clicked', ({ element }) => {
+   *   if (element && event.shiftKey) {
+   *     editor.addToSelection(element.id);
+   *   }
+   * });
+   * ```
+   *
+   * @example Add multiple elements
+   * ```typescript
+   * editor.addToSelection([id1, id2, id3]);
+   * ```
    */
   addToSelection(id: string | string[]): void {
     const idsToAdd = Array.isArray(id) ? id : [id];
@@ -689,9 +1053,26 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Removes elements from the current selection
+   * Removes elements from the current selection.
    *
    * @param id - Element ID or array of IDs to remove from selection
+   *
+   * @see {@link addToSelection} to add to selection
+   * @see {@link clearSelection} to remove all from selection
+   *
+   * @example Toggle selection (Ctrl+click pattern)
+   * ```typescript
+   * editor.on('canvas:clicked', ({ element }) => {
+   *   if (element && event.ctrlKey) {
+   *     const selection = editor.getSelection();
+   *     if (selection.includes(element.id)) {
+   *       editor.removeFromSelection(element.id);
+   *     } else {
+   *       editor.addToSelection(element.id);
+   *     }
+   *   }
+   * });
+   * ```
    */
   removeFromSelection(id: string | string[]): void {
     const idsToRemove = Array.isArray(id) ? id : [id];
@@ -703,7 +1084,28 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Clears the current selection
+   * Clears the current selection (deselects all elements).
+   *
+   * @see {@link select} to select elements
+   * @see {@link selectAll} to select all elements
+   *
+   * @example Clear selection on canvas click
+   * ```typescript
+   * editor.on('canvas:clicked', ({ element }) => {
+   *   if (!element) {
+   *     editor.clearSelection();
+   *   }
+   * });
+   * ```
+   *
+   * @example Clear selection on Escape key
+   * ```typescript
+   * document.addEventListener('keydown', (e) => {
+   *   if (e.key === 'Escape') {
+   *     editor.clearSelection();
+   *   }
+   * });
+   * ```
    */
   clearSelection(): void {
     this._state.setSelection([]);
@@ -711,9 +1113,24 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Gets the currently selected elements
+   * Gets the currently selected elements as full element objects.
    *
    * @returns Array of selected elements
+   *
+   * @see {@link getSelection} to get only IDs
+   *
+   * @example Get selected element properties
+   * ```typescript
+   * const selected = editor.getSelected();
+   * selected.forEach(element => {
+   *   console.log(element.type, element.transform);
+   * });
+   * ```
+   *
+   * @example Check if selection has specific type
+   * ```typescript
+   * const hasImage = editor.getSelected().some(el => el.type === 'image');
+   * ```
    */
   getSelected(): BaseElement[] {
     return this._state
@@ -723,7 +1140,20 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Selects all visible, unlocked elements
+   * Selects all visible, unlocked elements on the canvas.
+   *
+   * @see {@link clearSelection} to deselect all
+   * @see {@link select} to select specific elements
+   *
+   * @example Ctrl+A shortcut
+   * ```typescript
+   * document.addEventListener('keydown', (e) => {
+   *   if (e.ctrlKey && e.key === 'a') {
+   *     e.preventDefault();
+   *     editor.selectAll();
+   *   }
+   * });
+   * ```
    */
   selectAll(): void {
     const selectableIds = this._state
@@ -735,18 +1165,58 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Gets the currently selected element IDs
+   * Gets the IDs of currently selected elements.
    *
    * @returns Array of selected element IDs
+   *
+   * @see {@link getSelected} to get full element objects
+   *
+   * @example Check selection count
+   * ```typescript
+   * const count = editor.getSelection().length;
+   * statusBar.textContent = `${count} element(s) selected`;
+   * ```
+   *
+   * @example Delete selected elements
+   * ```typescript
+   * document.addEventListener('keydown', (e) => {
+   *   if (e.key === 'Delete') {
+   *     editor.removeElements(editor.getSelection());
+   *   }
+   * });
+   * ```
    */
   getSelection(): string[] {
     return this._state.getSelection();
   }
 
   /**
-   * Gets the bounding box of the current selection
+   * Gets the combined bounding box of all selected elements.
    *
-   * @returns Combined bounding box of all selected elements, or null if none
+   * @returns Combined bounding box, or null if nothing is selected
+   *
+   * @see {@link getSelectionRotation} to get rotation of selection
+   *
+   * @example Center selection on canvas
+   * ```typescript
+   * const bounds = editor.getSelectionBounds();
+   * const canvas = editor.getCanvasSize();
+   * if (bounds) {
+   *   const dx = (canvas.width / 2) - (bounds.x + bounds.width / 2);
+   *   const dy = (canvas.height / 2) - (bounds.y + bounds.height / 2);
+   *   editor.getSelection().forEach(id => {
+   *     editor.moveElement(id, dx, dy);
+   *   });
+   * }
+   * ```
+   *
+   * @example Show selection dimensions
+   * ```typescript
+   * const bounds = editor.getSelectionBounds();
+   * if (bounds) {
+   *   sizeLabel.textContent = `${bounds.width} × ${bounds.height}`;
+   * }
+   * ```
    */
   getSelectionBounds(): BoundingBox | null {
     const selectedElements = this.getSelected();
@@ -782,10 +1252,22 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Gets the rotation of the current selection
-   * For multi-selection, returns 0 (combined selection has no rotation)
+   * Gets the rotation of the current selection.
    *
-   * @returns Rotation in degrees
+   * For single selection, returns the element's rotation.
+   * For multi-selection, returns 0 (combined selection has no inherent rotation).
+   *
+   * @returns Rotation in degrees (0-360)
+   *
+   * @see {@link getSelectionBounds} to get selection dimensions
+   *
+   * @example Display rotation in UI
+   * ```typescript
+   * editor.on('selection:changed', () => {
+   *   const rotation = editor.getSelectionRotation();
+   *   rotationInput.value = rotation.toString();
+   * });
+   * ```
    */
   getSelectionRotation(): number {
     const selectedElements = this.getSelected();
@@ -797,9 +1279,35 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Gets the canvas size
+   * Gets the canvas dimensions.
    *
-   * @returns Canvas dimensions
+   * @returns Object with width and height in viewBox units
+   *
+   * @example Center an element on canvas
+   * ```typescript
+   * const canvas = editor.getCanvasSize();
+   * editor.setPosition(elementId,
+   *   canvas.width / 2,
+   *   canvas.height / 2
+   * );
+   * ```
+   *
+   * @example Create canvas-sized background
+   * ```typescript
+   * const { width, height } = editor.getCanvasSize();
+   * editor.addElement({
+   *   type: 'shape',
+   *   shapeType: 'rect',
+   *   width,
+   *   height,
+   *   fill: '#f0f0f0',
+   *   transform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
+   *   opacity: 1,
+   *   zIndex: 0,
+   *   locked: true,
+   *   visible: true
+   * });
+   * ```
    */
   getCanvasSize(): { width: number; height: number } {
     return {
@@ -813,12 +1321,38 @@ export class SVGComposer extends EditorEventEmitter {
   // ============================================================
 
   /**
-   * Moves an element relative to its current position
+   * Moves an element relative to its current position.
    *
    * @param id - Element ID to move
-   * @param dx - Delta X in viewBox units
-   * @param dy - Delta Y in viewBox units
-   * @throws Error if element does not exist
+   * @param dx - Delta X in viewBox units (positive = right, negative = left)
+   * @param dy - Delta Y in viewBox units (positive = down, negative = up)
+   * @throws {Error} If element with the specified ID does not exist
+   *
+   * @see {@link setPosition} to set absolute position
+   *
+   * @example Move element by offset
+   * ```typescript
+   * // Move 50 units right and 30 units down
+   * editor.moveElement(imageId, 50, 30);
+   * ```
+   *
+   * @example Nudge with arrow keys
+   * ```typescript
+   * document.addEventListener('keydown', (e) => {
+   *   const selected = editor.getSelection();
+   *   if (selected.length === 0) return;
+   *
+   *   const delta = e.shiftKey ? 10 : 1;
+   *   selected.forEach(id => {
+   *     switch (e.key) {
+   *       case 'ArrowUp':    editor.moveElement(id, 0, -delta); break;
+   *       case 'ArrowDown':  editor.moveElement(id, 0, delta); break;
+   *       case 'ArrowLeft':  editor.moveElement(id, -delta, 0); break;
+   *       case 'ArrowRight': editor.moveElement(id, delta, 0); break;
+   *     }
+   *   });
+   * });
+   * ```
    */
   moveElement(id: string, dx: number, dy: number): void {
     const element = this._state.getElement(id);
@@ -835,12 +1369,33 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Sets an element's absolute position
+   * Sets an element's absolute position.
    *
    * @param id - Element ID to position
-   * @param x - Absolute X in viewBox units
-   * @param y - Absolute Y in viewBox units
-   * @throws Error if element does not exist
+   * @param x - Absolute X coordinate in viewBox units
+   * @param y - Absolute Y coordinate in viewBox units
+   * @throws {Error} If element with the specified ID does not exist
+   *
+   * @see {@link moveElement} to move by relative offset
+   *
+   * @example Position at specific coordinates
+   * ```typescript
+   * editor.setPosition(imageId, 100, 200);
+   * ```
+   *
+   * @example Center element on canvas
+   * ```typescript
+   * const canvas = editor.getCanvasSize();
+   * editor.setPosition(elementId, canvas.width / 2, canvas.height / 2);
+   * ```
+   *
+   * @example Snap to grid position
+   * ```typescript
+   * const gridSize = 20;
+   * const x = Math.round(currentX / gridSize) * gridSize;
+   * const y = Math.round(currentY / gridSize) * gridSize;
+   * editor.setPosition(elementId, x, y);
+   * ```
    */
   setPosition(id: string, x: number, y: number): void {
     const element = this._state.getElement(id);
@@ -857,11 +1412,37 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Rotates an element around its center
+   * Rotates an element to a specific angle.
+   *
+   * Sets the absolute rotation angle (not relative to current rotation).
    *
    * @param id - Element ID to rotate
-   * @param degrees - Rotation angle in degrees
-   * @throws Error if element does not exist
+   * @param degrees - Rotation angle in degrees (clockwise from 3 o'clock)
+   * @throws {Error} If element with the specified ID does not exist
+   *
+   * @see {@link resetTransform} to reset rotation to 0
+   *
+   * @example Rotate to 45 degrees
+   * ```typescript
+   * editor.rotateElement(imageId, 45);
+   * ```
+   *
+   * @example Rotate by increment
+   * ```typescript
+   * const element = editor.getElement(imageId);
+   * const currentRotation = element.transform.rotation;
+   * editor.rotateElement(imageId, currentRotation + 15);
+   * ```
+   *
+   * @example Rotation slider
+   * ```typescript
+   * rotationSlider.addEventListener('input', (e) => {
+   *   const degrees = parseFloat(e.target.value);
+   *   editor.getSelection().forEach(id => {
+   *     editor.rotateElement(id, degrees);
+   *   });
+   * });
+   * ```
    */
   rotateElement(id: string, degrees: number): void {
     const element = this._state.getElement(id);
@@ -877,12 +1458,41 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Scales an element from its center
+   * Scales an element to specific scale factors.
+   *
+   * Sets absolute scale factors (1.0 = original size, 2.0 = double size).
    *
    * @param id - Element ID to scale
-   * @param scaleX - X scale factor
-   * @param scaleY - Y scale factor
-   * @throws Error if element does not exist
+   * @param scaleX - X scale factor (1.0 = 100%)
+   * @param scaleY - Y scale factor (1.0 = 100%)
+   * @throws {Error} If element with the specified ID does not exist
+   *
+   * @see {@link resetTransform} to reset scale to 1.0
+   *
+   * @example Scale uniformly (maintain aspect ratio)
+   * ```typescript
+   * editor.scaleElement(imageId, 1.5, 1.5); // 150% size
+   * ```
+   *
+   * @example Scale non-uniformly
+   * ```typescript
+   * editor.scaleElement(imageId, 2.0, 1.0); // Stretch horizontally
+   * ```
+   *
+   * @example Flip horizontally
+   * ```typescript
+   * editor.scaleElement(imageId, -1, 1);
+   * ```
+   *
+   * @example Scale slider
+   * ```typescript
+   * scaleSlider.addEventListener('input', (e) => {
+   *   const scale = parseFloat(e.target.value);
+   *   editor.getSelection().forEach(id => {
+   *     editor.scaleElement(id, scale, scale);
+   *   });
+   * });
+   * ```
    */
   scaleElement(id: string, scaleX: number, scaleY: number): void {
     const element = this._state.getElement(id);
@@ -899,10 +1509,24 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Resets an element's transform to default
+   * Resets an element's transform to default values.
+   *
+   * Sets position to (0,0), rotation to 0, and scale to (1,1).
    *
    * @param id - Element ID to reset
-   * @throws Error if element does not exist
+   * @throws {Error} If element with the specified ID does not exist
+   *
+   * @example Reset transform
+   * ```typescript
+   * editor.resetTransform(imageId);
+   * ```
+   *
+   * @example Reset all selected elements
+   * ```typescript
+   * editor.getSelection().forEach(id => {
+   *   editor.resetTransform(id);
+   * });
+   * ```
    */
   resetTransform(id: string): void {
     const element = this._state.getElement(id);
@@ -942,10 +1566,34 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Brings an element to the front (highest z-index)
+   * Brings an element to the front (highest z-index).
+   *
+   * Places the element above all other elements on the canvas.
    *
    * @param id - Element ID
-   * @throws Error if element does not exist
+   * @throws {Error} If element with the specified ID does not exist
+   *
+   * @see {@link sendToBack} to move to back
+   * @see {@link bringForward} to move up one level
+   * @see {@link sendBackward} to move down one level
+   * @see {@link setZIndex} to set specific z-index
+   *
+   * @example Bring selected element to front
+   * ```typescript
+   * const selected = editor.getSelection();
+   * if (selected.length === 1) {
+   *   editor.bringToFront(selected[0]);
+   * }
+   * ```
+   *
+   * @example Context menu action
+   * ```typescript
+   * bringToFrontButton.addEventListener('click', () => {
+   *   editor.getSelection().forEach(id => {
+   *     editor.bringToFront(id);
+   *   });
+   * });
+   * ```
    */
   bringToFront(id: string): void {
     const element = this._state.getElement(id);
@@ -961,10 +1609,30 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Sends an element to the back (lowest z-index)
+   * Sends an element to the back (lowest z-index).
+   *
+   * Places the element behind all other elements on the canvas.
    *
    * @param id - Element ID
-   * @throws Error if element does not exist
+   * @throws {Error} If element with the specified ID does not exist
+   *
+   * @see {@link bringToFront} to move to front
+   * @see {@link bringForward} to move up one level
+   * @see {@link sendBackward} to move down one level
+   * @see {@link setZIndex} to set specific z-index
+   *
+   * @example Send selected element to back
+   * ```typescript
+   * const selected = editor.getSelection();
+   * if (selected.length === 1) {
+   *   editor.sendToBack(selected[0]);
+   * }
+   * ```
+   *
+   * @example Send background element to back
+   * ```typescript
+   * editor.sendToBack(backgroundId);
+   * ```
    */
   sendToBack(id: string): void {
     const element = this._state.getElement(id);
@@ -980,10 +1648,32 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Moves an element up one level in z-order
+   * Moves an element up one level in z-order.
+   *
+   * Swaps z-index with the element directly above it.
    *
    * @param id - Element ID
-   * @throws Error if element does not exist
+   * @throws {Error} If element with the specified ID does not exist
+   *
+   * @see {@link sendBackward} to move down one level
+   * @see {@link bringToFront} to move to front
+   * @see {@link sendToBack} to move to back
+   *
+   * @example Move element forward
+   * ```typescript
+   * editor.bringForward(imageId);
+   * ```
+   *
+   * @example Keyboard shortcut (Ctrl+])
+   * ```typescript
+   * document.addEventListener('keydown', (e) => {
+   *   if (e.ctrlKey && e.key === ']') {
+   *     editor.getSelection().forEach(id => {
+   *       editor.bringForward(id);
+   *     });
+   *   }
+   * });
+   * ```
    */
   bringForward(id: string): void {
     const element = this._state.getElement(id);
@@ -1023,10 +1713,32 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Moves an element down one level in z-order
+   * Moves an element down one level in z-order.
+   *
+   * Swaps z-index with the element directly below it.
    *
    * @param id - Element ID
-   * @throws Error if element does not exist
+   * @throws {Error} If element with the specified ID does not exist
+   *
+   * @see {@link bringForward} to move up one level
+   * @see {@link bringToFront} to move to front
+   * @see {@link sendToBack} to move to back
+   *
+   * @example Move element backward
+   * ```typescript
+   * editor.sendBackward(imageId);
+   * ```
+   *
+   * @example Keyboard shortcut (Ctrl+[)
+   * ```typescript
+   * document.addEventListener('keydown', (e) => {
+   *   if (e.ctrlKey && e.key === '[') {
+   *     editor.getSelection().forEach(id => {
+   *       editor.sendBackward(id);
+   *     });
+   *   }
+   * });
+   * ```
    */
   sendBackward(id: string): void {
     const element = this._state.getElement(id);
@@ -1066,11 +1778,32 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Sets an element's z-index directly
+   * Sets an element's z-index directly.
    *
    * @param id - Element ID
-   * @param zIndex - New z-index value
-   * @throws Error if element does not exist
+   * @param zIndex - New z-index value (higher = in front)
+   * @throws {Error} If element with the specified ID does not exist
+   *
+   * @see {@link bringToFront} to automatically move to front
+   * @see {@link sendToBack} to automatically move to back
+   *
+   * @example Set specific z-index
+   * ```typescript
+   * editor.setZIndex(imageId, 10);
+   * editor.setZIndex(textId, 20); // Text will be in front of image
+   * ```
+   *
+   * @example Reorder elements
+   * ```typescript
+   * // Get all elements sorted by current z-index
+   * const sorted = editor.getAllElements()
+   *   .sort((a, b) => a.zIndex - b.zIndex);
+   *
+   * // Reassign sequential z-indexes
+   * sorted.forEach((el, index) => {
+   *   editor.setZIndex(el.id, index);
+   * });
+   * ```
    */
   setZIndex(id: string, zIndex: number): void {
     this.updateElement(id, { zIndex });
@@ -1081,7 +1814,31 @@ export class SVGComposer extends EditorEventEmitter {
   // ============================================================
 
   /**
-   * Undoes the last operation
+   * Undoes the last operation.
+   *
+   * Reverts the canvas state to the previous history entry.
+   * Does nothing if there's no history to undo.
+   *
+   * @see {@link redo} to redo an undone operation
+   * @see {@link canUndo} to check if undo is available
+   * @see {@link clearHistory} to clear all history
+   *
+   * @example Undo button
+   * ```typescript
+   * undoButton.addEventListener('click', () => {
+   *   editor.undo();
+   * });
+   * ```
+   *
+   * @example Ctrl+Z shortcut
+   * ```typescript
+   * document.addEventListener('keydown', (e) => {
+   *   if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+   *     e.preventDefault();
+   *     editor.undo();
+   *   }
+   * });
+   * ```
    */
   undo(): void {
     const previousState = this._history.undo();
@@ -1097,7 +1854,30 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Redoes the last undone operation
+   * Redoes the last undone operation.
+   *
+   * Re-applies a previously undone state change.
+   * Does nothing if there's no operation to redo.
+   *
+   * @see {@link undo} to undo an operation
+   * @see {@link canRedo} to check if redo is available
+   *
+   * @example Redo button
+   * ```typescript
+   * redoButton.addEventListener('click', () => {
+   *   editor.redo();
+   * });
+   * ```
+   *
+   * @example Ctrl+Shift+Z or Ctrl+Y shortcut
+   * ```typescript
+   * document.addEventListener('keydown', (e) => {
+   *   if (e.ctrlKey && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+   *     e.preventDefault();
+   *     editor.redo();
+   *   }
+   * });
+   * ```
    */
   redo(): void {
     const nextState = this._history.redo();
@@ -1113,25 +1893,59 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Checks if undo is available
+   * Checks if undo is available.
    *
-   * @returns True if there are operations to undo
+   * @returns True if there are operations that can be undone
+   *
+   * @see {@link undo} to perform undo
+   * @see {@link canRedo} to check redo availability
+   *
+   * @example Update undo button state
+   * ```typescript
+   * editor.on('history:changed', ({ canUndo }) => {
+   *   undoButton.disabled = !canUndo;
+   * });
+   * ```
    */
   canUndo(): boolean {
     return this._history.canUndo();
   }
 
   /**
-   * Checks if redo is available
+   * Checks if redo is available.
    *
-   * @returns True if there are operations to redo
+   * @returns True if there are operations that can be redone
+   *
+   * @see {@link redo} to perform redo
+   * @see {@link canUndo} to check undo availability
+   *
+   * @example Update redo button state
+   * ```typescript
+   * editor.on('history:changed', ({ canRedo }) => {
+   *   redoButton.disabled = !canRedo;
+   * });
+   * ```
    */
   canRedo(): boolean {
     return this._history.canRedo();
   }
 
   /**
-   * Clears all history
+   * Clears all history entries.
+   *
+   * Resets the history stack with the current state as the new baseline.
+   * Use this when loading a new document or after saving.
+   *
+   * @see {@link getHistorySize} to check history size
+   *
+   * @example Clear history after save
+   * ```typescript
+   * function saveDocument() {
+   *   const json = editor.toJSON();
+   *   localStorage.setItem('document', json);
+   *   editor.clearHistory(); // Start fresh history after save
+   * }
+   * ```
    */
   clearHistory(): void {
     this._history.clear();
@@ -1141,9 +1955,15 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Gets the current history size
+   * Gets the number of entries in the history stack.
    *
    * @returns Number of history entries
+   *
+   * @example Display history info
+   * ```typescript
+   * const size = editor.getHistorySize();
+   * console.log(`History has ${size} entries`);
+   * ```
    */
   getHistorySize(): number {
     return this._history.size();
@@ -1154,12 +1974,58 @@ export class SVGComposer extends EditorEventEmitter {
   // ============================================================
 
   /**
-   * Adds a clip path to an element
+   * Adds a clip path to an element.
+   *
+   * Clip paths mask the visible area of an element. Only the portion of
+   * the element that falls within the clip path shape is visible.
    *
    * @param elementId - Element ID to apply clip to
    * @param clipPath - Clip path definition (id will be auto-generated)
    * @returns The generated clip path ID
-   * @throws Error if element not found
+   * @throws {Error} If element with the specified ID does not exist
+   *
+   * @see {@link removeClipPath} to remove a clip path
+   * @see {@link updateClipPath} to modify a clip path
+   *
+   * @example Circular clip (profile picture style)
+   * ```typescript
+   * editor.addClipPath(imageId, {
+   *   type: 'circle',
+   *   cx: 100,  // Center X relative to element
+   *   cy: 100,  // Center Y relative to element
+   *   r: 100    // Radius
+   * });
+   * ```
+   *
+   * @example Rectangular clip
+   * ```typescript
+   * editor.addClipPath(imageId, {
+   *   type: 'rect',
+   *   x: 50,
+   *   y: 50,
+   *   width: 200,
+   *   height: 150
+   * });
+   * ```
+   *
+   * @example Elliptical clip
+   * ```typescript
+   * editor.addClipPath(imageId, {
+   *   type: 'ellipse',
+   *   cx: 150,
+   *   cy: 100,
+   *   rx: 150,
+   *   ry: 100
+   * });
+   * ```
+   *
+   * @example Path-based clip (custom shape)
+   * ```typescript
+   * editor.addClipPath(imageId, {
+   *   type: 'path',
+   *   d: 'M 0 0 L 200 0 L 200 200 L 100 150 L 0 200 Z'
+   * });
+   * ```
    */
   addClipPath(elementId: string, clipPath: Omit<ClipPath, 'id'>): string {
     const element = this._state.getElement(elementId);
@@ -1187,10 +2053,26 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Removes a clip path from an element
+   * Removes a clip path from an element.
+   *
+   * Restores the element to its full, unclipped state.
    *
    * @param elementId - Element ID to remove clip from
-   * @throws Error if element not found or has no clip path
+   * @throws {Error} If element with the specified ID does not exist
+   * @throws {Error} If element has no clip path
+   *
+   * @see {@link addClipPath} to add a clip path
+   *
+   * @example Remove clip from selected element
+   * ```typescript
+   * const selected = editor.getSelection();
+   * if (selected.length === 1) {
+   *   const element = editor.getElement(selected[0]);
+   *   if (element?.clipPath) {
+   *     editor.removeClipPath(selected[0]);
+   *   }
+   * }
+   * ```
    */
   removeClipPath(elementId: string): void {
     const element = this._state.getElement(elementId);
@@ -1219,11 +2101,35 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Updates a clip path definition
+   * Updates properties of an existing clip path.
    *
    * @param elementId - Element ID with the clip path
-   * @param updates - Partial clip path properties to update
-   * @throws Error if element not found or has no clip path
+   * @param updates - Partial clip path properties to merge with existing
+   * @throws {Error} If element with the specified ID does not exist
+   * @throws {Error} If element has no clip path
+   *
+   * @see {@link addClipPath} to add a clip path
+   *
+   * @example Resize a circular clip
+   * ```typescript
+   * editor.updateClipPath(imageId, { r: 150 });
+   * ```
+   *
+   * @example Move a rectangular clip
+   * ```typescript
+   * editor.updateClipPath(imageId, { x: 100, y: 100 });
+   * ```
+   *
+   * @example Animate clip path
+   * ```typescript
+   * let radius = 0;
+   * const animate = () => {
+   *   radius = (radius + 1) % 200;
+   *   editor.updateClipPath(imageId, { r: radius });
+   *   requestAnimationFrame(animate);
+   * };
+   * animate();
+   * ```
    */
   updateClipPath(elementId: string, updates: Partial<ClipPath>): void {
     const element = this._state.getElement(elementId);
@@ -1260,25 +2166,50 @@ export class SVGComposer extends EditorEventEmitter {
   // ============================================================
 
   /**
-   * Adds a filter to an element using an effect preset
+   * Adds a filter effect to an element using a preset.
+   *
+   * Effects are additive - calling this multiple times adds multiple effects.
+   * Use `setEffect()` to replace all existing effects.
    *
    * @param elementId - Element ID to apply filter to
    * @param effect - Effect preset to apply
    * @returns The generated filter ID
-   * @throws Error if element not found
+   * @throws {Error} If element with the specified ID does not exist
    *
-   * @example
+   * @see {@link setEffect} to replace all effects
+   * @see {@link clearFilters} to remove all effects
+   * @see {@link getElementFilters} to list applied effects
+   *
+   * @example Apply a blur effect
    * ```typescript
-   * // Apply a blur effect
    * editor.addEffect(imageId, { type: 'blur', radius: 5 });
+   * ```
    *
-   * // Apply a drop shadow
+   * @example Apply a drop shadow
+   * ```typescript
    * editor.addEffect(imageId, {
    *   type: 'dropShadow',
    *   offsetX: 4,
    *   offsetY: 4,
    *   blur: 8,
    *   color: 'rgba(0,0,0,0.5)'
+   * });
+   * ```
+   *
+   * @example Stack multiple effects
+   * ```typescript
+   * // Apply sepia, then add a vignette
+   * editor.addEffect(imageId, { type: 'sepia', intensity: 0.8 });
+   * editor.addEffect(imageId, { type: 'vignette', intensity: 0.5 });
+   * ```
+   *
+   * @example Apply color adjustments
+   * ```typescript
+   * editor.addEffect(imageId, {
+   *   type: 'colorAdjust',
+   *   brightness: 1.2,
+   *   contrast: 1.1,
+   *   saturation: 1.3
    * });
    * ```
    */
@@ -1318,12 +2249,40 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Replaces all filters on an element with a single effect preset
+   * Replaces all filters on an element with a single effect preset.
+   *
+   * Unlike `addEffect()` which is additive, this method clears existing effects
+   * and applies only the specified effect.
    *
    * @param elementId - Element ID to apply filter to
-   * @param effect - Effect preset to apply (or null to clear)
-   * @returns The generated filter ID or empty string if cleared
-   * @throws Error if element not found
+   * @param effect - Effect preset to apply, or null to clear all effects
+   * @returns The generated filter ID, or empty string if cleared
+   * @throws {Error} If element with the specified ID does not exist
+   *
+   * @see {@link addEffect} to add effects without clearing existing ones
+   * @see {@link clearFilters} to remove all effects
+   *
+   * @example Set a single effect (clears any existing effects)
+   * ```typescript
+   * editor.setEffect(imageId, { type: 'blur', radius: 3 });
+   * ```
+   *
+   * @example Clear all effects
+   * ```typescript
+   * editor.setEffect(imageId, null);
+   * ```
+   *
+   * @example Effect dropdown handler
+   * ```typescript
+   * effectDropdown.addEventListener('change', (e) => {
+   *   const effectType = e.target.value;
+   *   if (effectType === 'none') {
+   *     editor.setEffect(selectedId, null);
+   *   } else {
+   *     editor.setEffect(selectedId, { type: effectType, ...presets[effectType] });
+   *   }
+   * });
+   * ```
    */
   setEffect(elementId: string, effect: EffectPreset | null): string {
     const element = this._state.getElement(elementId);
@@ -1366,50 +2325,106 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Adds a custom filter definition
+   * Adds a custom filter definition to the filter library.
    *
-   * @param filter - Filter definition (without ID)
+   * Custom filters allow fine-grained control over SVG filter primitives.
+   * Once added, the filter can be applied to any element using `applyFilter()`.
+   *
+   * @param filter - Filter definition with primitives (ID is auto-generated)
    * @returns The generated filter ID
+   *
+   * @see {@link applyFilter} to apply custom filter to an element
+   * @see {@link getFilter} to retrieve a filter definition
+   * @see {@link removeFilter} to remove a custom filter
+   *
+   * @example Create a custom emboss filter
+   * ```typescript
+   * const filterId = editor.addFilter({
+   *   primitives: [
+   *     { type: 'feConvolveMatrix', kernelMatrix: '-2 -1 0 -1 1 1 0 1 2', order: 3 },
+   *     { type: 'feComponentTransfer', funcR: 'linear', slope: 1, intercept: 0.5 }
+   *   ]
+   * });
+   * editor.applyFilter(imageId, filterId);
+   * ```
    */
   addFilter(filter: Omit<FilterDefinition, 'id'>): string {
     return this._filterManager.addFilter(filter);
   }
 
   /**
-   * Gets a filter definition by ID
+   * Gets a filter definition by ID.
    *
    * @param filterId - Filter ID
-   * @returns Filter definition or undefined
+   * @returns Filter definition or undefined if not found
+   *
+   * @example Check if a filter exists
+   * ```typescript
+   * const filter = editor.getFilter(filterId);
+   * if (filter) {
+   *   console.log('Filter has', filter.primitives.length, 'primitives');
+   * }
+   * ```
    */
   getFilter(filterId: string): FilterDefinition | undefined {
     return this._filterManager.getFilter(filterId);
   }
 
   /**
-   * Gets all registered filters
+   * Gets all registered filter definitions.
    *
-   * @returns Array of all filter definitions
+   * @returns Array of all custom and preset-generated filter definitions
+   *
+   * @example List all filters
+   * ```typescript
+   * const filters = editor.getAllFilters();
+   * filters.forEach(f => console.log(f.id));
+   * ```
    */
   getAllFilters(): FilterDefinition[] {
     return this._filterManager.getAllFilters();
   }
 
   /**
-   * Removes a custom filter by ID
+   * Removes a custom filter by ID.
    *
-   * @param filterId - Filter ID to remove
-   * @returns true if filter was removed
+   * @param filterId - Filter ID to remove from the library
+   * @returns True if filter was removed, false if not found
+   *
+   * @see {@link addFilter} to add custom filters
+   *
+   * @example Remove a filter
+   * ```typescript
+   * if (editor.removeFilter(filterId)) {
+   *   console.log('Filter removed');
+   * }
+   * ```
    */
   removeFilter(filterId: string): boolean {
     return this._filterManager.removeFilter(filterId);
   }
 
   /**
-   * Applies a custom filter to an element
+   * Applies a custom filter to an element.
+   *
+   * The filter must have been previously created using `addFilter()`.
    *
    * @param elementId - Element ID to apply filter to
    * @param filterId - Custom filter ID to apply
-   * @throws Error if element or filter not found
+   * @throws {Error} If element with the specified ID does not exist
+   * @throws {Error} If filter with the specified ID does not exist
+   *
+   * @see {@link addFilter} to create custom filters
+   * @see {@link addEffect} to apply preset effects
+   *
+   * @example Apply a custom filter
+   * ```typescript
+   * // First create the filter
+   * const filterId = editor.addFilter({ primitives: [...] });
+   *
+   * // Then apply it to an element
+   * editor.applyFilter(imageId, filterId);
+   * ```
    */
   applyFilter(elementId: string, filterId: string): void {
     const element = this._state.getElement(elementId);
@@ -1447,10 +2462,29 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Clears all filters from an element
+   * Clears all filters from an element.
+   *
+   * Removes all applied effects and custom filters from the element.
    *
    * @param elementId - Element ID to clear filters from
-   * @throws Error if element not found
+   * @throws {Error} If element with the specified ID does not exist
+   *
+   * @see {@link setEffect} with null to clear effects
+   * @see {@link removeFilterFromElement} to remove a specific filter
+   *
+   * @example Clear all filters from selected elements
+   * ```typescript
+   * editor.getSelection().forEach(id => {
+   *   editor.clearFilters(id);
+   * });
+   * ```
+   *
+   * @example Reset button handler
+   * ```typescript
+   * resetFiltersButton.addEventListener('click', () => {
+   *   editor.clearFilters(selectedId);
+   * });
+   * ```
    */
   clearFilters(elementId: string): void {
     const element = this._state.getElement(elementId);
@@ -1480,11 +2514,31 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Removes a specific filter from an element by index
+   * Removes a specific filter from an element by index.
+   *
+   * When an element has multiple stacked effects, this allows removing
+   * a single effect from the stack.
    *
    * @param elementId - Element ID
-   * @param filterIndex - Index of filter to remove
-   * @throws Error if element not found or index out of bounds
+   * @param filterIndex - Zero-based index of the filter to remove
+   * @throws {Error} If element with the specified ID does not exist
+   * @throws {Error} If filter index is out of bounds
+   *
+   * @see {@link clearFilters} to remove all filters
+   * @see {@link getElementFilters} to list filters with their indices
+   *
+   * @example Remove the first filter
+   * ```typescript
+   * editor.removeFilterFromElement(imageId, 0);
+   * ```
+   *
+   * @example Remove last filter in stack
+   * ```typescript
+   * const filters = editor.getElementFilters(imageId);
+   * if (filters.length > 0) {
+   *   editor.removeFilterFromElement(imageId, filters.length - 1);
+   * }
+   * ```
    */
   removeFilterFromElement(elementId: string, filterIndex: number): void {
     const element = this._state.getElement(elementId);
@@ -1519,10 +2573,34 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Gets the filters applied to an element
+   * Gets the filters applied to an element.
    *
    * @param elementId - Element ID
-   * @returns Array of element filters or empty array
+   * @returns Array of element filters, or empty array if none
+   *
+   * @see {@link hasFilters} to check if element has any filters
+   *
+   * @example List applied effects
+   * ```typescript
+   * const filters = editor.getElementFilters(imageId);
+   * filters.forEach((filter, index) => {
+   *   if (filter.type === 'preset') {
+   *     console.log(`${index}: ${filter.effect.type}`);
+   *   } else {
+   *     console.log(`${index}: custom filter ${filter.filterId}`);
+   *   }
+   * });
+   * ```
+   *
+   * @example Build filter list UI
+   * ```typescript
+   * editor.on('selection:changed', ({ selectedIds }) => {
+   *   if (selectedIds.length === 1) {
+   *     const filters = editor.getElementFilters(selectedIds[0]);
+   *     renderFilterList(filters);
+   *   }
+   * });
+   * ```
    */
   getElementFilters(elementId: string): ElementFilter[] {
     const element = this._state.getElement(elementId);
@@ -1530,10 +2608,26 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Checks if an element has any filters applied
+   * Checks if an element has any filters applied.
    *
    * @param elementId - Element ID
-   * @returns true if element has filters
+   * @returns True if element has one or more filters
+   *
+   * @see {@link getElementFilters} to get the list of filters
+   *
+   * @example Show filter indicator in UI
+   * ```typescript
+   * editor.on('selection:changed', ({ selectedIds }) => {
+   *   if (selectedIds.length === 1) {
+   *     filterIcon.classList.toggle('active', editor.hasFilters(selectedIds[0]));
+   *   }
+   * });
+   * ```
+   *
+   * @example Clear filters button visibility
+   * ```typescript
+   * clearFiltersButton.disabled = !editor.hasFilters(selectedId);
+   * ```
    */
   hasFilters(elementId: string): boolean {
     const element = this._state.getElement(elementId);
@@ -1545,9 +2639,48 @@ export class SVGComposer extends EditorEventEmitter {
   // ============================================================
 
   /**
-   * Exports the canvas as SVG markup
+   * Exports the canvas as clean SVG markup.
    *
-   * @returns Clean SVG markup string
+   * Generates a standalone SVG document that can be saved as a file,
+   * embedded in HTML, or used with other tools. Does not include
+   * editor-specific metadata like selection state.
+   *
+   * @returns Complete SVG markup string
+   *
+   * @see {@link toJSON} to export state for later editing
+   *
+   * @example Download SVG file
+   * ```typescript
+   * function downloadSVG() {
+   *   const svg = editor.toSVG();
+   *   const blob = new Blob([svg], { type: 'image/svg+xml' });
+   *   const url = URL.createObjectURL(blob);
+   *
+   *   const a = document.createElement('a');
+   *   a.href = url;
+   *   a.download = 'design.svg';
+   *   a.click();
+   *
+   *   URL.revokeObjectURL(url);
+   * }
+   * ```
+   *
+   * @example Copy SVG to clipboard
+   * ```typescript
+   * async function copySVG() {
+   *   const svg = editor.toSVG();
+   *   await navigator.clipboard.writeText(svg);
+   * }
+   * ```
+   *
+   * @example Preview SVG in new window
+   * ```typescript
+   * function previewSVG() {
+   *   const svg = editor.toSVG();
+   *   const win = window.open('', '_blank');
+   *   win.document.write(svg);
+   * }
+   * ```
    */
   toSVG(): string {
     return this._renderer.toSVG(
@@ -1560,9 +2693,46 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Exports the canvas state as JSON
+   * Exports the canvas state as JSON.
+   *
+   * Serializes the complete editor state including all elements, selection,
+   * and guides. The JSON can be stored and later restored using `fromJSON()`.
    *
    * @returns JSON string representation of state
+   *
+   * @see {@link fromJSON} to restore from JSON
+   * @see {@link toSVG} for final SVG export
+   *
+   * @example Save to localStorage
+   * ```typescript
+   * function saveProject() {
+   *   const json = editor.toJSON();
+   *   localStorage.setItem('project', json);
+   * }
+   * ```
+   *
+   * @example Download JSON file
+   * ```typescript
+   * function downloadJSON() {
+   *   const json = editor.toJSON();
+   *   const blob = new Blob([json], { type: 'application/json' });
+   *   const url = URL.createObjectURL(blob);
+   *
+   *   const a = document.createElement('a');
+   *   a.href = url;
+   *   a.download = 'project.json';
+   *   a.click();
+   *
+   *   URL.revokeObjectURL(url);
+   * }
+   * ```
+   *
+   * @example Auto-save on changes
+   * ```typescript
+   * editor.on('state:changed', debounce(() => {
+   *   localStorage.setItem('autosave', editor.toJSON());
+   * }, 1000));
+   * ```
    */
   toJSON(): string {
     const snapshot = this._state.snapshot();
@@ -1590,10 +2760,57 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Restores canvas state from JSON
+   * Restores canvas state from JSON.
    *
-   * @param json - JSON string to restore from
-   * @throws Error if JSON is invalid or missing required fields
+   * Completely replaces the current canvas state with data from a JSON string
+   * previously created by `toJSON()`. Clears history and emits state change events.
+   *
+   * @param json - JSON string to restore from (from toJSON)
+   * @throws {Error} If JSON is invalid or cannot be parsed
+   * @throws {Error} If required fields (width, height, elements) are missing
+   *
+   * @see {@link toJSON} to export state
+   * @see {@link clear} to clear without restoring
+   *
+   * @example Load from localStorage
+   * ```typescript
+   * function loadProject() {
+   *   const json = localStorage.getItem('project');
+   *   if (json) {
+   *     editor.fromJSON(json);
+   *     editor.render();
+   *   }
+   * }
+   * ```
+   *
+   * @example Load from file input
+   * ```typescript
+   * fileInput.addEventListener('change', async (e) => {
+   *   const file = e.target.files[0];
+   *   if (file) {
+   *     const json = await file.text();
+   *     try {
+   *       editor.fromJSON(json);
+   *       editor.render();
+   *     } catch (err) {
+   *       alert('Invalid project file');
+   *     }
+   *   }
+   * });
+   * ```
+   *
+   * @example Load autosave on startup
+   * ```typescript
+   * const autosave = localStorage.getItem('autosave');
+   * if (autosave) {
+   *   try {
+   *     editor.fromJSON(autosave);
+   *   } catch (e) {
+   *     console.warn('Failed to restore autosave');
+   *   }
+   * }
+   * editor.render();
+   * ```
    */
   fromJSON(json: string): void {
     // Parse as unknown first to allow validation
@@ -1666,7 +2883,33 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Clears all elements from the canvas
+   * Clears all elements from the canvas.
+   *
+   * Removes all elements and clears the selection. Creates a history entry
+   * so the operation can be undone. Does not clear guides.
+   *
+   * @see {@link clearGuides} to also clear guides
+   * @see {@link fromJSON} to replace with new state
+   *
+   * @example Clear button
+   * ```typescript
+   * clearButton.addEventListener('click', () => {
+   *   if (confirm('Clear all elements?')) {
+   *     editor.clear();
+   *     editor.render();
+   *   }
+   * });
+   * ```
+   *
+   * @example New document
+   * ```typescript
+   * function newDocument() {
+   *   editor.clear();
+   *   editor.clearGuides();
+   *   editor.clearHistory();
+   *   editor.render();
+   * }
+   * ```
    */
   clear(): void {
     const allElements = this._state.getAllElements();
@@ -1698,20 +2941,43 @@ export class SVGComposer extends EditorEventEmitter {
   // ============================================================
 
   /**
-   * Adds a guide to the canvas
+   * Adds a guide line to the canvas.
    *
-   * @param guide - Guide properties (id will be auto-generated if not provided)
-   * @returns The guide ID
+   * Guides are visual aids for alignment. Elements can snap to guides
+   * when snapping is enabled.
    *
-   * @example
+   * @param guide - Guide properties (id auto-generated if not provided)
+   * @returns The generated or provided guide ID
+   *
+   * @see {@link addHorizontalGuide} for shorthand horizontal guide
+   * @see {@link addVerticalGuide} for shorthand vertical guide
+   * @see {@link removeGuide} to remove a guide
+   * @see {@link setSnappingConfig} to enable/disable snap to guides
+   *
+   * @example Add a horizontal guide at y=100
    * ```typescript
-   * // Add a horizontal guide at y=100
    * const guideId = editor.addGuide({
    *   orientation: 'horizontal',
    *   position: 100,
    *   locked: false,
    *   visible: true
    * });
+   * ```
+   *
+   * @example Add a colored vertical guide
+   * ```typescript
+   * editor.addGuide({
+   *   orientation: 'vertical',
+   *   position: 600,
+   *   color: '#ff0000'
+   * });
+   * ```
+   *
+   * @example Add center guides
+   * ```typescript
+   * const { width, height } = editor.getCanvasSize();
+   * editor.addGuide({ orientation: 'horizontal', position: height / 2 });
+   * editor.addGuide({ orientation: 'vertical', position: width / 2 });
    * ```
    */
   addGuide(guide: GuideInput): string {
@@ -1743,10 +3009,25 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Removes a guide from the canvas
+   * Removes a guide from the canvas.
    *
    * @param id - Guide ID to remove
-   * @throws Error if guide does not exist
+   * @throws {Error} If guide with the specified ID does not exist
+   *
+   * @see {@link addGuide} to add guides
+   * @see {@link clearGuides} to remove all guides
+   *
+   * @example Remove a guide
+   * ```typescript
+   * editor.removeGuide(guideId);
+   * ```
+   *
+   * @example Remove guide on double-click (in guide interaction handler)
+   * ```typescript
+   * editor.on('guide:doubleclick', ({ guideId }) => {
+   *   editor.removeGuide(guideId);
+   * });
+   * ```
    */
   removeGuide(id: string): void {
     this._state.removeGuide(id);
@@ -1765,11 +3046,28 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Updates a guide's properties
+   * Updates a guide's properties.
    *
    * @param id - Guide ID to update
-   * @param updates - Partial guide properties to update
-   * @throws Error if guide does not exist
+   * @param updates - Partial guide properties to merge with existing
+   * @throws {Error} If guide with the specified ID does not exist
+   *
+   * @see {@link getGuide} to get current guide properties
+   *
+   * @example Move a guide
+   * ```typescript
+   * editor.updateGuide(guideId, { position: 500 });
+   * ```
+   *
+   * @example Lock/unlock a guide
+   * ```typescript
+   * editor.updateGuide(guideId, { locked: true });
+   * ```
+   *
+   * @example Change guide color
+   * ```typescript
+   * editor.updateGuide(guideId, { color: '#00ff00' });
+   * ```
    */
   updateGuide(id: string, updates: Partial<Guide>): void {
     this._state.updateGuide(id, updates);
@@ -1788,26 +3086,61 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Gets a guide by ID
+   * Gets a guide by ID.
    *
    * @param id - Guide ID to find
    * @returns The guide or undefined if not found
+   *
+   * @example Check if guide exists
+   * ```typescript
+   * const guide = editor.getGuide(guideId);
+   * if (guide) {
+   *   console.log('Guide at position:', guide.position);
+   * }
+   * ```
    */
   getGuide(id: string): Guide | undefined {
     return this._state.getGuide(id);
   }
 
   /**
-   * Gets all guides
+   * Gets all guides on the canvas.
    *
    * @returns Array of all guides
+   *
+   * @example Count guides
+   * ```typescript
+   * const guides = editor.getGuides();
+   * console.log(`Canvas has ${guides.length} guides`);
+   * ```
+   *
+   * @example Get horizontal guides only
+   * ```typescript
+   * const horizontalGuides = editor.getGuides()
+   *   .filter(g => g.orientation === 'horizontal');
+   * ```
    */
   getGuides(): Guide[] {
     return this._state.getGuides();
   }
 
   /**
-   * Removes all guides from the canvas
+   * Removes all guides from the canvas.
+   *
+   * @see {@link removeGuide} to remove a single guide
+   * @see {@link clear} to also clear elements
+   *
+   * @example Clear all guides
+   * ```typescript
+   * editor.clearGuides();
+   * ```
+   *
+   * @example Reset guides button
+   * ```typescript
+   * resetGuidesButton.addEventListener('click', () => {
+   *   editor.clearGuides();
+   * });
+   * ```
    */
   clearGuides(): void {
     const guides = this._state.getGuides();
@@ -1831,11 +3164,26 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Adds a horizontal guide at the specified Y position
+   * Adds a horizontal guide at the specified Y position.
+   *
+   * Shorthand for `addGuide({ orientation: 'horizontal', position: y })`.
    *
    * @param y - Y position in viewBox units
    * @param options - Optional guide settings
    * @returns The guide ID
+   *
+   * @see {@link addVerticalGuide} for vertical guides
+   * @see {@link addGuide} for full control
+   *
+   * @example Add horizontal guide at y=200
+   * ```typescript
+   * editor.addHorizontalGuide(200);
+   * ```
+   *
+   * @example Add locked horizontal guide
+   * ```typescript
+   * editor.addHorizontalGuide(100, { locked: true });
+   * ```
    */
   addHorizontalGuide(
     y: number,
@@ -1851,11 +3199,26 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Adds a vertical guide at the specified X position
+   * Adds a vertical guide at the specified X position.
+   *
+   * Shorthand for `addGuide({ orientation: 'vertical', position: x })`.
    *
    * @param x - X position in viewBox units
    * @param options - Optional guide settings
    * @returns The guide ID
+   *
+   * @see {@link addHorizontalGuide} for horizontal guides
+   * @see {@link addGuide} for full control
+   *
+   * @example Add vertical guide at x=300
+   * ```typescript
+   * editor.addVerticalGuide(300);
+   * ```
+   *
+   * @example Add colored vertical guide
+   * ```typescript
+   * editor.addVerticalGuide(600, { color: '#ff0000' });
+   * ```
    */
   addVerticalGuide(
     x: number,
@@ -1875,41 +3238,131 @@ export class SVGComposer extends EditorEventEmitter {
   // ============================================================
 
   /**
-   * Gets the current snapping configuration
+   * Gets the current snapping configuration.
    *
    * @returns Current snapping configuration
+   *
+   * @see {@link setSnappingConfig} to modify configuration
+   * @see {@link SnappingConfig} for configuration options
+   *
+   * @example Check if snapping is enabled
+   * ```typescript
+   * const config = editor.getSnappingConfig();
+   * snapToggle.checked = config.enabled;
+   * ```
+   *
+   * @example Display snapping settings
+   * ```typescript
+   * const config = editor.getSnappingConfig();
+   * console.log('Snap distance:', config.snapDistance);
+   * console.log('Snap to guides:', config.snapToGuides);
+   * console.log('Snap to elements:', config.snapToElements);
+   * ```
    */
   getSnappingConfig(): SnappingConfig {
     return this._snappingManager.config;
   }
 
   /**
-   * Updates the snapping configuration
+   * Updates the snapping configuration.
    *
-   * @param updates - Partial configuration updates
+   * Merges the provided updates with the existing configuration.
+   *
+   * @param updates - Partial configuration to merge
+   *
+   * @see {@link getSnappingConfig} to read current configuration
+   * @see {@link enableSnapping} / {@link disableSnapping} for simple toggle
+   *
+   * @example Enable grid snapping
+   * ```typescript
+   * editor.setSnappingConfig({
+   *   snapToGrid: true,
+   *   gridSize: 20
+   * });
+   * ```
+   *
+   * @example Configure snap targets
+   * ```typescript
+   * editor.setSnappingConfig({
+   *   snapToGuides: true,
+   *   snapToElements: true,
+   *   snapToElementCenters: true,
+   *   snapToCanvasEdges: false,
+   *   snapToCanvasCenter: true
+   * });
+   * ```
+   *
+   * @example Adjust snap distance
+   * ```typescript
+   * editor.setSnappingConfig({ snapDistance: 15 });
+   * ```
    */
   setSnappingConfig(updates: Partial<SnappingConfig>): void {
     this._snappingManager.updateConfig(updates);
   }
 
   /**
-   * Enables snapping
+   * Enables snapping.
+   *
+   * Shorthand for `setSnappingConfig({ enabled: true })`.
+   *
+   * @see {@link disableSnapping} to disable
+   * @see {@link toggleSnapping} to toggle
+   *
+   * @example Enable snapping button
+   * ```typescript
+   * enableSnapButton.addEventListener('click', () => {
+   *   editor.enableSnapping();
+   * });
+   * ```
    */
   enableSnapping(): void {
     this._snappingManager.updateConfig({ enabled: true });
   }
 
   /**
-   * Disables snapping
+   * Disables snapping.
+   *
+   * Shorthand for `setSnappingConfig({ enabled: false })`.
+   *
+   * @see {@link enableSnapping} to enable
+   * @see {@link toggleSnapping} to toggle
+   *
+   * @example Disable snapping button
+   * ```typescript
+   * disableSnapButton.addEventListener('click', () => {
+   *   editor.disableSnapping();
+   * });
+   * ```
    */
   disableSnapping(): void {
     this._snappingManager.updateConfig({ enabled: false });
   }
 
   /**
-   * Toggles snapping on/off
+   * Toggles snapping on/off.
    *
-   * @returns The new enabled state
+   * @returns The new enabled state (true if now enabled, false if disabled)
+   *
+   * @see {@link enableSnapping} / {@link disableSnapping} for explicit control
+   *
+   * @example Toggle snapping checkbox
+   * ```typescript
+   * snapCheckbox.addEventListener('change', () => {
+   *   const isEnabled = editor.toggleSnapping();
+   *   snapCheckbox.checked = isEnabled;
+   * });
+   * ```
+   *
+   * @example Keyboard shortcut
+   * ```typescript
+   * document.addEventListener('keydown', (e) => {
+   *   if (e.key === 's' && e.altKey) {
+   *     const enabled = editor.toggleSnapping();
+   *     showToast(`Snapping ${enabled ? 'enabled' : 'disabled'}`);
+   *   }
+   * });
+   * ```
    */
   toggleSnapping(): boolean {
     const newEnabled = !this._snappingManager.config.enabled;
@@ -2291,9 +3744,39 @@ export class SVGComposer extends EditorEventEmitter {
   // ============================================================
 
   /**
-   * Sets the current tool
+   * Sets the current tool.
+   *
+   * Changes how the user interacts with the canvas:
+   * - `'select'` - Click to select, drag to move/resize/rotate elements
+   * - `'pan'` - Drag to pan the canvas viewport
+   * - `'add-image'` - Click to place an image element
+   * - `'add-text'` - Click to place a text element
+   * - `'add-shape'` - Click and drag to create a shape element
    *
    * @param tool - Tool type to activate
+   *
+   * @see {@link getTool} to get current tool
+   * @see {@link ToolType} for available tools
+   *
+   * @example Tool buttons
+   * ```typescript
+   * selectButton.addEventListener('click', () => editor.setTool('select'));
+   * panButton.addEventListener('click', () => editor.setTool('pan'));
+   * shapeButton.addEventListener('click', () => editor.setTool('add-shape'));
+   * textButton.addEventListener('click', () => editor.setTool('add-text'));
+   * ```
+   *
+   * @example Keyboard shortcuts for tools
+   * ```typescript
+   * document.addEventListener('keydown', (e) => {
+   *   switch (e.key) {
+   *     case 'v': editor.setTool('select'); break;
+   *     case 'h': editor.setTool('pan'); break;
+   *     case 'r': editor.setTool('add-shape'); break;
+   *     case 't': editor.setTool('add-text'); break;
+   *   }
+   * });
+   * ```
    */
   setTool(tool: ToolType): void {
     this._currentTool = tool;
@@ -2304,9 +3787,27 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Gets the current tool
+   * Gets the current tool.
    *
    * @returns Current tool type
+   *
+   * @see {@link setTool} to change the current tool
+   *
+   * @example Update toolbar UI
+   * ```typescript
+   * editor.on('tool:changed', ({ tool }) => {
+   *   toolButtons.forEach(btn => {
+   *     btn.classList.toggle('active', btn.dataset.tool === tool);
+   *   });
+   * });
+   * ```
+   *
+   * @example Check current tool
+   * ```typescript
+   * if (editor.getTool() === 'select') {
+   *   // Selection tool specific logic
+   * }
+   * ```
    */
   getTool(): ToolType {
     return this._currentTool;
@@ -2317,9 +3818,35 @@ export class SVGComposer extends EditorEventEmitter {
   // ============================================================
 
   /**
-   * Forces a re-render of the canvas
+   * Forces a re-render of the canvas.
    *
-   * @throws Error if editor has been destroyed
+   * Call this after making state changes to update the visual display.
+   * Most methods automatically trigger a render, but you may need to
+   * call this manually in some cases.
+   *
+   * @throws {Error} If the editor has been destroyed
+   *
+   * @see {@link destroy} to clean up the editor
+   *
+   * @example Initial render after setup
+   * ```typescript
+   * const editor = new SVGComposer(container, { width: 800, height: 600 });
+   * editor.addElement({ ... });
+   * editor.render(); // Display the canvas
+   * ```
+   *
+   * @example Re-render after fromJSON
+   * ```typescript
+   * editor.fromJSON(savedState);
+   * editor.render();
+   * ```
+   *
+   * @example Force refresh
+   * ```typescript
+   * window.addEventListener('resize', () => {
+   *   editor.render();
+   * });
+   * ```
    */
   render(): void {
     if (this._destroyed) {
@@ -2455,11 +3982,42 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Destroys the editor and cleans up resources
+   * Destroys the editor and cleans up resources.
+   *
+   * Removes event listeners, clears state, and releases memory.
+   * This method is idempotent - calling it multiple times is safe.
    *
    * @remarks
-   * This method is idempotent - calling it multiple times is safe.
-   * After calling destroy, the editor cannot be used and render() will throw.
+   * After calling destroy:
+   * - `render()` will throw an error
+   * - `isDestroyed` will return true
+   * - The editor instance should be discarded
+   *
+   * @see {@link isDestroyed} to check if editor is destroyed
+   *
+   * @example Cleanup on component unmount (React)
+   * ```typescript
+   * useEffect(() => {
+   *   const editor = new SVGComposer(containerRef.current);
+   *   editor.render();
+   *   editorRef.current = editor;
+   *
+   *   return () => {
+   *     editor.destroy();
+   *   };
+   * }, []);
+   * ```
+   *
+   * @example Cleanup before creating new editor
+   * ```typescript
+   * function resetEditor() {
+   *   if (editor) {
+   *     editor.destroy();
+   *   }
+   *   editor = new SVGComposer(container);
+   *   editor.render();
+   * }
+   * ```
    */
   destroy(): void {
     if (this._destroyed) {
@@ -2494,7 +4052,20 @@ export class SVGComposer extends EditorEventEmitter {
   }
 
   /**
-   * Checks if the editor has been destroyed
+   * Checks if the editor has been destroyed.
+   *
+   * @returns True if `destroy()` has been called
+   *
+   * @see {@link destroy} to destroy the editor
+   *
+   * @example Guard against using destroyed editor
+   * ```typescript
+   * function safeRender() {
+   *   if (!editor.isDestroyed) {
+   *     editor.render();
+   *   }
+   * }
+   * ```
    */
   get isDestroyed(): boolean {
     return this._destroyed;
