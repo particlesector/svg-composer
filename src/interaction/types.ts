@@ -1,5 +1,43 @@
 /**
- * Interaction layer type definitions for SVG Composer
+ * Interaction Layer Type Definitions for SVG Composer
+ *
+ * This module contains type definitions for the interaction system, including:
+ * - **Coordinate Types**: {@link ScreenPoint}, {@link ViewBoxPoint} for position tracking
+ * - **State Types**: {@link InteractionState}, {@link DragState},
+ *   {@link ResizeState}, {@link RotateState}
+ * - **Hit Testing**: {@link HitTestResult}, {@link HandleType} for click target detection
+ * - **Viewport**: {@link ViewportState} for pan and zoom tracking
+ * - **Multi-touch**: {@link PointerInfo}, {@link GestureState} for touch gesture handling
+ * - **Configuration**: {@link HandleConfig}, {@link GestureConfig} for customization
+ *
+ * @example Working with ViewBoxPoint
+ * ```typescript
+ * import type { ViewBoxPoint } from 'svg-composer';
+ *
+ * // ViewBox coordinates are in the SVG's coordinate system
+ * const elementPosition: ViewBoxPoint = { x: 100, y: 200 };
+ *
+ * // Use CoordinateTransformer to convert from screen coordinates
+ * const screenX = event.clientX;
+ * const screenY = event.clientY;
+ * const viewBoxPoint = transformer.screenToViewBox(screenX, screenY);
+ * ```
+ *
+ * @example Handle types for resize operations
+ * ```typescript
+ * import type { HandleType } from 'svg-composer';
+ *
+ * // Corner handles
+ * const corners: HandleType[] = ['nw', 'ne', 'sw', 'se'];
+ *
+ * // Edge handles
+ * const edges: HandleType[] = ['n', 's', 'e', 'w'];
+ *
+ * // Rotation handle
+ * const rotate: HandleType = 'rotate';
+ * ```
+ *
+ * @packageDocumentation
  */
 
 import type { BoundingBox } from '../core/types.js';

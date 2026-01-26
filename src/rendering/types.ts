@@ -1,5 +1,41 @@
 /**
- * Type definitions for SVG Rendering system
+ * Type Definitions for SVG Rendering System
+ *
+ * This module contains type definitions for the rendering system, including:
+ * - **ViewportState**: Pan and zoom state for canvas navigation
+ * - **SVGRendererConfig**: Configuration options for the renderer
+ * - **RenderContext**: Context passed during element rendering
+ * - **GuideRenderConfig**: Styling options for guide lines
+ * - **SnapLines**: Visual feedback for snapping during interactions
+ *
+ * @example Using ViewportState
+ * ```typescript
+ * import type { ViewportState } from 'svg-composer';
+ *
+ * const viewport: ViewportState = {
+ *   panX: 100,   // Pan 100 units right
+ *   panY: 50,    // Pan 50 units down
+ *   zoom: 1.5    // 150% zoom
+ * };
+ *
+ * // Apply to SVGComposer
+ * composer.setViewportState(viewport);
+ * ```
+ *
+ * @example Configuring guide rendering
+ * ```typescript
+ * import type { GuideRenderConfig } from 'svg-composer';
+ *
+ * const guideConfig: GuideRenderConfig = {
+ *   guideColor: '#ff0000',          // Red guides
+ *   guideStrokeWidth: 1,            // 1px stroke
+ *   guidesVisible: true,            // Guides are shown
+ *   snapIndicatorColor: '#00ff00',  // Green snap indicators
+ *   snapIndicatorStrokeWidth: 2     // 2px snap lines
+ * };
+ * ```
+ *
+ * @packageDocumentation
  */
 
 import type { BaseElement, ClipPath } from '../elements/types.js';

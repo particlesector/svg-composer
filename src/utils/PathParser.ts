@@ -1,8 +1,45 @@
 /**
  * SVG Path Parser and Bounding Box Calculator
  *
- * Parses SVG path data strings and calculates accurate bounding boxes
- * by analyzing all path commands including curves and arcs.
+ * This module provides utilities for parsing SVG path data strings and calculating
+ * accurate bounding boxes. It supports all SVG path commands including:
+ * - Move (M, m), Line (L, l, H, h, V, v)
+ * - Cubic Bezier (C, c, S, s)
+ * - Quadratic Bezier (Q, q, T, t)
+ * - Elliptical Arc (A, a)
+ * - Close Path (Z, z)
+ *
+ * The bounding box calculation properly handles curves and arcs by calculating
+ * their mathematical extrema, not just their control points.
+ *
+ * @example Parsing path data
+ * ```typescript
+ * import { parsePath } from 'svg-composer';
+ *
+ * const pathData = 'M 10 10 L 100 10 L 100 100 Z';
+ * const commands = parsePath(pathData);
+ * // [
+ * //   { type: 'M', params: [10, 10] },
+ * //   { type: 'L', params: [100, 10] },
+ * //   { type: 'L', params: [100, 100] },
+ * //   { type: 'Z', params: [] }
+ * // ]
+ * ```
+ *
+ * @example Calculating bounding box
+ * ```typescript
+ * import { getPathBoundingBox } from 'svg-composer';
+ *
+ * // Simple rectangle path
+ * const bounds = getPathBoundingBox('M 10 10 L 100 10 L 100 100 L 10 100 Z');
+ * // { x: 10, y: 10, width: 90, height: 90 }
+ *
+ * // Bezier curve - calculates actual curve bounds, not control points
+ * const curveBounds = getPathBoundingBox('M 0 0 C 50 100 150 100 200 0');
+ * // Properly accounts for the curve's peak
+ * ```
+ *
+ * @packageDocumentation
  */
 
 import type { BoundingBox } from '../core/types.js';
