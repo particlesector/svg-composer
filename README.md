@@ -1012,6 +1012,1146 @@ function Editor() {
 }
 ```
 
+### Framework Integration (Vue 3)
+
+```vue
+<template>
+  <div>
+    <div ref="canvasContainer" class="canvas-container"></div>
+    <div class="toolbar">
+      <button @click="undo" :disabled="!canUndo">Undo</button>
+      <button @click="redo" :disabled="!canRedo">Redo</button>
+      <button @click="addText">Add Text</button>
+      <button @click="exportSvg">Export SVG</button>
+    </div>
+    <p>{{ selectedCount }} element(s) selected</p>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted, shallowRef } from 'vue';
+import { SVGComposer } from 'svg-composer';
+
+const canvasContainer = ref<HTMLDivElement | null>(null);
+const editor = shallowRef<SVGComposer | null>(null);
+const selectedCount = ref(0);
+const canUndo = ref(false);
+const canRedo = ref(false);
+
+onMounted(() => {
+  if (!canvasContainer.value) return;
+
+  const instance = new SVGComposer(canvasContainer.value, {
+    width: 1200,
+    height: 800,
+    backgroundColor: '#f5f5f5'
+  });
+
+  // Track selection changes
+  instance.on('selection:changed', ({ selectedIds }) => {
+    selectedCount.value = selectedIds.length;
+  });
+
+  // Track history state for undo/redo buttons
+  instance.on('history:changed', (state) => {
+    canUndo.value = state.canUndo;
+    canRedo.value = state.canRedo;
+  });
+
+  editor.value = instance;
+});
+
+onUnmounted(() => {
+  editor.value?.destroy();
+});
+
+function undo() {
+  editor.value?.undo();
+}
+
+function redo() {
+  editor.value?.redo();
+}
+
+function addText() {
+  editor.value?.addElement({
+    type: 'text',
+    content: 'Hello Vue!',
+    fontSize: 36,
+    fontFamily: 'Arial, sans-serif',
+    fill: '#333333',
+    textAnchor: 'middle',
+    transform: { x: 600, y: 400, rotation: 0, scaleX: 1, scaleY: 1 },
+    opacity: 1,
+    zIndex: 1,
+    locked: false,
+    visible: true
+  });
+}
+
+function exportSvg() {
+  const svg = editor.value?.toSVG();
+  if (svg) {
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'canvas.svg';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+}
+</script>
+
+<style scoped>
+.canvas-container {
+  width: 100%;
+  height: 600px;
+  border: 1px solid #ddd;
+}
+.toolbar {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+</style>
+```
+
+### Framework Integration (Vanilla JavaScript)
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SVG Composer - Vanilla JS</title>
+  <style>
+    #canvas-container {
+      width: 100%;
+      height: 600px;
+      border: 1px solid #ccc;
+    }
+    .toolbar { margin: 10px 0; }
+    .toolbar button { margin-right: 5px; }
+    .toolbar button:disabled { opacity: 0.5; }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button id="btn-undo" disabled>Undo</button>
+    <button id="btn-redo" disabled>Redo</button>
+    <button id="btn-rect">Add Rectangle</button>
+    <button id="btn-circle">Add Circle</button>
+    <button id="btn-text">Add Text</button>
+    <button id="btn-delete">Delete Selected</button>
+    <button id="btn-export">Export SVG</button>
+  </div>
+  <div id="canvas-container"></div>
+  <p id="status">No selection</p>
+
+  <script type="module">
+    import { SVGComposer, dropShadow } from 'svg-composer';
+
+    // Initialize the editor
+    const container = document.getElementById('canvas-container');
+    const editor = new SVGComposer(container, {
+      width: 1200,
+      height: 800,
+      backgroundColor: '#ffffff'
+    });
+
+    // Get UI elements
+    const btnUndo = document.getElementById('btn-undo');
+    const btnRedo = document.getElementById('btn-redo');
+    const btnRect = document.getElementById('btn-rect');
+    const btnCircle = document.getElementById('btn-circle');
+    const btnText = document.getElementById('btn-text');
+    const btnDelete = document.getElementById('btn-delete');
+    const btnExport = document.getElementById('btn-export');
+    const status = document.getElementById('status');
+
+    // Track history state
+    editor.on('history:changed', ({ canUndo, canRedo }) => {
+      btnUndo.disabled = !canUndo;
+      btnRedo.disabled = !canRedo;
+    });
+
+    // Track selection
+    editor.on('selection:changed', ({ selectedIds }) => {
+      status.textContent = selectedIds.length > 0
+        ? `${selectedIds.length} element(s) selected`
+        : 'No selection';
+    });
+
+    // Button handlers
+    btnUndo.addEventListener('click', () => editor.undo());
+    btnRedo.addEventListener('click', () => editor.redo());
+
+    btnRect.addEventListener('click', () => {
+      const id = editor.addElement({
+        type: 'shape',
+        shapeType: 'rect',
+        width: 150,
+        height: 100,
+        rx: 8,
+        fill: '#4a90d9',
+        stroke: '#2d5a87',
+        strokeWidth: 2,
+        transform: { x: 200 + Math.random() * 400, y: 150 + Math.random() * 300, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1, zIndex: Date.now(), locked: false, visible: true
+      });
+      editor.addEffect(id, dropShadow({ offsetX: 3, offsetY: 3, blur: 6, color: 'rgba(0,0,0,0.3)' }));
+      editor.select(id);
+    });
+
+    btnCircle.addEventListener('click', () => {
+      const id = editor.addElement({
+        type: 'shape',
+        shapeType: 'circle',
+        r: 60,
+        fill: '#e74c3c',
+        stroke: '#c0392b',
+        strokeWidth: 2,
+        transform: { x: 300 + Math.random() * 400, y: 200 + Math.random() * 300, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1, zIndex: Date.now(), locked: false, visible: true
+      });
+      editor.select(id);
+    });
+
+    btnText.addEventListener('click', () => {
+      const id = editor.addElement({
+        type: 'text',
+        content: 'Hello World!',
+        fontSize: 32,
+        fontFamily: 'Georgia, serif',
+        fill: '#2c3e50',
+        textAnchor: 'middle',
+        transform: { x: 400 + Math.random() * 200, y: 300 + Math.random() * 200, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1, zIndex: Date.now(), locked: false, visible: true
+      });
+      editor.select(id);
+    });
+
+    btnDelete.addEventListener('click', () => {
+      const selected = editor.getSelected();
+      if (selected.length > 0) {
+        editor.removeElements(selected.map(el => el.id));
+      }
+    });
+
+    btnExport.addEventListener('click', () => {
+      const svg = editor.toSVG();
+      const blob = new Blob([svg], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'design.svg';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'z') { e.preventDefault(); editor.undo(); }
+        if (e.key === 'y') { e.preventDefault(); editor.redo(); }
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const selected = editor.getSelected();
+        if (selected.length > 0) {
+          e.preventDefault();
+          editor.removeElements(selected.map(el => el.id));
+        }
+      }
+    });
+  </script>
+</body>
+</html>
+```
+
+---
+
+## Tutorials
+
+This section provides step-by-step tutorials for common use cases.
+
+### Tutorial 1: Building a Photo Editor
+
+Learn how to create a basic photo editing application with image manipulation, text overlays, and effect filters.
+
+#### Step 1: Set Up the Editor
+
+```typescript
+import { SVGComposer, dropShadow, blur, grayscale, sepia, presets } from 'svg-composer';
+
+const editor = new SVGComposer(document.getElementById('editor'), {
+  width: 1200,
+  height: 900,
+  backgroundColor: '#2c2c2c'
+});
+```
+
+#### Step 2: Load and Position an Image
+
+```typescript
+// Add a photo as the main canvas element
+const photoId = editor.addElement({
+  type: 'image',
+  src: '/photos/landscape.jpg',
+  width: 800,
+  height: 600,
+  transform: { x: 200, y: 150, rotation: 0, scaleX: 1, scaleY: 1 },
+  opacity: 1,
+  zIndex: 0,
+  locked: false,
+  visible: true
+});
+
+// Center the image on canvas
+editor.select(photoId);
+editor.alignCenter(undefined, { relativeTo: 'canvas' });
+```
+
+#### Step 3: Add Text Overlays
+
+```typescript
+// Add a title
+const titleId = editor.addElement({
+  type: 'text',
+  content: 'Summer Memories',
+  fontSize: 64,
+  fontFamily: 'Georgia, serif',
+  fill: '#ffffff',
+  textAnchor: 'middle',
+  transform: { x: 600, y: 80, rotation: 0, scaleX: 1, scaleY: 1 },
+  opacity: 1,
+  zIndex: 10,
+  locked: false,
+  visible: true
+});
+
+// Add a subtle shadow to the text for readability
+editor.addEffect(titleId, dropShadow({
+  offsetX: 2,
+  offsetY: 2,
+  blur: 4,
+  color: 'rgba(0,0,0,0.7)'
+}));
+
+// Add a caption
+const captionId = editor.addElement({
+  type: 'text',
+  content: 'Beach vacation 2024',
+  fontSize: 24,
+  fontFamily: 'Arial, sans-serif',
+  fill: '#cccccc',
+  textAnchor: 'middle',
+  transform: { x: 600, y: 850, rotation: 0, scaleX: 1, scaleY: 1 },
+  opacity: 0.9,
+  zIndex: 10,
+  locked: false,
+  visible: true
+});
+```
+
+#### Step 4: Apply Photo Effects
+
+```typescript
+// Create effect controls
+function applyVintageEffect() {
+  editor.setEffect(photoId, presets.vintagePhoto());
+}
+
+function applyBlackAndWhite() {
+  editor.setEffect(photoId, grayscale(1));
+}
+
+function applySepiaEffect() {
+  editor.setEffect(photoId, sepia(0.8));
+}
+
+function applyDramaticEffect() {
+  editor.setEffect(photoId, presets.dramatic());
+}
+
+function clearEffects() {
+  editor.setEffect(photoId, null);
+}
+```
+
+#### Step 5: Add a Frame or Border
+
+```typescript
+// Add a decorative frame around the photo
+const frameId = editor.addElement({
+  type: 'shape',
+  shapeType: 'rect',
+  width: 820,
+  height: 620,
+  rx: 0,
+  fill: 'none',
+  stroke: '#d4af37', // gold color
+  strokeWidth: 8,
+  transform: { x: 190, y: 140, rotation: 0, scaleX: 1, scaleY: 1 },
+  opacity: 1,
+  zIndex: 5,
+  locked: false,
+  visible: true
+});
+
+// Add outer shadow to the frame
+editor.addEffect(frameId, dropShadow({
+  offsetX: 0,
+  offsetY: 0,
+  blur: 15,
+  color: 'rgba(212, 175, 55, 0.5)'
+}));
+```
+
+#### Step 6: Export the Final Result
+
+```typescript
+function downloadImage() {
+  const svg = editor.toSVG();
+  const blob = new Blob([svg], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'edited-photo.svg';
+  link.click();
+
+  URL.revokeObjectURL(url);
+}
+
+function saveProject() {
+  const json = editor.toJSON();
+  localStorage.setItem('photo-editor-project', json);
+}
+
+function loadProject() {
+  const saved = localStorage.getItem('photo-editor-project');
+  if (saved) {
+    editor.fromJSON(saved);
+  }
+}
+```
+
+---
+
+### Tutorial 2: Creating a Design Tool
+
+Build a design tool with shapes, alignment features, and precise positioning using guides and snapping.
+
+#### Step 1: Configure the Editor with Guides
+
+```typescript
+import { SVGComposer } from 'svg-composer';
+
+const editor = new SVGComposer(document.getElementById('design-canvas'), {
+  width: 1200,
+  height: 900,
+  backgroundColor: '#ffffff'
+});
+
+// Add margin guides
+editor.addHorizontalGuide(50, { color: '#0099ff' });   // top margin
+editor.addHorizontalGuide(850, { color: '#0099ff' });  // bottom margin
+editor.addVerticalGuide(50, { color: '#0099ff' });     // left margin
+editor.addVerticalGuide(1150, { color: '#0099ff' });   // right margin
+
+// Add center guides
+editor.addHorizontalGuide(450, { color: '#ff6600' });  // vertical center
+editor.addVerticalGuide(600, { color: '#ff6600' });    // horizontal center
+```
+
+#### Step 2: Enable Snapping for Precision
+
+```typescript
+editor.setSnappingConfig({
+  enabled: true,
+  snapDistance: 8,
+  snapToGuides: true,
+  snapToGrid: true,
+  gridSize: 20,
+  snapToElements: true,
+  snapToElementCenters: true,
+  snapToCanvasEdges: true,
+  snapToCanvasCenter: true,
+  showSnapIndicators: true
+});
+```
+
+#### Step 3: Create Reusable Shape Functions
+
+```typescript
+function createCard(x: number, y: number, title: string) {
+  // Card background
+  const bgId = editor.addElement({
+    type: 'shape',
+    shapeType: 'rect',
+    width: 280,
+    height: 180,
+    rx: 12,
+    fill: '#ffffff',
+    stroke: '#e0e0e0',
+    strokeWidth: 1,
+    transform: { x, y, rotation: 0, scaleX: 1, scaleY: 1 },
+    opacity: 1,
+    zIndex: 0,
+    locked: false,
+    visible: true
+  });
+
+  // Card title
+  const titleId = editor.addElement({
+    type: 'text',
+    content: title,
+    fontSize: 20,
+    fontFamily: 'Arial, sans-serif',
+    fill: '#333333',
+    textAnchor: 'start',
+    transform: { x: x + 20, y: y + 35, rotation: 0, scaleX: 1, scaleY: 1 },
+    opacity: 1,
+    zIndex: 1,
+    locked: false,
+    visible: true
+  });
+
+  // Add shadow to card
+  editor.addEffect(bgId, {
+    type: 'dropShadow',
+    offsetX: 0,
+    offsetY: 4,
+    blur: 12,
+    color: 'rgba(0,0,0,0.1)'
+  });
+
+  return { bgId, titleId };
+}
+
+// Create multiple cards
+const card1 = createCard(100, 100, 'Dashboard');
+const card2 = createCard(420, 100, 'Analytics');
+const card3 = createCard(740, 100, 'Settings');
+```
+
+#### Step 4: Align and Distribute Elements
+
+```typescript
+// Select all card backgrounds
+const cardIds = [card1.bgId, card2.bgId, card3.bgId];
+editor.select(cardIds);
+
+// Align tops
+editor.alignTop();
+
+// Distribute horizontally with equal spacing
+editor.distributeHorizontalGaps();
+
+// Center the row on the canvas horizontally
+editor.alignCenterHorizontal(undefined, { relativeTo: 'canvas' });
+```
+
+#### Step 5: Z-Order Management
+
+```typescript
+// Create a header bar
+const headerId = editor.addElement({
+  type: 'shape',
+  shapeType: 'rect',
+  width: 1200,
+  height: 60,
+  fill: '#1a73e8',
+  stroke: 'none',
+  strokeWidth: 0,
+  transform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
+  opacity: 1,
+  zIndex: 100,
+  locked: false,
+  visible: true
+});
+
+// Ensure header is always on top
+editor.bringToFront(headerId);
+
+// Lock the header so it can't be accidentally moved
+editor.updateElement(headerId, { locked: true });
+```
+
+#### Step 6: Group Related Elements
+
+```typescript
+// Group a card's background and title together
+const groupId = editor.createGroup([card1.bgId, card1.titleId]);
+
+// Now the group can be moved/transformed as a unit
+editor.select(groupId);
+editor.moveElement(groupId, 50, 0);
+
+// Ungroup if needed
+editor.ungroup(groupId);
+```
+
+---
+
+### Tutorial 3: Interactive Canvas Features
+
+Learn how to handle user interactions, implement keyboard shortcuts, and create a responsive editing experience.
+
+#### Step 1: Set Up Event Listeners
+
+```typescript
+import { SVGComposer } from 'svg-composer';
+
+const editor = new SVGComposer(document.getElementById('canvas'), {
+  width: 1200,
+  height: 800
+});
+
+// Track all editor events for debugging or UI updates
+editor.on('element:added', ({ element }) => {
+  console.log('Added:', element.type, element.id);
+  updateElementList();
+});
+
+editor.on('element:updated', ({ id, element }) => {
+  console.log('Updated:', id);
+  updatePropertiesPanel(element);
+});
+
+editor.on('element:removed', ({ id }) => {
+  console.log('Removed:', id);
+  updateElementList();
+});
+
+editor.on('selection:changed', ({ selectedIds }) => {
+  updateToolbar(selectedIds);
+  updatePropertiesPanel(selectedIds.length === 1
+    ? editor.getElement(selectedIds[0])
+    : null);
+});
+
+editor.on('tool:changed', ({ tool }) => {
+  highlightActiveTool(tool);
+});
+
+editor.on('history:changed', ({ canUndo, canRedo }) => {
+  document.getElementById('undo-btn').disabled = !canUndo;
+  document.getElementById('redo-btn').disabled = !canRedo;
+});
+```
+
+#### Step 2: Implement Comprehensive Keyboard Shortcuts
+
+```typescript
+document.addEventListener('keydown', (e) => {
+  const target = e.target as HTMLElement;
+
+  // Don't intercept if user is typing in an input
+  if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+  const selected = editor.getSelected();
+
+  // Undo/Redo
+  if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
+    e.preventDefault();
+    editor.undo();
+    return;
+  }
+  if (cmdOrCtrl && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+    e.preventDefault();
+    editor.redo();
+    return;
+  }
+
+  // Select All
+  if (cmdOrCtrl && e.key === 'a') {
+    e.preventDefault();
+    editor.selectAll();
+    return;
+  }
+
+  // Copy (save selection for paste)
+  if (cmdOrCtrl && e.key === 'c' && selected.length > 0) {
+    e.preventDefault();
+    window._clipboardElements = selected.map(el => JSON.parse(JSON.stringify(el)));
+    return;
+  }
+
+  // Paste
+  if (cmdOrCtrl && e.key === 'v' && window._clipboardElements) {
+    e.preventDefault();
+    const newIds = [];
+    for (const el of window._clipboardElements) {
+      // Offset pasted elements slightly
+      el.transform.x += 20;
+      el.transform.y += 20;
+      delete el.id; // Let editor generate new ID
+      const newId = editor.addElement(el);
+      newIds.push(newId);
+    }
+    editor.select(newIds);
+    return;
+  }
+
+  // Delete
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selected.length > 0) {
+    e.preventDefault();
+    editor.removeElements(selected.map(el => el.id));
+    return;
+  }
+
+  // Escape - clear selection
+  if (e.key === 'Escape') {
+    editor.clearSelection();
+    return;
+  }
+
+  // Arrow keys - nudge selected elements
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && selected.length > 0) {
+    e.preventDefault();
+    const nudge = e.shiftKey ? 10 : 1; // Shift for larger nudge
+    const dx = e.key === 'ArrowRight' ? nudge : e.key === 'ArrowLeft' ? -nudge : 0;
+    const dy = e.key === 'ArrowDown' ? nudge : e.key === 'ArrowUp' ? -nudge : 0;
+
+    for (const el of selected) {
+      editor.moveElement(el.id, dx, dy);
+    }
+    return;
+  }
+
+  // Tool shortcuts
+  if (e.key === 'v' || e.key === 'V') editor.setTool('select');
+  if (e.key === 'h' || e.key === 'H') editor.setTool('pan');
+  if (e.key === 't' || e.key === 'T') editor.setTool('add-text');
+  if (e.key === 'r' || e.key === 'R') editor.setTool('add-shape');
+
+  // Z-order shortcuts
+  if (e.key === ']' && cmdOrCtrl && selected.length === 1) {
+    e.preventDefault();
+    editor.bringToFront(selected[0].id);
+  }
+  if (e.key === '[' && cmdOrCtrl && selected.length === 1) {
+    e.preventDefault();
+    editor.sendToBack(selected[0].id);
+  }
+});
+```
+
+#### Step 3: Build a Properties Panel
+
+```typescript
+function updatePropertiesPanel(element) {
+  const panel = document.getElementById('properties-panel');
+
+  if (!element) {
+    panel.innerHTML = '<p>No element selected</p>';
+    return;
+  }
+
+  panel.innerHTML = `
+    <h3>${element.type.charAt(0).toUpperCase() + element.type.slice(1)}</h3>
+    <div class="property">
+      <label>X Position</label>
+      <input type="number" id="prop-x" value="${element.transform.x}">
+    </div>
+    <div class="property">
+      <label>Y Position</label>
+      <input type="number" id="prop-y" value="${element.transform.y}">
+    </div>
+    <div class="property">
+      <label>Rotation</label>
+      <input type="number" id="prop-rotation" value="${element.transform.rotation}" min="0" max="360">
+    </div>
+    <div class="property">
+      <label>Opacity</label>
+      <input type="range" id="prop-opacity" value="${element.opacity}" min="0" max="1" step="0.1">
+    </div>
+    <div class="property">
+      <label>
+        <input type="checkbox" id="prop-locked" ${element.locked ? 'checked' : ''}>
+        Locked
+      </label>
+    </div>
+  `;
+
+  // Attach event listeners for live updates
+  document.getElementById('prop-x').addEventListener('change', (e) => {
+    editor.setPosition(element.id, parseFloat(e.target.value), element.transform.y);
+  });
+
+  document.getElementById('prop-y').addEventListener('change', (e) => {
+    editor.setPosition(element.id, element.transform.x, parseFloat(e.target.value));
+  });
+
+  document.getElementById('prop-rotation').addEventListener('change', (e) => {
+    const currentRotation = element.transform.rotation;
+    const newRotation = parseFloat(e.target.value);
+    editor.rotateElement(element.id, newRotation - currentRotation);
+  });
+
+  document.getElementById('prop-opacity').addEventListener('input', (e) => {
+    editor.updateElement(element.id, { opacity: parseFloat(e.target.value) });
+  });
+
+  document.getElementById('prop-locked').addEventListener('change', (e) => {
+    editor.updateElement(element.id, { locked: e.target.checked });
+  });
+}
+```
+
+#### Step 4: Handle Canvas Click Events
+
+```typescript
+editor.on('canvas:clicked', ({ x, y, element }) => {
+  if (element) {
+    // Show context menu for element
+    showContextMenu(x, y, element);
+  } else {
+    // Clicked on empty canvas - could add element at position
+    hideContextMenu();
+  }
+});
+
+function showContextMenu(x, y, element) {
+  const menu = document.getElementById('context-menu');
+  menu.style.display = 'block';
+  menu.style.left = `${x}px`;
+  menu.style.top = `${y}px`;
+
+  menu.innerHTML = `
+    <button onclick="editor.bringToFront('${element.id}')">Bring to Front</button>
+    <button onclick="editor.sendToBack('${element.id}')">Send to Back</button>
+    <hr>
+    <button onclick="duplicateElement('${element.id}')">Duplicate</button>
+    <button onclick="editor.removeElement('${element.id}')">Delete</button>
+  `;
+}
+
+function duplicateElement(id) {
+  const element = editor.getElement(id);
+  if (!element) return;
+
+  const copy = JSON.parse(JSON.stringify(element));
+  copy.transform.x += 20;
+  copy.transform.y += 20;
+  delete copy.id;
+
+  const newId = editor.addElement(copy);
+  editor.select(newId);
+}
+```
+
+#### Step 5: Responsive Canvas Handling
+
+```typescript
+// Handle container resize
+const container = document.getElementById('canvas-container');
+const resizeObserver = new ResizeObserver((entries) => {
+  for (const entry of entries) {
+    const { width, height } = entry.contentRect;
+    // The SVG viewBox stays the same, but the display size adjusts
+    console.log(`Container resized to ${width}x${height}`);
+  }
+});
+resizeObserver.observe(container);
+
+// Clean up
+function cleanup() {
+  resizeObserver.disconnect();
+  editor.destroy();
+}
+```
+
+---
+
+## Patterns & Recipes
+
+Quick copy-paste solutions for common tasks.
+
+### Recipe: Center Element on Canvas
+
+```typescript
+// Center a single element on the canvas
+function centerOnCanvas(elementId: string) {
+  editor.select(elementId);
+  editor.alignCenter(undefined, { relativeTo: 'canvas' });
+  editor.clearSelection();
+}
+```
+
+### Recipe: Create a Polaroid Effect
+
+```typescript
+import { dropShadow } from 'svg-composer';
+
+function createPolaroid(imageSrc: string, caption: string) {
+  // White background (polaroid frame)
+  const frameId = editor.addElement({
+    type: 'shape',
+    shapeType: 'rect',
+    width: 320,
+    height: 380,
+    fill: '#ffffff',
+    stroke: '#e0e0e0',
+    strokeWidth: 1,
+    transform: { x: 100, y: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+    opacity: 1, zIndex: 0, locked: false, visible: true
+  });
+
+  // The photo
+  const photoId = editor.addElement({
+    type: 'image',
+    src: imageSrc,
+    width: 280,
+    height: 280,
+    transform: { x: 120, y: 120, rotation: 0, scaleX: 1, scaleY: 1 },
+    opacity: 1, zIndex: 1, locked: false, visible: true
+  });
+
+  // Caption text
+  const captionId = editor.addElement({
+    type: 'text',
+    content: caption,
+    fontSize: 18,
+    fontFamily: "'Permanent Marker', cursive",
+    fill: '#333333',
+    textAnchor: 'middle',
+    transform: { x: 260, y: 440, rotation: -3, scaleX: 1, scaleY: 1 },
+    opacity: 1, zIndex: 2, locked: false, visible: true
+  });
+
+  // Add shadow to frame
+  editor.addEffect(frameId, dropShadow({
+    offsetX: 4,
+    offsetY: 6,
+    blur: 12,
+    color: 'rgba(0,0,0,0.3)'
+  }));
+
+  return { frameId, photoId, captionId };
+}
+```
+
+### Recipe: Add Watermark
+
+```typescript
+function addWatermark(text: string) {
+  const watermarkId = editor.addElement({
+    type: 'text',
+    content: text,
+    fontSize: 48,
+    fontFamily: 'Arial, sans-serif',
+    fill: '#000000',
+    textAnchor: 'middle',
+    transform: { x: 600, y: 450, rotation: -30, scaleX: 1, scaleY: 1 },
+    opacity: 0.15, // Very transparent
+    zIndex: 9999,  // Always on top
+    locked: true,  // Prevent accidental edits
+    visible: true
+  });
+
+  editor.bringToFront(watermarkId);
+  return watermarkId;
+}
+```
+
+### Recipe: Create Grid Layout
+
+```typescript
+function createGrid(columns: number, rows: number, cellWidth: number, cellHeight: number, gap: number) {
+  const elements: string[] = [];
+  const startX = 50;
+  const startY = 50;
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < columns; col++) {
+      const x = startX + col * (cellWidth + gap);
+      const y = startY + row * (cellHeight + gap);
+
+      const id = editor.addElement({
+        type: 'shape',
+        shapeType: 'rect',
+        width: cellWidth,
+        height: cellHeight,
+        rx: 4,
+        fill: '#f0f0f0',
+        stroke: '#cccccc',
+        strokeWidth: 1,
+        transform: { x, y, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1, zIndex: 0, locked: false, visible: true
+      });
+
+      elements.push(id);
+    }
+  }
+
+  return elements;
+}
+
+// Create a 3x3 grid
+const gridCells = createGrid(3, 3, 200, 150, 20);
+```
+
+### Recipe: Apply Vintage Photo Effect
+
+```typescript
+import { sepia, brightnessContrast } from 'svg-composer';
+
+function applyVintageEffect(elementId: string) {
+  // First apply sepia tone
+  editor.addEffect(elementId, sepia(0.6));
+
+  // Then adjust brightness and contrast for that faded look
+  editor.addEffect(elementId, brightnessContrast({
+    brightness: 1.1,
+    contrast: 0.9
+  }));
+}
+```
+
+### Recipe: Export as PNG (Using Canvas)
+
+```typescript
+async function exportAsPng(filename = 'canvas.png', scale = 2) {
+  const svg = editor.toSVG();
+  const blob = new Blob([svg], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+
+      const ctx = canvas.getContext('2d');
+      ctx.scale(scale, scale);
+      ctx.drawImage(img, 0, 0);
+
+      canvas.toBlob((pngBlob) => {
+        const pngUrl = URL.createObjectURL(pngBlob);
+        const a = document.createElement('a');
+        a.href = pngUrl;
+        a.download = filename;
+        a.click();
+
+        URL.revokeObjectURL(url);
+        URL.revokeObjectURL(pngUrl);
+        resolve();
+      }, 'image/png');
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+```
+
+### Recipe: Auto-Save Implementation
+
+```typescript
+let saveTimeout: number | null = null;
+const AUTOSAVE_DELAY = 2000; // 2 seconds after last change
+
+editor.on('state:changed', () => {
+  // Clear existing timeout
+  if (saveTimeout) {
+    clearTimeout(saveTimeout);
+  }
+
+  // Set new timeout for auto-save
+  saveTimeout = setTimeout(() => {
+    const json = editor.toJSON();
+    localStorage.setItem('autosave', json);
+    console.log('Auto-saved at', new Date().toLocaleTimeString());
+  }, AUTOSAVE_DELAY);
+});
+
+// Restore on page load
+function restoreAutoSave() {
+  const saved = localStorage.getItem('autosave');
+  if (saved) {
+    const restore = confirm('Found auto-saved work. Restore?');
+    if (restore) {
+      editor.fromJSON(saved);
+    }
+  }
+}
+
+restoreAutoSave();
+```
+
+### Recipe: Undo/Redo Buttons with State
+
+```typescript
+function setupUndoRedoButtons() {
+  const undoBtn = document.getElementById('undo');
+  const redoBtn = document.getElementById('redo');
+
+  // Initial state
+  undoBtn.disabled = !editor.canUndo();
+  redoBtn.disabled = !editor.canRedo();
+
+  // Update on history changes
+  editor.on('history:changed', ({ canUndo, canRedo }) => {
+    undoBtn.disabled = !canUndo;
+    redoBtn.disabled = !canRedo;
+
+    // Optional: show history count
+    const historySize = editor.getHistorySize();
+    undoBtn.title = `Undo (${historySize} steps available)`;
+  });
+
+  // Button handlers
+  undoBtn.addEventListener('click', () => editor.undo());
+  redoBtn.addEventListener('click', () => editor.redo());
+}
+```
+
+### Recipe: Batch Update Multiple Elements
+
+```typescript
+// Apply the same transform to multiple elements efficiently
+function batchTransform(elementIds: string[], transform: Partial<Transform>) {
+  for (const id of elementIds) {
+    const element = editor.getElement(id);
+    if (element) {
+      editor.updateElement(id, {
+        transform: { ...element.transform, ...transform }
+      });
+    }
+  }
+}
+
+// Example: rotate all selected elements by 15 degrees
+const selected = editor.getSelected();
+batchTransform(selected.map(el => el.id), { rotation: 15 });
+```
+
+### Recipe: Toggle Element Visibility
+
+```typescript
+function toggleVisibility(elementId: string): boolean {
+  const element = editor.getElement(elementId);
+  if (!element) return false;
+
+  const newVisibility = !element.visible;
+  editor.updateElement(elementId, { visible: newVisibility });
+  return newVisibility;
+}
+
+// Toggle visibility of all selected elements
+function toggleSelectedVisibility() {
+  const selected = editor.getSelected();
+  for (const el of selected) {
+    toggleVisibility(el.id);
+  }
+}
+```
+
 ---
 
 ## SVG Output
