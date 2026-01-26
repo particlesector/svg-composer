@@ -38,16 +38,11 @@ The `examples/demo.html` has been completely overhauled to showcase all library 
 | ARIA accessibility | ✅ Done | Dropdown menus have proper ARIA attributes |
 | Clipboard fallback | ✅ Done | execCommand fallback for older browsers |
 | Effect tracking | ✅ Done | Visual feedback for applied effects |
-
-### Remaining (Lower Priority - Future Enhancement)
-
-| Feature | Priority | Notes |
-|---------|----------|-------|
-| Import JSON | Lower | Load state from file/textarea |
-| Image upload | Lower | File input for images |
-| Group/Ungroup | Lower | Group selected elements |
-| Clip path demo | Lower | Demonstrate clipping |
-| Color pickers | Lower | Fill and stroke color selection |
+| Import JSON | ✅ Done | Load from file or paste JSON textarea |
+| Image upload | ✅ Done | File input for images (base64 data URLs) |
+| Group/Ungroup | ✅ Done | Group selected elements with keyboard shortcuts |
+| Clip path controls | ✅ Done | Apply rect, circle, ellipse, inset clip paths |
+| Color pickers | ✅ Done | Fill and stroke color selection |
 
 ---
 

@@ -294,6 +294,95 @@
       min-width: 70px;
     }
 
+    /* Color picker */
+    .color-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .color-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .color-row label {
+      font-size: 0.8rem;
+      color: #888;
+      width: 50px;
+    }
+
+    .color-row input[type="color"] {
+      width: 36px;
+      height: 28px;
+      padding: 0;
+      border: 1px solid #333;
+      border-radius: 4px;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .color-row input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 2px;
+    }
+
+    .color-row input[type="color"]::-webkit-color-swatch {
+      border-radius: 2px;
+      border: none;
+    }
+
+    .color-value {
+      font-family: monospace;
+      font-size: 0.75rem;
+      color: #aaa;
+    }
+
+    /* File inputs */
+    .file-input-wrapper {
+      position: relative;
+      overflow: hidden;
+      display: inline-block;
+    }
+
+    .file-input-wrapper input[type="file"] {
+      position: absolute;
+      left: 0;
+      top: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Import panel */
+    .import-textarea {
+      width: 100%;
+      height: 80px;
+      background: #1a1a2e;
+      border: 1px solid #333;
+      border-radius: 4px;
+      color: #eee;
+      font-family: monospace;
+      font-size: 0.75rem;
+      padding: 8px;
+      resize: vertical;
+      margin-bottom: 8px;
+    }
+
+    .import-textarea:focus {
+      outline: none;
+      border-color: #4a4aff;
+    }
+
+    .import-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .import-buttons button {
+      flex: 1;
+    }
+
     /* Status bar */
     .status-bar {
       background: #16213e;
@@ -396,6 +485,10 @@
           <button id="btn-add-circle" title="Add circle">Circle</button>
           <button id="btn-add-ellipse" title="Add ellipse">Ellipse</button>
           <button id="btn-add-text" title="Add text">Text</button>
+          <div class="file-input-wrapper">
+            <button id="btn-add-image-label" title="Add image from file">Image</button>
+            <input type="file" id="btn-add-image" accept="image/*">
+          </div>
         </div>
 
         <div class="separator"></div>
@@ -451,6 +544,15 @@
 
         <div class="separator"></div>
 
+        <!-- Group/Ungroup -->
+        <div class="toolbar-group">
+          <span class="toolbar-group-label">Group</span>
+          <button id="btn-group" title="Group selected elements (min 2)">Group</button>
+          <button id="btn-ungroup" title="Ungroup selected group">Ungroup</button>
+        </div>
+
+        <div class="separator"></div>
+
         <!-- Snapping -->
         <div class="toolbar-group">
           <label class="checkbox-row">
@@ -502,6 +604,35 @@
           </div>
         </div>
 
+        <!-- Colors Panel -->
+        <div class="panel">
+          <h3>Colors</h3>
+          <div class="color-row">
+            <label>Fill</label>
+            <input type="color" id="color-fill" value="#4a90d9" disabled>
+            <span class="color-value" id="color-fill-value">#4a90d9</span>
+          </div>
+          <div class="color-row">
+            <label>Stroke</label>
+            <input type="color" id="color-stroke" value="#333333" disabled>
+            <span class="color-value" id="color-stroke-value">#333333</span>
+          </div>
+        </div>
+
+        <!-- Clip Path Panel -->
+        <div class="panel">
+          <h3>Clip Path</h3>
+          <div class="property-row">
+            <select id="clip-select" disabled>
+              <option value="">None</option>
+              <option value="rect">Rectangle</option>
+              <option value="circle">Circle</option>
+              <option value="ellipse">Ellipse</option>
+              <option value="inset">Inset (10%)</option>
+            </select>
+          </div>
+        </div>
+
         <!-- Export Panel -->
         <div class="panel">
           <h3>Export</h3>
@@ -509,6 +640,22 @@
             <button id="btn-export-svg" title="Download as SVG">SVG</button>
             <button id="btn-export-json" title="Download as JSON">JSON</button>
             <button id="btn-copy-svg" title="Copy SVG to clipboard">Copy</button>
+          </div>
+        </div>
+
+        <!-- Import Panel -->
+        <div class="panel">
+          <h3>Import</h3>
+          <div class="import-buttons" style="margin-bottom: 8px;">
+            <div class="file-input-wrapper" style="flex: 1;">
+              <button style="width: 100%;">Load JSON File</button>
+              <input type="file" id="import-file" accept=".json,application/json">
+            </div>
+          </div>
+          <textarea id="import-textarea" class="import-textarea" placeholder="Or paste JSON here..."></textarea>
+          <div class="import-buttons">
+            <button id="btn-import-json" title="Load pasted JSON">Load JSON</button>
+            <button id="btn-clear-canvas" class="danger" title="Clear all elements">Clear All</button>
           </div>
         </div>
 
@@ -523,6 +670,8 @@
               <li><kbd>Esc</kbd> Clear selection</li>
               <li><kbd>Ctrl+Z</kbd> Undo</li>
               <li><kbd>Ctrl+Y</kbd> Redo</li>
+              <li><kbd>Ctrl+G</kbd> Group selected</li>
+              <li><kbd>Ctrl+Shift+G</kbd> Ungroup</li>
               <li><kbd>Shift</kbd>+click Multi-select</li>
               <li><kbd>Shift</kbd>+rotate Snap 15°</li>
               <li><kbd>Space</kbd>+drag Pan</li>
@@ -575,13 +724,31 @@
     const btnAddCircle = document.getElementById('btn-add-circle');
     const btnAddEllipse = document.getElementById('btn-add-ellipse');
     const btnAddText = document.getElementById('btn-add-text');
+    const btnAddImage = document.getElementById('btn-add-image');
     const btnUndo = document.getElementById('btn-undo');
     const btnRedo = document.getElementById('btn-redo');
     const btnClear = document.getElementById('btn-clear');
     const btnDelete = document.getElementById('btn-delete');
     const btnBringFront = document.getElementById('btn-bring-front');
     const btnSendBack = document.getElementById('btn-send-back');
+    const btnGroup = document.getElementById('btn-group');
+    const btnUngroup = document.getElementById('btn-ungroup');
     const chkSnapping = document.getElementById('chk-snapping');
+
+    // Color pickers
+    const colorFill = document.getElementById('color-fill');
+    const colorStroke = document.getElementById('color-stroke');
+    const colorFillValue = document.getElementById('color-fill-value');
+    const colorStrokeValue = document.getElementById('color-stroke-value');
+
+    // Clip path
+    const clipSelect = document.getElementById('clip-select');
+
+    // Import
+    const importFile = document.getElementById('import-file');
+    const importTextarea = document.getElementById('import-textarea');
+    const btnImportJson = document.getElementById('btn-import-json');
+    const btnClearCanvas = document.getElementById('btn-clear-canvas');
 
     // Alignment buttons
     const btnAlignLeft = document.getElementById('btn-align-left');
@@ -774,6 +941,49 @@
       URL.revokeObjectURL(url);
     }
 
+    // Convert any CSS color to hex format for color input
+    function colorToHex(color) {
+      if (!color) return null;
+
+      // Already hex
+      if (color.startsWith('#')) {
+        // Handle shorthand hex (#RGB -> #RRGGBB)
+        if (color.length === 4) {
+          return '#' + color[1] + color[1] + color[2] + color[2] + color[3] + color[3];
+        }
+        return color.substring(0, 7); // Strip alpha if present (#RRGGBBAA)
+      }
+
+      // RGB/RGBA format
+      const rgbMatch = color.match(/rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+      if (rgbMatch) {
+        const r = parseInt(rgbMatch[1]).toString(16).padStart(2, '0');
+        const g = parseInt(rgbMatch[2]).toString(16).padStart(2, '0');
+        const b = parseInt(rgbMatch[3]).toString(16).padStart(2, '0');
+        return `#${r}${g}${b}`;
+      }
+
+      // HSL format - use canvas to convert
+      if (color.startsWith('hsl')) {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 1;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, 1, 1);
+        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+      }
+
+      // Named colors - use canvas to convert
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 1;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, 1, 1);
+      const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    }
+
     try {
       // Check if SVGComposer is available
       if (typeof SVGComposer === 'undefined') {
@@ -902,9 +1112,13 @@
 
       // Event listeners
       editor.on('selection:changed', () => {
+        const selection = editor.getSelection();
         updateSelectionCount(editor);
         updatePropertiesPanel(editor);
-        updateEffectDropdown(editor.getSelection());
+        updateEffectDropdown(selection);
+        updateColorPickers(selection);
+        updateClipPathDropdown(selection);
+        updateGroupButtons(selection);
       });
 
       editor.on('element:updated', () => {
@@ -930,6 +1144,9 @@
       });
 
       setStatus('Ready', 'success');
+
+      // Initialize button states
+      updateGroupButtons([]);
 
       // Tool buttons
       btnSelect.addEventListener('click', () => editor.setTool('select'));
@@ -1025,6 +1242,52 @@
         editor.select(id);
       });
 
+      // Image upload
+      btnAddImage.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            // Scale image to fit reasonably on canvas
+            let width = img.width;
+            let height = img.height;
+            const maxSize = 400;
+
+            if (width > maxSize || height > maxSize) {
+              const scale = maxSize / Math.max(width, height);
+              width = width * scale;
+              height = height * scale;
+            }
+
+            const id = editor.addElement({
+              type: 'image',
+              transform: createTransform({
+                x: 200 + Math.random() * 200,
+                y: 200 + Math.random() * 200
+              }),
+              opacity: 1,
+              zIndex: zIndexCounter++,
+              locked: false,
+              visible: true,
+              src: event.target.result,
+              width: width,
+              height: height
+            });
+            editor.render();
+            editor.select(id);
+            setStatus(`Image added: ${file.name}`, 'success');
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+
+        // Reset input so same file can be selected again
+        e.target.value = '';
+      });
+
       // History buttons
       btnUndo.addEventListener('click', () => {
         editor.undo();
@@ -1076,6 +1339,44 @@
         editor.render();
       });
 
+      // Group/Ungroup buttons
+      btnGroup.addEventListener('click', () => {
+        const selection = editor.getSelection();
+        if (selection.length < 2) {
+          setStatus('Select at least 2 elements to group', 'error');
+          return;
+        }
+        try {
+          const groupId = editor.createGroup(selection);
+          editor.render();
+          setStatus(`Created group with ${selection.length} elements`, 'success');
+        } catch (err) {
+          console.error('Failed to create group:', err);
+          setStatus(err.message, 'error');
+        }
+      });
+
+      btnUngroup.addEventListener('click', () => {
+        const selection = editor.getSelection();
+        if (selection.length !== 1) {
+          setStatus('Select a single group to ungroup', 'error');
+          return;
+        }
+        try {
+          const element = editor.getElement(selection[0]);
+          if (element?.type !== 'group') {
+            setStatus('Selected element is not a group', 'error');
+            return;
+          }
+          const childIds = editor.ungroup(selection[0]);
+          editor.render();
+          setStatus(`Ungrouped ${childIds.length} elements`, 'success');
+        } catch (err) {
+          console.error('Failed to ungroup:', err);
+          setStatus(err.message, 'error');
+        }
+      });
+
       // Snapping toggle
       chkSnapping.addEventListener('change', (e) => {
         editor.setSnappingConfig({ enabled: e.target.checked });
@@ -1110,6 +1411,230 @@
           }
         }
         editor.render();
+      });
+
+      // Color pickers
+      colorFill.addEventListener('input', (e) => {
+        const selection = editor.getSelection();
+        const color = e.target.value;
+        colorFillValue.textContent = color;
+
+        for (const id of selection) {
+          const element = editor.getElement(id);
+          if (element && (element.type === 'shape' || element.type === 'text')) {
+            editor.updateElement(id, { fill: color });
+          }
+        }
+        editor.render();
+      });
+
+      colorStroke.addEventListener('input', (e) => {
+        const selection = editor.getSelection();
+        const color = e.target.value;
+        colorStrokeValue.textContent = color;
+
+        for (const id of selection) {
+          const element = editor.getElement(id);
+          if (element && element.type === 'shape') {
+            editor.updateElement(id, { stroke: color });
+          }
+        }
+        editor.render();
+      });
+
+      // Update color pickers when selection changes
+      function updateColorPickers(selection) {
+        if (selection.length === 0) {
+          colorFill.disabled = true;
+          colorStroke.disabled = true;
+          return;
+        }
+
+        const element = editor.getElement(selection[0]);
+        if (element) {
+          if (element.type === 'shape' || element.type === 'text') {
+            colorFill.disabled = false;
+            if (element.fill) {
+              const fillHex = colorToHex(element.fill) || '#4a90d9';
+              colorFill.value = fillHex;
+              colorFillValue.textContent = fillHex;
+            }
+          } else {
+            colorFill.disabled = true;
+          }
+
+          if (element.type === 'shape') {
+            colorStroke.disabled = false;
+            if (element.stroke) {
+              const strokeHex = colorToHex(element.stroke) || '#333333';
+              colorStroke.value = strokeHex;
+              colorStrokeValue.textContent = strokeHex;
+            }
+          } else {
+            colorStroke.disabled = true;
+          }
+        }
+      }
+
+      // Clip path dropdown
+      clipSelect.addEventListener('change', (e) => {
+        const selection = editor.getSelection();
+        const clipType = e.target.value;
+
+        for (const id of selection) {
+          const element = editor.getElement(id);
+          if (!element) continue;
+
+          if (!clipType) {
+            // Remove clip path
+            editor.removeClipPath(id);
+          } else {
+            // Get element bounds to create appropriate clip path
+            const bounds = editor.getBoundingBox(id);
+            if (!bounds) continue;
+
+            let clipPath;
+            switch (clipType) {
+              case 'rect':
+                clipPath = {
+                  type: 'rect',
+                  x: 0,
+                  y: 0,
+                  width: bounds.width,
+                  height: bounds.height
+                };
+                break;
+              case 'circle':
+                const radius = Math.min(bounds.width, bounds.height) / 2;
+                clipPath = {
+                  type: 'circle',
+                  cx: bounds.width / 2,
+                  cy: bounds.height / 2,
+                  r: radius
+                };
+                break;
+              case 'ellipse':
+                clipPath = {
+                  type: 'ellipse',
+                  cx: bounds.width / 2,
+                  cy: bounds.height / 2,
+                  rx: bounds.width / 2,
+                  ry: bounds.height / 2
+                };
+                break;
+              case 'inset':
+                // 10% inset rectangle
+                const inset = Math.min(bounds.width, bounds.height) * 0.1;
+                clipPath = {
+                  type: 'rect',
+                  x: inset,
+                  y: inset,
+                  width: bounds.width - inset * 2,
+                  height: bounds.height - inset * 2,
+                  rx: 4
+                };
+                break;
+            }
+
+            if (clipPath) {
+              editor.addClipPath(id, clipPath);
+            }
+          }
+        }
+        editor.render();
+        setStatus(clipType ? `Applied ${clipType} clip path` : 'Removed clip path', 'success');
+      });
+
+      // Update clip path dropdown when selection changes
+      function updateClipPathDropdown(selection) {
+        if (selection.length === 0) {
+          clipSelect.disabled = true;
+          clipSelect.value = '';
+          return;
+        }
+        clipSelect.disabled = false;
+
+        // Check if first element has a clip path
+        const element = editor.getElement(selection[0]);
+        if (element?.clipPath) {
+          clipSelect.value = element.clipPath.type;
+        } else {
+          clipSelect.value = '';
+        }
+      }
+
+      // Update group/ungroup button states based on selection
+      function updateGroupButtons(selection) {
+        // Group requires at least 2 elements selected
+        btnGroup.disabled = selection.length < 2;
+
+        // Ungroup requires exactly 1 group selected
+        if (selection.length === 1) {
+          const element = editor.getElement(selection[0]);
+          btnUngroup.disabled = element?.type !== 'group';
+        } else {
+          btnUngroup.disabled = true;
+        }
+      }
+
+      // Import JSON from file
+      importFile.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            // Validate JSON
+            JSON.parse(event.target.result);
+            editor.fromJSON(event.target.result);
+            editor.render();
+            updateElementCount(editor);
+            updateHistoryButtons(editor);
+            setStatus(`Loaded: ${file.name}`, 'success');
+          } catch (err) {
+            console.error('Failed to load JSON:', err);
+            setStatus('Invalid JSON file', 'error');
+          }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+      });
+
+      // Import JSON from textarea
+      btnImportJson.addEventListener('click', () => {
+        const jsonText = importTextarea.value.trim();
+        if (!jsonText) {
+          setStatus('Paste JSON into the textarea first', 'error');
+          return;
+        }
+
+        try {
+          // Validate JSON
+          JSON.parse(jsonText);
+          editor.fromJSON(jsonText);
+          editor.render();
+          updateElementCount(editor);
+          updateHistoryButtons(editor);
+          importTextarea.value = '';
+          setStatus('JSON loaded successfully', 'success');
+        } catch (err) {
+          console.error('Failed to parse JSON:', err);
+          setStatus('Invalid JSON format', 'error');
+        }
+      });
+
+      // Clear canvas
+      btnClearCanvas.addEventListener('click', () => {
+        if (!confirm('Are you sure you want to clear all elements?')) return;
+
+        const elements = editor.getAllElements();
+        for (const el of elements) {
+          editor.removeElement(el.id);
+        }
+        editor.render();
+        updateElementCount(editor);
+        setStatus('Canvas cleared', 'success');
       });
 
       // Export buttons
@@ -1178,6 +1703,15 @@
             editor.redo();
             editor.render();
             updatePropertiesPanel(editor);
+          } else if (e.key === 'g' || e.key === 'G') {
+            e.preventDefault();
+            if (e.shiftKey) {
+              // Ungroup (Ctrl+Shift+G)
+              btnUngroup.click();
+            } else {
+              // Group (Ctrl+G)
+              btnGroup.click();
+            }
           }
         }
       });
