@@ -3,7 +3,8 @@
  *
  * This module contains type definitions for the interaction system, including:
  * - **Coordinate Types**: {@link ScreenPoint}, {@link ViewBoxPoint} for position tracking
- * - **State Types**: {@link InteractionState}, {@link DragState}, {@link ResizeState}, {@link RotateState}
+ * - **State Types**: {@link InteractionState}, {@link DragState},
+ *   {@link ResizeState}, {@link RotateState}
  * - **Hit Testing**: {@link HitTestResult}, {@link HandleType} for click target detection
  * - **Viewport**: {@link ViewportState} for pan and zoom tracking
  * - **Multi-touch**: {@link PointerInfo}, {@link GestureState} for touch gesture handling
