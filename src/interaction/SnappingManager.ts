@@ -1,5 +1,41 @@
 /**
- * Snapping Manager for handling snap-to-guides, grid, and element snapping
+ * Snapping Manager Module for SVG Composer
+ *
+ * This module provides the {@link SnappingManager} class for calculating snap positions
+ * during element drag and resize operations. Snapping helps users align elements precisely
+ * to guides, grids, other elements, and canvas boundaries.
+ *
+ * Snap targets include:
+ * - **Guide Lines**: Horizontal and vertical guide lines placed on the canvas
+ * - **Grid**: Configurable grid with customizable spacing
+ * - **Element Edges**: Snap to left/right/top/bottom edges of other elements
+ * - **Element Centers**: Snap to horizontal/vertical center of other elements
+ * - **Canvas Edges**: Snap to canvas boundaries (0, 0) and (width, height)
+ * - **Canvas Center**: Snap to the center of the canvas
+ *
+ * @example Configuring snapping
+ * ```typescript
+ * const composer = new SVGComposer('#container', {
+ *   width: 800,
+ *   height: 600
+ * });
+ *
+ * // Enable snapping with custom settings
+ * composer.setSnappingConfig({
+ *   enabled: true,
+ *   snapDistance: 10,        // Snap within 10 units
+ *   snapToGuides: true,      // Snap to guide lines
+ *   snapToGrid: true,        // Snap to grid
+ *   gridSize: 20,            // 20-unit grid
+ *   snapToElements: true,    // Snap to other elements
+ *   snapToElementCenters: true,
+ *   snapToCanvasEdges: true,
+ *   snapToCanvasCenter: true,
+ *   showSnapIndicators: true // Show visual feedback
+ * });
+ * ```
+ *
+ * @packageDocumentation
  */
 
 import type {

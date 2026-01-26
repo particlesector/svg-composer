@@ -1,5 +1,40 @@
 /**
- * Renders selection box and transform handles as SVG overlay
+ * Selection Handle Renderer Module for SVG Composer
+ *
+ * This module provides the {@link SelectionHandleRenderer} class for rendering visual
+ * selection indicators and transform handles as an SVG overlay. When elements are selected,
+ * this renderer displays a bounding box with resize handles at corners and edges, plus a
+ * rotation handle above the selection.
+ *
+ * Features:
+ * - **Selection Box**: Blue dashed rectangle around selected elements
+ * - **Resize Handles**: 8 handles (corners and edge midpoints) for proportional/free resize
+ * - **Rotation Handle**: Circular handle above selection for rotation
+ * - **Rotation-Aware Cursors**: Cursor changes based on element rotation angle
+ * - **Viewport-Aware Sizing**: Handle sizes remain constant in screen pixels regardless of zoom
+ *
+ * @example Handle positions
+ * ```
+ *     [rotate]
+ *         |
+ *   nw ---n--- ne
+ *   |          |
+ *   w          e
+ *   |          |
+ *   sw ---s--- se
+ * ```
+ *
+ * @example Customizing handle appearance
+ * ```typescript
+ * const handleConfig: HandleConfig = {
+ *   size: 10,                  // 10px handles
+ *   strokeColor: '#0066ff',    // Blue stroke
+ *   fillColor: '#ffffff',      // White fill
+ *   rotateHandleOffset: 30     // 30px above selection
+ * };
+ * ```
+ *
+ * @packageDocumentation
  */
 
 import type { BoundingBox } from '../core/types.js';

@@ -1,5 +1,48 @@
 /**
- * SVG Renderer for generating and managing SVG output
+ * SVG Renderer Module for SVG Composer
+ *
+ * This module provides the {@link SVGRenderer} class for generating and managing SVG output.
+ * It handles the conversion of the internal element model to actual SVG DOM elements,
+ * including support for filters, clip paths, gradients, and all SVG element types.
+ *
+ * Key responsibilities:
+ * - **Element Rendering**: Convert shape, text, image, and group elements to SVG
+ * - **Filter Rendering**: Generate SVG filter definitions from filter presets
+ * - **Clip Path Management**: Create and apply clip paths to elements
+ * - **Transform Handling**: Apply position, rotation, and scale transforms
+ * - **Viewport Management**: Handle pan and zoom via viewBox manipulation
+ * - **Guide Rendering**: Display guide lines for alignment
+ * - **Snap Indicators**: Show visual feedback during snapping
+ *
+ * @example Basic rendering
+ * ```typescript
+ * const renderer = new SVGRenderer({
+ *   idPrefix: 'my-canvas-'
+ * });
+ *
+ * // Initialize with container and canvas state
+ * renderer.initialize(container, canvasState);
+ *
+ * // Render all elements
+ * renderer.render(
+ *   canvasState,
+ *   elements,
+ *   filterManager,
+ *   viewportState
+ * );
+ * ```
+ *
+ * @example Exporting SVG
+ * ```typescript
+ * // Export as SVG string
+ * const svgString = renderer.toSVGString(canvasState, elements, filterManager);
+ *
+ * // Download as file
+ * const blob = new Blob([svgString], { type: 'image/svg+xml' });
+ * const url = URL.createObjectURL(blob);
+ * ```
+ *
+ * @packageDocumentation
  */
 
 import type {

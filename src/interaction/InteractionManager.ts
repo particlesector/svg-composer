@@ -1,5 +1,43 @@
 /**
- * Main interaction orchestrator for SVG Composer
+ * Interaction Management Module for SVG Composer
+ *
+ * This module provides the {@link InteractionManager} class, which orchestrates all user
+ * interactions with the SVG canvas. It coordinates between tools, hit testing, coordinate
+ * transformation, and selection handle rendering.
+ *
+ * The InteractionManager supports:
+ * - **Tool System**: Pluggable tools (select, pan, draw) with lifecycle management
+ * - **Multi-touch Gestures**: Pinch-to-zoom and two-finger pan for touch devices
+ * - **Hit Testing**: Determines what the user clicked on (elements, handles, background)
+ * - **Selection Handles**: Visual resize/rotate handles for selected elements
+ * - **Coordinate Transformation**: Screen-to-viewBox and viewBox-to-screen conversion
+ * - **Snapping**: Integration with snap-to-guide and snap-to-grid functionality
+ *
+ * @example Basic usage with SVGComposer
+ * ```typescript
+ * // InteractionManager is typically created internally by SVGComposer
+ * const composer = new SVGComposer('#container', { width: 800, height: 600 });
+ *
+ * // Switch between tools
+ * composer.setTool('select');  // Selection tool
+ * composer.setTool('pan');     // Pan/scroll tool
+ *
+ * // Get current viewport state
+ * const viewport = composer.getViewportState();
+ * console.log(`Zoom: ${viewport.zoom}, Pan: (${viewport.panX}, ${viewport.panY})`);
+ * ```
+ *
+ * @example Programmatic zoom and pan
+ * ```typescript
+ * // Set viewport directly
+ * composer.setViewportState({
+ *   zoom: 1.5,      // 150% zoom
+ *   panX: 100,      // Offset by 100 units
+ *   panY: 50
+ * });
+ * ```
+ *
+ * @packageDocumentation
  */
 
 import type { BoundingBox, ToolType, SnapResult, SnappingConfig } from '../core/types.js';
@@ -61,7 +99,47 @@ export interface InteractionManagerConfig {
 
 /**
  * Manages all user interactions with the SVG canvas.
- * Coordinates between tools, hit testing, and handle rendering.
+ *
+ * The InteractionManager is the central hub for user input handling. It:
+ * - Attaches event listeners for mouse, touch, and keyboard events
+ * - Delegates events to the currently active tool
+ * - Manages the tool lifecycle (activate/deactivate)
+ * - Coordinates hit testing for click targets
+ * - Updates selection handle display
+ * - Handles multi-touch gestures (pinch zoom, two-finger pan)
+ *
+ * @example Registering custom tools
+ * ```typescript
+ * // Create interaction manager (typically done by SVGComposer)
+ * const interactionManager = new InteractionManager(config);
+ *
+ * // Register built-in tools
+ * const selectTool = new SelectTool(interactionManager.createToolContext());
+ * interactionManager.registerTool(selectTool);
+ *
+ * const panTool = new PanTool(interactionManager.createToolContext());
+ * interactionManager.registerTool(panTool);
+ *
+ * // Initialize (attaches event listeners)
+ * interactionManager.initialize();
+ *
+ * // Switch tools
+ * interactionManager.setTool('pan');
+ * ```
+ *
+ * @example Touch gesture handling
+ * ```typescript
+ * // The InteractionManager automatically handles:
+ * // - Single-touch: delegated to active tool (like mouse events)
+ * // - Pinch gesture: zoom in/out centered on pinch point
+ * // - Two-finger drag: pan the viewport
+ *
+ * // Touch events are handled via Pointer Events API for cross-device support
+ * ```
+ *
+ * @see {@link BaseTool} for creating custom tools
+ * @see {@link CoordinateTransformer} for coordinate conversion
+ * @see {@link HitTester} for hit testing logic
  */
 export class InteractionManager {
   private readonly _config: InteractionManagerConfig;

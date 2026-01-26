@@ -1,5 +1,54 @@
 /**
- * Alignment and distribution utilities for SVG elements
+ * Alignment and Distribution Utilities for SVG Composer
+ *
+ * This module provides utility functions for aligning and distributing elements
+ * on the canvas. It supports alignment to selection bounds, canvas boundaries,
+ * or a specific reference element.
+ *
+ * Alignment operations:
+ * - **Horizontal**: left, center, right
+ * - **Vertical**: top, middle, bottom
+ *
+ * Distribution operations:
+ * - **Horizontal**: Space elements evenly along X axis
+ * - **Vertical**: Space elements evenly along Y axis
+ *
+ * @example Aligning elements
+ * ```typescript
+ * // Align selected elements to the left edge of the selection
+ * composer.alignElements('left', { reference: 'selection' });
+ *
+ * // Center elements horizontally on the canvas
+ * composer.alignElements('center', { reference: 'canvas' });
+ *
+ * // Align elements to a specific reference element
+ * composer.alignElements('top', { reference: 'element', elementId: 'header' });
+ * ```
+ *
+ * @example Distributing elements
+ * ```typescript
+ * // Distribute elements horizontally with equal spacing
+ * composer.distributeElements('horizontal');
+ *
+ * // Distribute vertically
+ * composer.distributeElements('vertical');
+ * ```
+ *
+ * @example Using the utility functions directly
+ * ```typescript
+ * import { alignLeft, distributeHorizontally } from 'svg-composer';
+ *
+ * // Calculate alignment adjustments
+ * const elements: ElementBounds[] = [
+ *   { id: 'el1', bounds: { x: 10, y: 10, width: 50, height: 50 } },
+ *   { id: 'el2', bounds: { x: 100, y: 20, width: 30, height: 40 } }
+ * ];
+ *
+ * const results = alignLeft(elements, referenceBounds);
+ * // Apply results to move elements
+ * ```
+ *
+ * @packageDocumentation
  */
 
 import type { BoundingBox, AlignmentOptions, AlignmentReference } from '../core/types.js';

@@ -1,5 +1,35 @@
 /**
- * Hit testing for elements and selection handles
+ * Hit Testing Module for SVG Composer
+ *
+ * This module provides the {@link HitTester} class for determining what the user
+ * clicked on in the SVG canvas. It handles hit testing against elements, selection
+ * handles, and the background, taking into account element rotation and z-ordering.
+ *
+ * Key features:
+ * - **Element Hit Testing**: Finds the topmost visible element at a point
+ * - **Handle Hit Testing**: Detects clicks on resize/rotate handles
+ * - **Rotation Support**: Properly handles rotated elements and selection bounds
+ * - **Z-Index Ordering**: Respects element stacking order
+ * - **Bounds Calculation**: Computes accurate bounds for all element types
+ *
+ * @example Using HitTester
+ * ```typescript
+ * const result = hitTester.hitTest(viewBoxPoint);
+ *
+ * switch (result.type) {
+ *   case 'element':
+ *     console.log(`Clicked element: ${result.elementId}`);
+ *     break;
+ *   case 'handle':
+ *     console.log(`Clicked ${result.handleType} handle`);
+ *     break;
+ *   case 'background':
+ *     console.log('Clicked background - deselect all');
+ *     break;
+ * }
+ * ```
+ *
+ * @packageDocumentation
  */
 
 import type { BoundingBox } from '../core/types.js';

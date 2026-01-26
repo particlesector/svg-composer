@@ -1,12 +1,69 @@
 /**
- * Canvas state management
+ * Canvas State Management Module
+ *
+ * This module provides the core state container for SVG Composer. The {@link State}
+ * class manages all canvas data including elements, selection, and guides. It supports
+ * immutable snapshots for undo/redo functionality and provides atomic state updates.
+ *
+ * @remarks
+ * The State class is designed to be used internally by SVGComposer. For most use cases,
+ * interact with the state through the SVGComposer API rather than directly.
+ *
+ * @example Basic usage
+ * ```typescript
+ * import { State } from 'svg-composer';
+ *
+ * // Create a new state with custom dimensions
+ * const state = new State({ width: 800, height: 600 });
+ *
+ * // Add an element
+ * const element: BaseElement = {
+ *   id: 'rect-1',
+ *   type: 'shape',
+ *   shapeType: 'rect',
+ *   width: 100,
+ *   height: 50,
+ *   transform: { x: 100, y: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+ *   zIndex: 0,
+ *   visible: true,
+ *   locked: false,
+ *   opacity: 1,
+ *   fill: '#ff0000',
+ *   stroke: '#000000',
+ *   strokeWidth: 2
+ * };
+ * state.addElement(element);
+ *
+ * // Select the element
+ * state.setSelection(['rect-1']);
+ * ```
+ *
+ * @example Creating snapshots for undo/redo
+ * ```typescript
+ * // Take a snapshot before making changes
+ * const snapshot = state.snapshot();
+ *
+ * // Make some changes
+ * state.updateElement('rect-1', { opacity: 0.5 });
+ *
+ * // Later, restore the previous state
+ * state.restore(snapshot);
+ * ```
+ *
+ * @packageDocumentation
  */
 
 import type { CanvasState, SVGComposerOptions, Guide } from './types.js';
 import type { BaseElement } from '../elements/types.js';
 
 /**
- * Default configuration values
+ * Default configuration values for SVGComposer initialization.
+ *
+ * @example
+ * ```typescript
+ * // Using defaults with custom width
+ * const options = { ...DEFAULT_OPTIONS, width: 1920 };
+ * ```
  */
 export const DEFAULT_OPTIONS: Required<SVGComposerOptions> = {
   width: 1200,
@@ -16,15 +73,85 @@ export const DEFAULT_OPTIONS: Required<SVGComposerOptions> = {
 };
 
 /**
- * Manages the canvas state
+ * Manages the canvas state for SVG Composer.
+ *
+ * The State class is the central data container that holds all information about
+ * the canvas including dimensions, background color, elements, selection state,
+ * and guides. It provides methods for CRUD operations on elements and guides,
+ * as well as snapshot/restore functionality for undo/redo support.
+ *
+ * @example Creating and managing elements
+ * ```typescript
+ * const state = new State({ width: 800, height: 600 });
+ *
+ * // Add a rectangle element
+ * state.addElement({
+ *   id: 'rect-1',
+ *   type: 'shape',
+ *   shapeType: 'rect',
+ *   width: 100,
+ *   height: 50,
+ *   transform: { x: 50, y: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+ *   zIndex: 0,
+ *   visible: true,
+ *   locked: false,
+ *   opacity: 1,
+ *   fill: '#3498db'
+ * });
+ *
+ * // Update the element
+ * state.updateElement('rect-1', { fill: '#e74c3c' });
+ *
+ * // Get the element
+ * const rect = state.getElement('rect-1');
+ * console.log(rect?.fill); // '#e74c3c'
+ * ```
+ *
+ * @example Working with selection
+ * ```typescript
+ * // Select multiple elements
+ * state.setSelection(['rect-1', 'rect-2', 'circle-1']);
+ *
+ * // Get current selection
+ * const selectedIds = state.getSelection();
+ * console.log(selectedIds); // ['rect-1', 'rect-2', 'circle-1']
+ * ```
+ *
+ * @example Managing guides
+ * ```typescript
+ * // Add a vertical guide at x=100
+ * state.addGuide({
+ *   id: 'guide-1',
+ *   orientation: 'vertical',
+ *   position: 100,
+ *   locked: false,
+ *   visible: true
+ * });
+ *
+ * // Update guide position
+ * state.updateGuide('guide-1', { position: 150 });
+ * ```
+ *
+ * @see {@link CanvasState} for the state structure
+ * @see {@link History} for undo/redo functionality
  */
 export class State {
   private _state: CanvasState;
 
   /**
-   * Creates a new State instance
+   * Creates a new State instance with the specified options.
    *
-   * @param options - Configuration options
+   * @param options - Configuration options for the canvas
+   *
+   * @example
+   * ```typescript
+   * // Create with custom dimensions
+   * const state = new State({
+   *   width: 1920,
+   *   height: 1080,
+   *   backgroundColor: '#f0f0f0'
+   * });
+   * ```
    */
   constructor(options: SVGComposerOptions = {}) {
     const opts = { ...DEFAULT_OPTIONS, ...options };
@@ -51,29 +178,60 @@ export class State {
   }
 
   /**
-   * Gets an element by ID
+   * Gets an element by ID.
    *
    * @param id - Element ID to find
    * @returns The element or undefined if not found
+   *
+   * @example
+   * ```typescript
+   * const element = state.getElement('rect-1');
+   * if (element) {
+   *   console.log(`Found element at (${element.transform.x}, ${element.transform.y})`);
+   * }
+   * ```
    */
   getElement(id: string): BaseElement | undefined {
     return this._state.elements.get(id);
   }
 
   /**
-   * Gets all elements
+   * Gets all elements in the canvas.
    *
-   * @returns Array of all elements
+   * @returns Array of all elements (not in any particular order)
+   *
+   * @example
+   * ```typescript
+   * const elements = state.getAllElements();
+   * // Sort by z-index for rendering
+   * const sorted = elements.sort((a, b) => a.zIndex - b.zIndex);
+   * ```
    */
   getAllElements(): BaseElement[] {
     return Array.from(this._state.elements.values());
   }
 
   /**
-   * Adds an element to the state
+   * Adds an element to the canvas state.
    *
-   * @param element - Element to add
+   * @param element - Element to add (must have unique ID)
    * @throws Error if element with same ID already exists
+   *
+   * @example
+   * ```typescript
+   * state.addElement({
+   *   id: 'circle-1',
+   *   type: 'shape',
+   *   shapeType: 'circle',
+   *   r: 50,
+   *   transform: { x: 200, y: 200, rotation: 0, scaleX: 1, scaleY: 1 },
+   *   zIndex: 1,
+   *   visible: true,
+   *   locked: false,
+   *   opacity: 1,
+   *   fill: '#2ecc71'
+   * });
+   * ```
    */
   addElement(element: BaseElement): void {
     if (this._state.elements.has(element.id)) {
@@ -83,11 +241,23 @@ export class State {
   }
 
   /**
-   * Updates an element in the state
+   * Updates an element in the state with partial properties.
    *
    * @param id - Element ID to update
-   * @param updates - Partial element properties to update
+   * @param updates - Partial element properties to merge with existing element
    * @throws Error if element does not exist or if trying to change ID
+   *
+   * @example
+   * ```typescript
+   * // Update position and opacity
+   * state.updateElement('rect-1', {
+   *   transform: { ...element.transform, x: 150, y: 200 },
+   *   opacity: 0.8
+   * });
+   *
+   * // Toggle visibility
+   * state.updateElement('rect-1', { visible: false });
+   * ```
    */
   updateElement(id: string, updates: Partial<BaseElement>): void {
     const element = this._state.elements.get(id);
@@ -102,10 +272,21 @@ export class State {
   }
 
   /**
-   * Removes an element from the state
+   * Removes an element from the canvas state.
+   *
+   * Also removes the element from selection if it was selected.
    *
    * @param id - Element ID to remove
    * @throws Error if element does not exist
+   *
+   * @example
+   * ```typescript
+   * // Remove an element
+   * state.removeElement('rect-1');
+   *
+   * // Verify it's gone
+   * console.log(state.getElement('rect-1')); // undefined
+   * ```
    */
   removeElement(id: string): void {
     const deleted = this._state.elements.delete(id);
@@ -228,9 +409,29 @@ export class State {
   }
 
   /**
-   * Creates a deep clone of the current state for history
+   * Creates a deep clone of the current state for history/undo support.
    *
-   * @returns Cloned canvas state
+   * The snapshot includes deep copies of all elements, selection state, and guides.
+   * Modifications to the returned snapshot will not affect the current state.
+   *
+   * @returns Cloned canvas state that can be passed to {@link restore}
+   *
+   * @example
+   * ```typescript
+   * // Save state before a batch of operations
+   * const beforeChanges = state.snapshot();
+   *
+   * // Make multiple changes
+   * state.updateElement('rect-1', { fill: '#ff0000' });
+   * state.updateElement('rect-2', { opacity: 0.5 });
+   * state.removeElement('rect-3');
+   *
+   * // If needed, revert all changes
+   * state.restore(beforeChanges);
+   * ```
+   *
+   * @see {@link restore} for restoring from a snapshot
+   * @see {@link History} for automatic undo/redo management
    */
   snapshot(): CanvasState {
     const clonedElements = new Map<string, BaseElement>();
@@ -274,9 +475,30 @@ export class State {
   }
 
   /**
-   * Restores state from a snapshot
+   * Restores the canvas state from a previously created snapshot.
    *
-   * @param snapshot - State snapshot to restore
+   * This replaces the entire current state with the snapshot. The snapshot
+   * is copied, so subsequent modifications won't affect the snapshot object.
+   *
+   * @param snapshot - State snapshot created by {@link snapshot}
+   *
+   * @example
+   * ```typescript
+   * // Implement a simple undo
+   * const history: CanvasState[] = [];
+   *
+   * // Before each change, save state
+   * history.push(state.snapshot());
+   * state.updateElement('rect-1', { fill: '#ff0000' });
+   *
+   * // Undo by restoring last snapshot
+   * const lastState = history.pop();
+   * if (lastState) {
+   *   state.restore(lastState);
+   * }
+   * ```
+   *
+   * @see {@link snapshot} for creating snapshots
    */
   restore(snapshot: CanvasState): void {
     this._state = {

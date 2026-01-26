@@ -1,5 +1,73 @@
 /**
- * Abstract base class for interaction tools
+ * Base Tool Module for SVG Composer
+ *
+ * This module provides the {@link BaseTool} abstract class and related interfaces for
+ * implementing interaction tools. Tools are responsible for handling user input events
+ * (mouse, touch, keyboard) and translating them into canvas operations.
+ *
+ * Built-in tools include:
+ * - **SelectTool**: Select, drag, resize, and rotate elements
+ * - **PanTool**: Pan and zoom the viewport
+ * - **DrawTool**: Draw new shapes on the canvas
+ *
+ * @example Creating a custom tool
+ * ```typescript
+ * import { BaseTool, ToolContext, ToolType } from 'svg-composer';
+ * import type { ViewBoxPoint } from 'svg-composer';
+ *
+ * class CustomTool extends BaseTool {
+ *   readonly type: ToolType = 'custom' as ToolType;
+ *
+ *   constructor(context: ToolContext) {
+ *     super(context);
+ *   }
+ *
+ *   activate(): void {
+ *     console.log('Custom tool activated');
+ *   }
+ *
+ *   deactivate(): void {
+ *     console.log('Custom tool deactivated');
+ *   }
+ *
+ *   onMouseDown(event: MouseEvent, point: ViewBoxPoint): void {
+ *     // Handle mouse down at the given viewBox point
+ *     const hit = this._context.hitTester.hitTest(point);
+ *     if (hit.type === 'element') {
+ *       this._context.composer.select(hit.elementId!);
+ *     }
+ *   }
+ *
+ *   onMouseMove(event: MouseEvent, point: ViewBoxPoint): void {
+ *     // Handle mouse move
+ *   }
+ *
+ *   onMouseUp(event: MouseEvent, point: ViewBoxPoint): void {
+ *     // Handle mouse up
+ *   }
+ * }
+ * ```
+ *
+ * @example Tool context access
+ * ```typescript
+ * class MyTool extends BaseTool {
+ *   onMouseDown(event: MouseEvent, point: ViewBoxPoint): void {
+ *     // Access composer for element operations
+ *     const element = this._context.composer.getElement('element-1');
+ *
+ *     // Access hit tester
+ *     const hit = this._context.hitTester.hitTest(point);
+ *
+ *     // Update viewport
+ *     this._context.setViewportState({ zoom: 1.5 });
+ *
+ *     // Request render after changes
+ *     this._context.requestRender();
+ *   }
+ * }
+ * ```
+ *
+ * @packageDocumentation
  */
 
 import type { ToolType, BoundingBox, SnapResult, SnappingConfig } from '../../core/types.js';

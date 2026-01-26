@@ -1,7 +1,74 @@
 /**
- * Filter Manager for SVG Composer
+ * Filter Manager Module for SVG Composer
  *
- * Manages filter definitions and converts effect presets to SVG filter primitives.
+ * This module provides the {@link FilterManager} class for managing SVG filter definitions
+ * and converting high-level effect presets to SVG filter primitives. It supports both
+ * custom filter definitions and a library of pre-built effect presets (blur, shadow, glow, etc.).
+ *
+ * Key features:
+ * - **Effect Presets**: High-level effects like blur, drop shadow, glow, grayscale, sepia, etc.
+ * - **Custom Filters**: Define custom SVG filter primitives directly
+ * - **Composite Filters**: Chain multiple effects together into a single filter
+ * - **Caching**: LRU caching for preset and composite filters to optimize memory usage
+ *
+ * @example Applying effect presets to elements
+ * ```typescript
+ * import { FilterManager } from 'svg-composer';
+ *
+ * const filterManager = new FilterManager();
+ *
+ * // Create a drop shadow filter
+ * const shadowId = filterManager.getOrCreatePresetFilter({
+ *   type: 'dropShadow',
+ *   offsetX: 4,
+ *   offsetY: 4,
+ *   blur: 8,
+ *   color: '#000000',
+ *   opacity: 0.5
+ * });
+ *
+ * // Create a blur filter
+ * const blurId = filterManager.getOrCreatePresetFilter({
+ *   type: 'blur',
+ *   radius: 5
+ * });
+ *
+ * // Create a grayscale filter
+ * const grayscaleId = filterManager.getOrCreatePresetFilter({
+ *   type: 'grayscale',
+ *   amount: 1  // 0-1, where 1 is fully grayscale
+ * });
+ * ```
+ *
+ * @example Chaining multiple effects
+ * ```typescript
+ * // Create a composite filter that combines multiple effects
+ * const compositeId = filterManager.createCompositeFilter([
+ *   { type: 'preset', effect: { type: 'blur', radius: 2 } },
+ *   { type: 'preset', effect: { type: 'saturate', amount: 1.5 } },
+ *   { type: 'preset', effect: { type: 'brightness', amount: 1.1 } }
+ * ]);
+ * ```
+ *
+ * @example Creating custom filters
+ * ```typescript
+ * // Add a custom filter with specific SVG primitives
+ * const customId = filterManager.addFilter({
+ *   primitives: [
+ *     {
+ *       type: 'gaussianBlur',
+ *       stdDeviation: 10,
+ *       in: 'SourceGraphic'
+ *     }
+ *   ],
+ *   x: '-10%',
+ *   y: '-10%',
+ *   width: '120%',
+ *   height: '120%'
+ * });
+ * ```
+ *
+ * @packageDocumentation
  */
 
 import { LRUCache } from '../utils/LRUCache.js';
@@ -50,6 +117,28 @@ const DEFAULT_COMPOSITE_CACHE_SIZE = 64;
  * Uses LRU caches for preset and composite filters to limit memory usage.
  * When a cache entry is evicted, its corresponding filter definition is
  * automatically cleaned up.
+ *
+ * @example Using with SVGComposer
+ * ```typescript
+ * // FilterManager is typically accessed through SVGComposer
+ * const composer = new SVGComposer('#container');
+ *
+ * // Add an element with a filter effect
+ * composer.addElement({
+ *   type: 'shape',
+ *   shapeType: 'rect',
+ *   width: 100,
+ *   height: 100,
+ *   transform: { x: 50, y: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+ *   filter: {
+ *     type: 'preset',
+ *     effect: { type: 'dropShadow', offsetX: 5, offsetY: 5, blur: 10, color: '#000' }
+ *   }
+ * });
+ * ```
+ *
+ * @see {@link EffectPreset} for available effect types
+ * @see {@link FilterDefinition} for custom filter structure
  */
 export class FilterManager {
   /** Map of filter IDs to filter definitions */
