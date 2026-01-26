@@ -941,6 +941,49 @@
       URL.revokeObjectURL(url);
     }
 
+    // Convert any CSS color to hex format for color input
+    function colorToHex(color) {
+      if (!color) return null;
+
+      // Already hex
+      if (color.startsWith('#')) {
+        // Handle shorthand hex (#RGB -> #RRGGBB)
+        if (color.length === 4) {
+          return '#' + color[1] + color[1] + color[2] + color[2] + color[3] + color[3];
+        }
+        return color.substring(0, 7); // Strip alpha if present (#RRGGBBAA)
+      }
+
+      // RGB/RGBA format
+      const rgbMatch = color.match(/rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+      if (rgbMatch) {
+        const r = parseInt(rgbMatch[1]).toString(16).padStart(2, '0');
+        const g = parseInt(rgbMatch[2]).toString(16).padStart(2, '0');
+        const b = parseInt(rgbMatch[3]).toString(16).padStart(2, '0');
+        return `#${r}${g}${b}`;
+      }
+
+      // HSL format - use canvas to convert
+      if (color.startsWith('hsl')) {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 1;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, 1, 1);
+        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+      }
+
+      // Named colors - use canvas to convert
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 1;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, 1, 1);
+      const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    }
+
     try {
       // Check if SVGComposer is available
       if (typeof SVGComposer === 'undefined') {
@@ -1075,6 +1118,7 @@
         updateEffectDropdown(selection);
         updateColorPickers(selection);
         updateClipPathDropdown(selection);
+        updateGroupButtons(selection);
       });
 
       editor.on('element:updated', () => {
@@ -1100,6 +1144,9 @@
       });
 
       setStatus('Ready', 'success');
+
+      // Initialize button states
+      updateGroupButtons([]);
 
       // Tool buttons
       btnSelect.addEventListener('click', () => editor.setTool('select'));
@@ -1408,10 +1455,9 @@
           if (element.type === 'shape' || element.type === 'text') {
             colorFill.disabled = false;
             if (element.fill) {
-              // Convert color to hex if possible
-              const fillColor = element.fill.startsWith('#') ? element.fill : '#4a90d9';
-              colorFill.value = fillColor.substring(0, 7); // Ensure 7 char hex
-              colorFillValue.textContent = fillColor;
+              const fillHex = colorToHex(element.fill) || '#4a90d9';
+              colorFill.value = fillHex;
+              colorFillValue.textContent = fillHex;
             }
           } else {
             colorFill.disabled = true;
@@ -1420,9 +1466,9 @@
           if (element.type === 'shape') {
             colorStroke.disabled = false;
             if (element.stroke) {
-              const strokeColor = element.stroke.startsWith('#') ? element.stroke : '#333333';
-              colorStroke.value = strokeColor.substring(0, 7);
-              colorStrokeValue.textContent = strokeColor;
+              const strokeHex = colorToHex(element.stroke) || '#333333';
+              colorStroke.value = strokeHex;
+              colorStrokeValue.textContent = strokeHex;
             }
           } else {
             colorStroke.disabled = true;
@@ -1514,6 +1560,20 @@
           clipSelect.value = element.clipPath.type;
         } else {
           clipSelect.value = '';
+        }
+      }
+
+      // Update group/ungroup button states based on selection
+      function updateGroupButtons(selection) {
+        // Group requires at least 2 elements selected
+        btnGroup.disabled = selection.length < 2;
+
+        // Ungroup requires exactly 1 group selected
+        if (selection.length === 1) {
+          const element = editor.getElement(selection[0]);
+          btnUngroup.disabled = element?.type !== 'group';
+        } else {
+          btnUngroup.disabled = true;
         }
       }
 

@@ -44,16 +44,6 @@ The `examples/demo.html` has been completely overhauled to showcase all library 
 | Clip path controls | ✅ Done | Apply rect, circle, ellipse, inset clip paths |
 | Color pickers | ✅ Done | Fill and stroke color selection |
 
-### Additional Features (Implemented)
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Import JSON | ✅ Done | Load state from file or paste JSON textarea |
-| Image upload | ✅ Done | File input to add images (converted to base64) |
-| Group/Ungroup | ✅ Done | Group selected elements (Ctrl+G), ungroup (Ctrl+Shift+G) |
-| Clip path demo | ✅ Done | Apply rect, circle, ellipse, or inset clip paths |
-| Color pickers | ✅ Done | Fill and stroke color selection for shapes/text |
-
 ---
 
 ## Task 1: JSDoc Comments & Type Documentation - CORE API COMPLETED ✅
